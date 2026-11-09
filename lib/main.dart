@@ -1,3 +1,4 @@
+import 'package:venera_next/features/agent/agent_session.dart';
 import 'package:venera_next/features/history/image_favorites.dart';
 import 'package:venera_next/features/favorites/favorites_manager.dart';
 import 'package:venera_next/features/history/history_scope.dart';
@@ -114,6 +115,7 @@ void main(List<String> args) {
                 )
               : null;
           final host = ApplicationHost(
+            closeAgent: AgentSession.closeAndWait,
             core: core,
             sync: sync,
             placement: placement,

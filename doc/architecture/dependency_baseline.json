@@ -2,6 +2,46 @@
   "description": "Complete library boundary inventory. Business files cannot reach registered UI or pending-review files, and their dependency graph must be acyclic. Pending-review files are not assumed to be UI. Existing direct feature edges remain unchanged.",
   "allowed_feature_edges": [
     [
+      "agent",
+      "comic_details"
+    ],
+    [
+      "agent",
+      "comic_source"
+    ],
+    [
+      "agent",
+      "comic_widgets"
+    ],
+    [
+      "agent",
+      "discovery"
+    ],
+    [
+      "agent",
+      "favorites"
+    ],
+    [
+      "agent",
+      "follow_updates"
+    ],
+    [
+      "agent",
+      "history"
+    ],
+    [
+      "agent",
+      "local_comics"
+    ],
+    [
+      "agent",
+      "reader"
+    ],
+    [
+      "agent",
+      "search"
+    ],
+    [
       "comic_details",
       "comic_source"
     ],
@@ -488,8 +528,6 @@
     "network/shared_request_stream.dart"
   ],
   "ui_files": [
-    "features/reader/tv_input.dart",
-    "components/tv_navigation.dart",
     "app_runtime/android_downloads.dart",
     "app_runtime/app_runtime.dart",
     "app_runtime/init.dart",
@@ -529,9 +567,45 @@
     "components/settings_save_state.dart",
     "components/side_bar.dart",
     "components/summary_header.dart",
+    "components/tv_navigation.dart",
     "components/window_frame.dart",
     "components/window_hotkey_scope.dart",
     "components/window_selection_task.dart",
+    "features/agent/agent_activity_view.dart",
+    "features/agent/agent_app_bridge.dart",
+    "features/agent/agent_attachment_view.dart",
+    "features/agent/agent_backup_settings.dart",
+    "features/agent/agent_controller.dart",
+    "features/agent/agent_disclosure.dart",
+    "features/agent/agent_file_picker.dart",
+    "features/agent/agent_floating_composer.dart",
+    "features/agent/agent_history_view.dart",
+    "features/agent/agent_image_view.dart",
+    "features/agent/agent_images.dart",
+    "features/agent/agent_integration.dart",
+    "features/agent/agent_message_view.dart",
+    "features/agent/agent_model_header.dart",
+    "features/agent/agent_model_picker.dart",
+    "features/agent/agent_model_settings.dart",
+    "features/agent/agent_notice.dart",
+    "features/agent/agent_page.dart",
+    "features/agent/agent_queue_view.dart",
+    "features/agent/agent_search_browser.dart",
+    "features/agent/agent_search_settings.dart",
+    "features/agent/agent_session.dart",
+    "features/agent/agent_settings_page.dart",
+    "features/agent/agent_settings_widgets.dart",
+    "features/agent/agent_showcase_view.dart",
+    "features/agent/agent_tool_schemas.dart",
+    "features/agent/agent_tools.dart",
+    "features/agent/agent_tools_catalog.dart",
+    "features/agent/agent_tools_code.dart",
+    "features/agent/agent_tools_cover.dart",
+    "features/agent/agent_tools_library.dart",
+    "features/agent/agent_turn_view.dart",
+    "features/agent/agent_web_readability.dart",
+    "features/agent/agent_web_reader.dart",
+    "features/agent/agent_web_search.dart",
     "features/comic_details/action_button.dart",
     "features/comic_details/actions.dart",
     "features/comic_details/archive_download_dialog.dart",
@@ -638,6 +712,7 @@
     "features/reader/platform_effects.dart",
     "features/reader/progress_bar.dart",
     "features/reader/reader.dart",
+    "features/reader/reader_appearance.dart",
     "features/reader/reader_page.dart",
     "features/reader/reader_session_scope.dart",
     "features/reader/reader_tap_scope.dart",
@@ -647,6 +722,7 @@
     "features/reader/sidebar_binding.dart",
     "features/reader/status_info.dart",
     "features/reader/top_bar.dart",
+    "features/reader/tv_input.dart",
     "features/search/aggregated_search_page.dart",
     "features/search/search.dart",
     "features/search/search_entry.dart",
@@ -657,6 +733,7 @@
     "features/settings/app.dart",
     "features/settings/app_controls.dart",
     "features/settings/appearance.dart",
+    "features/settings/author_blocking.dart",
     "features/settings/data_sync_schedule_fields.dart",
     "features/settings/debug.dart",
     "features/settings/explore_settings.dart",
@@ -720,7 +797,6 @@
     "features/local_comics/archive_download_task.dart"
   ],
   "business_files": [
-    "foundation/tv_reader_policy.dart",
     "app_runtime/application_host.dart",
     "app_runtime/application_updates.dart",
     "app_runtime/background_sync.dart",
@@ -747,6 +823,22 @@
     "app_runtime/window_placement.dart",
     "app_runtime/windows_heartbeat.dart",
     "app_runtime/windows_hotkey.dart",
+    "features/agent/agent_atomic_file.dart",
+    "features/agent/agent_client.dart",
+    "features/agent/agent_context.dart",
+    "features/agent/agent_files.dart",
+    "features/agent/agent_http_adapter.dart",
+    "features/agent/agent_model_discovery.dart",
+    "features/agent/agent_models.dart",
+    "features/agent/agent_protocol.dart",
+    "features/agent/agent_read_later.dart",
+    "features/agent/agent_reading_statistics.dart",
+    "features/agent/agent_search_results.dart",
+    "features/agent/agent_source_backups.dart",
+    "features/agent/agent_store.dart",
+    "features/agent/agent_text_view.dart",
+    "features/agent/agent_web_links.dart",
+    "features/agent/agent_wire.dart",
     "features/comic_details/archive_download.dart",
     "features/comic_details/thumbnail_image.dart",
     "features/comic_details/thumbnail_pages.dart",
@@ -794,6 +886,7 @@
     "features/comic_storage/comic_file_rules.dart",
     "features/comic_storage/comic_storage.dart",
     "features/comic_storage/file_system_layout.dart",
+    "features/comic_widgets/comic_blocking.dart",
     "features/favorites/favorite_cover_cache.dart",
     "features/favorites/favorite_folder.dart",
     "features/favorites/favorite_folder_import.dart",
@@ -820,6 +913,8 @@
     "features/history/history_image_provider.dart",
     "features/history/history_manager.dart",
     "features/history/history_model.dart",
+    "features/history/history_pager.dart",
+    "features/history/history_paging.dart",
     "features/history/history_repository.dart",
     "features/history/history_retention_change.dart",
     "features/history/history_row.dart",
@@ -981,6 +1076,7 @@
     "foundation/application_configuration.dart",
     "foundation/application_preferences.dart",
     "foundation/application_update_service.dart",
+    "foundation/batched_notifications.dart",
     "foundation/cache_manager.dart",
     "foundation/cache_scan.dart",
     "foundation/comic_layout.dart",
@@ -1034,6 +1130,7 @@
     "foundation/reader_preference_store.dart",
     "foundation/reader_preferences.dart",
     "foundation/reader_settings.dart",
+    "foundation/reading_statistic.dart",
     "foundation/release_version.dart",
     "foundation/res.dart",
     "foundation/selection_operation.dart",
@@ -1046,6 +1143,7 @@
     "foundation/sync_preference_store.dart",
     "foundation/throttled_task_runner.dart",
     "foundation/translations.dart",
+    "foundation/tv_reader_policy.dart",
     "foundation/window_hotkey.dart",
     "foundation/window_hotkey_controller.dart",
     "foundation/window_placement.dart",
@@ -1067,6 +1165,7 @@
     "network/rhttp_stream_request.dart",
     "network/shared_image_requests.dart",
     "network/shared_request_stream.dart",
+    "network/thumbnail_request_queue.dart",
     "network/webdav.dart"
   ],
   "pending_review_files": []

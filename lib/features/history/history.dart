@@ -8,3 +8,5 @@ export 'history_page.dart';
 export 'history_summary.dart';
 export 'image_favorites_provider.dart';
 export 'reading_stats_page.dart' show ReadingStatsPage, ReadingStatsSummary;
+export 'history_paging.dart';
+export 'history_pager.dart';

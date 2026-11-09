@@ -1,3 +1,4 @@
+import 'image_cache_policy.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -97,6 +98,7 @@ class GalleryModeState extends State<ReaderGalleryView>
   @override
   void initState() {
     controller = PageController(initialPage: page);
+    _schedulePrecache();
     widget.onViewportChanged(this, true);
     Future.microtask(() {
       if (mounted) widget.onReady();
@@ -107,6 +109,7 @@ class GalleryModeState extends State<ReaderGalleryView>
   @override
   void didUpdateWidget(covariant ReaderGalleryView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _schedulePrecache();
     if (!identical(oldWidget.data.content, data.content) ||
         !identical(oldWidget.imageWork, widget.imageWork)) {
       _singleImageStates.clear();
@@ -205,7 +208,21 @@ class GalleryModeState extends State<ReaderGalleryView>
     return (startIndex, endIndex);
   }
 
+  bool _precacheScheduled = false;
+  void _schedulePrecache() {
+    if (_precacheScheduled) return;
+    _precacheScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _precacheScheduled = false;
+      if (mounted) cache(page);
+    });
+  }
+
   void cache(int startPage) {
+    if (isChapterCommentsPage(startPage) ||
+        !ReaderImageCachePolicy.allowActivePrecache) {
+      return;
+    }
     for (int i = startPage - 1; i <= startPage + preCacheCount; i++) {
       if (i == startPage ||
           i <= 0 ||
@@ -274,6 +291,7 @@ class GalleryModeState extends State<ReaderGalleryView>
           controller: controller,
           itemBuilder: (context, index) => _buildPhotoPage(context, index),
           onPageChanged: (i) {
+            _schedulePrecache();
             if (_disposed ||
                 !mounted ||
                 !identical(data.content, originalContent) ||
@@ -343,7 +361,7 @@ class GalleryModeState extends State<ReaderGalleryView>
     final originalWork = widget.imageWork;
     final (start, end) = getPageImagesRange(index);
     final images = List.generate(end - start, (i) => start + i);
-    cache(index);
+
     return _GalleryPhotoPage(
       key: ValueKey((
         data.content,

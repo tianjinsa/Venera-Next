@@ -1,3 +1,4 @@
+import 'package:venera_next/features/history/history_paging.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,20 @@ class _History extends HistoryManager {
   _History() : super.create();
   bool get observed => hasListeners;
   int queries = 0;
+  @override
+  Future<HistoryPageResult> getPage({
+    HistoryCursor? cursor,
+    int limit = 60,
+    String query = '',
+  }) => Future.value(
+    HistoryPageResult(
+      super
+          .getAll()
+          .where((item) => item.matchesQuery(query))
+          .take(limit)
+          .toList(),
+    ),
+  );
   @override
   List<History> getRecent() {
     queries++;

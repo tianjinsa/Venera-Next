@@ -1,3 +1,4 @@
+import 'comic_blocking.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -17,7 +18,9 @@ class KeywordHiddenNotice extends StatelessWidget {
     super.key,
     required this.count,
     required this.comics,
+    this.filterBlockedWords = true,
   });
+  final bool filterBlockedWords;
   final int count;
   final List<Comic> Function() comics;
 
@@ -41,7 +44,10 @@ class KeywordHiddenNotice extends StatelessWidget {
               ? AnimationStyle.noAnimation
               : null,
           builder: (_) {
-            final dialog = _KeywordHiddenDialog(comics: comics);
+            final dialog = _KeywordHiddenDialog(
+              comics: comics,
+              filterBlockedWords: filterBlockedWords,
+            );
             return work == null
                 ? dialog
                 : SettingsSaveScope(work: work, child: dialog);
@@ -53,7 +59,11 @@ class KeywordHiddenNotice extends StatelessWidget {
 }
 
 class _KeywordHiddenDialog extends StatefulWidget {
-  const _KeywordHiddenDialog({required this.comics});
+  const _KeywordHiddenDialog({
+    required this.comics,
+    required this.filterBlockedWords,
+  });
+  final bool filterBlockedWords;
   final List<Comic> Function() comics;
 
   @override
@@ -81,15 +91,22 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
   Widget build(BuildContext context) {
     final filter = KeywordFilter.fromSettings(appdata.settings);
     final editRule = comicKeywordRuleEditor;
-    final hidden = <(Comic, KeywordMatch)>[];
+    final authorFilter = ComicBlockFilter.fromSettings(appdata.settings);
+    final hidden = <(Comic, KeywordMatch?, String?)>[];
     for (final comic in widget.comics()) {
+      final author = authorFilter.firstAuthorReason(comic);
+      if (author != null) {
+        hidden.add((comic, null, author));
+        continue;
+      }
+      if (!widget.filterBlockedWords) continue;
       final match = filter.comicMatch(
         title: comic.title,
         subtitle: comic.subtitle,
         description: comic.description,
         tags: comic.tags ?? const [],
       );
-      if (match != null) hidden.add((comic, match));
+      if (match != null) hidden.add((comic, match, null));
     }
     return ContentDialog(
       title: 'Keyword filter reasons'.tl,
@@ -117,7 +134,16 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
                       itemCount: hidden.length,
                       separatorBuilder: (_, _) => const Divider(),
                       itemBuilder: (context, index) {
-                        final (comic, match) = hidden[index];
+                        final (comic, keywordMatch, author) = hidden[index];
+                        if (author != null) {
+                          return ListTile(
+                            title: Text(comic.title),
+                            subtitle: Text(
+                              '${'Author blocking'.tl} · ${'Author: @a'.tlParams({'a': author})}',
+                            ),
+                          );
+                        }
+                        final match = keywordMatch!;
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Column(

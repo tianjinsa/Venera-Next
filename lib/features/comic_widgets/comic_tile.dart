@@ -1,3 +1,4 @@
+import 'comic_blocking.dart';
 import 'dart:math' as math;
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
@@ -287,6 +288,31 @@ class ComicTile extends StatelessWidget {
         text: 'Block'.tl,
         onClick: () => block(context),
       ),
+      for (final author in ComicBlockFilter.authorsOf(comic))
+        MenuEntry(
+          icon: Icons.person_off_outlined,
+          text: 'Author: @a'.tlParams({'a': author}),
+          onClick: () async {
+            if (!NavigationAdmission.allows(context)) return;
+            try {
+              await appdata.updateSettings((draft) {
+                final preferences = GlobalPreferenceStore(draft);
+                final authors =
+                    preferences.read(KeywordPreferences.authors).toSet()
+                      ..add(author);
+                preferences.write(KeywordPreferences.authors, authors.toList());
+              });
+              if (context.mounted) {
+                onBlocked?.call();
+                context.showMessage(message: 'Blocked'.tl);
+              }
+            } catch (error) {
+              if (context.mounted) {
+                context.showMessage(message: error.toString());
+              }
+            }
+          },
+        ),
       ...?menuOptions,
     ]);
   }
@@ -431,8 +457,21 @@ class ComicTile extends StatelessWidget {
     if (image == null) {
       return const SizedBox();
     }
+    final detailed =
+        displayMode == ComicTileDisplayMode.detailed ||
+        (displayMode == null &&
+            GlobalPreferenceStore(
+                  appdata.settings,
+                ).read(DiscoveryPreferences.comicDisplayMode) ==
+                'detailed');
     return AnimatedImage(
-      image: image,
+      image: ResizeImage(
+        image,
+        width: detailed ? 320 : 384,
+        height: detailed ? 384 : 512,
+        policy: ResizeImagePolicy.fit,
+      ),
+      gaplessPlayback: true,
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,

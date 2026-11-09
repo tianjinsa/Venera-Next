@@ -25,10 +25,11 @@ class SqliteConnectionSetupFailure implements Exception {
 Database openSqliteDatabase(
   String path, {
   Database Function(String path)? databaseFactory,
+  bool writeAheadLog = false,
 }) {
   final db = (databaseFactory ?? sqlite3.open)(path);
   try {
-    db.execute('PRAGMA journal_mode = DELETE;');
+    db.execute('PRAGMA journal_mode = ${writeAheadLog ? 'WAL' : 'DELETE'};');
     db.execute('PRAGMA synchronous = NORMAL;');
     db.execute('PRAGMA busy_timeout = 5000;');
     return db;

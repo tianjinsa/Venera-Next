@@ -173,11 +173,12 @@ abstract final class DiscoveryPreferences {
 
 abstract final class KeywordPreferences {
   static const comics = StringListPreference('blockedWords');
+  static const authors = StringListPreference('blockedAuthors');
   static const comments = StringListPreference('blockedCommentWords');
   static const comicRules = StringMapPreference('blockedWordRules');
   static const commentRules = StringMapPreference('blockedCommentWordRules');
   // Keep legacy lists independently readable by existing consumers/backups.
-  static const all = [comics, comments];
+  static const all = [comics, comments, authors];
   static const ruleOptions = [comicRules, commentRules];
 }
 

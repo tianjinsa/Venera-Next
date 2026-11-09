@@ -32,6 +32,16 @@ class IO {
 
   static final _selections = <Object>{};
 
+  /// Preserve lifecycle behavior for feature-owned native or desktop pickers.
+  static Future<T> withFileSelection<T>(Future<T> Function() select) async {
+    final release = _beginSelection();
+    try {
+      return await select();
+    } finally {
+      release();
+    }
+  }
+
   static void Function() _beginSelection() {
     final token = Object();
     _selections.add(token);

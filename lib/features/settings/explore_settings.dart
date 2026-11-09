@@ -1,3 +1,4 @@
+import 'author_blocking.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
@@ -74,6 +75,10 @@ class _ExploreSettingsState extends State<ExploreSettings> {
         PopupWindowSetting(
           title: "Keyword blocking".tl,
           builder: () => const KeywordBlockingSettings(),
+        ).toSliver(),
+        PopupWindowSetting(
+          title: 'Author blocking'.tl,
+          builder: () => const AuthorBlockingSettings(),
         ).toSliver(),
         PopupWindowSetting(
           title: "Comment keyword blocking".tl,

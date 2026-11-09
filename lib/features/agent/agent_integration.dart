@@ -1,0 +1,24 @@
+import 'package:flutter/material.dart';
+import 'package:venera_next/components/navigation_bar.dart';
+import 'agent_notice.dart';
+export 'agent_page.dart';
+export 'agent_model_header.dart';
+
+const agentTabIndex = 2;
+final agentPaneItem = PaneItemEntry(
+  label: 'Agent',
+  icon: Icons.auto_awesome_outlined,
+  activeIcon: Icons.auto_awesome,
+  keepBottomBarWithKeyboard: true,
+  iconBuilder: (_, icon) => AgentTabBadge(child: icon),
+);
+
+/// Stored values still belong to the upstream four-tab settings interface.
+int agentInitialPage(Object? legacyValue) =>
+    switch (int.tryParse(legacyValue.toString())) {
+      0 => 0,
+      1 => 1,
+      2 => 3,
+      3 => 4,
+      _ => 0,
+    };

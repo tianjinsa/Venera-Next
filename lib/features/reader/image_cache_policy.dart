@@ -1,5 +1,8 @@
-/// Memory-based cache sizing for one reader lifetime. The platform owns the
-/// memory query and the application image cache; queries cannot be aborted.
+import 'dart:async';
+import 'dart:math' as math;
+
+/// Budget and memory-pressure lifetime for one reader. Late platform replies
+/// and delayed exit work cannot change a newer reader's cache.
 class ReaderImageCachePolicy {
   ReaderImageCachePolicy({
     required this.readAvailableMemory,
@@ -7,46 +10,84 @@ class ReaderImageCachePolicy {
     required this.onError,
     this.onConfigured,
     this.maximumBytes,
-  });
+  }) : _session = ++_currentSession {
+    _restore?.cancel();
+    _restore = null;
+    _activeUnderPressure = false;
+  }
 
   static const defaultLimit = 100 << 20;
-
-  static int limitForMemory(int availableBytes) {
-    if (availableBytes < 1 << 30) return defaultLimit;
-    if (availableBytes < 2 << 30) return 200 << 20;
-    if (availableBytes < 4 << 30) return 300 << 20;
-    return 500 << 20;
-  }
+  static int limitForMemory(int availableBytes) =>
+      (availableBytes ~/ 16).clamp(32 << 20, 192 << 20);
+  static int _currentSession = 0;
+  static Timer? _restore;
+  static bool _activeUnderPressure = false;
+  static int _activeBudget = defaultLimit;
+  static bool get allowActivePrecache =>
+      !_activeUnderPressure && _activeBudget >= 64 << 20;
 
   final Future<int?> Function() readAvailableMemory;
   final void Function(int bytes) setLimit;
   final void Function(Object, StackTrace) onError;
   final void Function(int availableBytes, int limit)? onConfigured;
   final int? Function()? maximumBytes;
-  var _generation = 0;
-  var _disposed = false;
+  final int _session;
+  int _generation = 0;
+  bool _disposed = false;
+  bool _underPressure = false;
+  int _limit = defaultLimit;
+  bool get _current => !_disposed && _session == _currentSession;
+
+  void _setLimit(int value) {
+    _limit = value;
+    _activeBudget = value;
+    setLimit(value);
+  }
 
   Future<void> configure() async {
-    if (_disposed) return;
+    if (!_current) return;
     final generation = ++_generation;
     try {
       final ceiling = maximumBytes?.call();
-      if (ceiling != null) setLimit(ceiling);
+      if (ceiling != null) {
+        _setLimit(_underPressure ? math.min(ceiling, 32 << 20) : ceiling);
+      }
       final memory = await readAvailableMemory();
-      if (_disposed || generation != _generation || memory == null) return;
+      if (!_current ||
+          generation != _generation ||
+          _underPressure ||
+          memory == null ||
+          memory <= 0) {
+        return;
+      }
       final detected = limitForMemory(memory);
-      final limit = ceiling != null && ceiling < detected ? ceiling : detected;
-      setLimit(limit);
+      final limit = ceiling == null ? detected : math.min(ceiling, detected);
+      _setLimit(limit);
       onConfigured?.call(memory, limit);
     } catch (error, stack) {
-      if (!_disposed && generation == _generation) onError(error, stack);
+      if (_current && generation == _generation) onError(error, stack);
     }
   }
 
+  void handleMemoryPressure() {
+    if (!_current) return;
+    _underPressure = true;
+    _activeUnderPressure = true;
+    _setLimit(math.min(_limit, 32 << 20));
+  }
+
   void dispose() {
-    if (_disposed) return;
+    if (!_current) {
+      _disposed = true;
+      return;
+    }
     _disposed = true;
     ++_generation;
-    setLimit(defaultLimit);
+    // Let the closing frame and a quick re-entry reuse decoded images.
+    _restore = Timer(const Duration(seconds: 1), () {
+      _restore = null;
+      if (_session != _currentSession) return;
+      _setLimit(math.min(_limit, defaultLimit));
+    });
   }
 }

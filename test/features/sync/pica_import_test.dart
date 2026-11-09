@@ -106,9 +106,21 @@ void main() {
           expect(favorites.findLinked('旧收藏 "A"'), (null, null));
           expect(history.count(), 0);
           expect(notifications, 0);
+          expect(
+            history.imageFavoritesDatabase
+                .select('PRAGMA journal_mode;')
+                .single['journal_mode'],
+            'wal',
+          );
           history.imageFavoritesDatabase.execute('DROP TRIGGER reject_import;');
           await importPicaData(package);
           expect(notifications, 2);
+          expect(
+            history.imageFavoritesDatabase
+                .select('PRAGMA journal_mode;')
+                .single['journal_mode'],
+            'wal',
+          );
         } finally {
           favorites.removeListener(changed);
           history.removeListener(changed);

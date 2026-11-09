@@ -5,6 +5,8 @@ import 'log_file_writer.dart';
 import 'log_redaction.dart';
 
 class LogItem {
+  static int _lastId = 0;
+  final int id = ++_lastId;
   final LogLevel level;
   final String title;
   final String content;

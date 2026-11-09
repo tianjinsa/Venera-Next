@@ -161,6 +161,7 @@ class ReadLaterPage extends StatelessWidget {
                 )
               else
                 SliverGridComics(
+                  filterBlockedComics: false,
                   comics: comics,
                   useFavoriteDisplaySettings: true,
                   menuBuilder: (comic) => [

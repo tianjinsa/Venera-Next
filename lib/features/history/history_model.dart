@@ -126,6 +126,27 @@ class History implements Comic {
     return 'History{type: $type, time: $time, title: $title, subtitle: $subtitle, cover: $cover, ep: $ep, page: $page, id: $id}';
   }
 
+  String get searchText => [
+    title,
+    subtitle,
+    id,
+    sourceKey,
+    type.comicSource?.name ?? '',
+  ].join('\n').toLowerCase();
+
+  bool matchesQuery(String query) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) return true;
+    return normalized.split(RegExp(r'\s+')).every(searchText.contains);
+  }
+
+  String get lastReadTime {
+    final local = time.toLocal();
+    String pad(int value) => value.toString().padLeft(2, '0');
+    return '${local.year}-${pad(local.month)}-${pad(local.day)} '
+        '${pad(local.hour)}:${pad(local.minute)}';
+  }
+
   @override
   bool operator ==(Object other) {
     return other is History && type == other.type && id == other.id;

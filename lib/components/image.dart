@@ -88,6 +88,8 @@ class _AnimatedImageState extends State<AnimatedImage>
   late DisposableBuildContext<State<AnimatedImage>> _scrollAwareContext;
   Object? _lastException;
   ImageStreamCompleterHandle? _completerHandle;
+  ImageConfiguration? _resolvedConfiguration;
+  ImageProvider? _resolvedProvider;
 
   static final Map<int, Size> _cache = {};
 
@@ -143,7 +145,7 @@ class _AnimatedImageState extends State<AnimatedImage>
 
   @override
   void reassemble() {
-    _resolveImage(); // in case the image cache was flushed
+    _resolveImage(force: true); // in case the image cache was flushed
     super.reassemble();
   }
 
@@ -153,20 +155,26 @@ class _AnimatedImageState extends State<AnimatedImage>
         SemanticsBinding.instance.accessibilityFeatures.invertColors;
   }
 
-  void _resolveImage() {
-    final ScrollAwareImageProvider provider = ScrollAwareImageProvider<Object>(
+  void _resolveImage({bool force = false}) {
+    final configuration = createLocalImageConfiguration(
+      context,
+      size: widget.width != null && widget.height != null
+          ? Size(widget.width!, widget.height!)
+          : null,
+    );
+    // Tab visibility and keyboard changes must not restart a failed cover.
+    if (!force &&
+        _resolvedProvider == widget.image &&
+        _resolvedConfiguration == configuration) {
+      return;
+    }
+    _resolvedProvider = widget.image;
+    _resolvedConfiguration = configuration;
+    final provider = ScrollAwareImageProvider<Object>(
       context: _scrollAwareContext,
       imageProvider: widget.image,
     );
-    final ImageStream newStream = provider.resolve(
-      createLocalImageConfiguration(
-        context,
-        size: widget.width != null && widget.height != null
-            ? Size(widget.width!, widget.height!)
-            : null,
-      ),
-    );
-    _updateSourceStream(newStream);
+    _updateSourceStream(provider.resolve(configuration));
   }
 
   ImageStreamListener? _imageStreamListener;

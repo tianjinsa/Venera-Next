@@ -144,3 +144,9 @@ PNG 保留算法与参数，验证 RGBA／alpha 和带偏移的 typed view，返
 创建已有文件不截断内容，重命名限同目录并检查已有目标，授权根受保护；原子独占创建、createTemp、watch、文件锁及设置时间等不支持的接口明确失败。provider API 的跨应用竞态和各云盘限制不能被通用接口消除。
 
 宿主回归、200 轮 C++ 句柄／错误／复用测试与 >2 GiB 稀疏文件检查纳入验证；CI 执行 ASan／UBSan、完整 Android／TV 构建、13 个原生／JNI 导出及随包声明核验。`tool/saf_provider_probe` 的两个隔离 APK 和混淆 Release 消费端验证真实 DocumentsProvider、持久授权、重启、Unicode、读写模式、流取消、关闭回调与错误。详细语义和维护方式见 `packages/venera_saf/LOCAL_PATCHES.md`，外部云盘仍按具体 provider／设备补充验收。
+
+## Agent Markdown 渲染（2026-11-09）
+
+新增 pub.dev 官方发布 `flutter_markdown_plus` **1.0.12**（固定版本），来自 [foresightmobile/flutter_markdown_plus](https://github.com/foresightmobile/flutter_markdown_plus)，BSD-3-Clause。用于保留 Prime Agent 的 Markdown、表格、引用、链接及分段长内容渲染；上游为维护中的 Flutter Markdown 分支。传递依赖 `markdown` 固定为锁文件中的 **7.3.1**，同样来自 pub.dev，BSD-3-Clause。两项发布归档的 SHA-256 由 `pubspec.lock` 记录，未修改其他依赖来源或版本。
+
+替代方案是纯文本（会丢失既有格式与链接体验）或自行实现渲染器（会新增解析、选择与无障碍维护负担）。回滚时同时移除 Agent 渲染调用、声明及这两项锁记录，不能只改锁文件。

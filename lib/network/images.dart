@@ -1,3 +1,4 @@
+import 'thumbnail_request_queue.dart';
 import 'package:venera_next/foundation/operation_failure.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -190,7 +191,19 @@ abstract class ImageDownloader {
     String url,
     String? sourceKey, [
     String? cid,
-  ]) => _requests.open((scope) => _loadThumbnail(url, sourceKey, cid, scope));
+  ]) {
+    final key = 'thumbnail:$url@$sourceKey@$cid';
+    return _requests.open(
+      (scope) => _thumbnails.stream(
+        key,
+        () => _loadThumbnail(url, sourceKey, cid, scope),
+        scope,
+      ),
+      key: key,
+    );
+  }
+
+  static final _thumbnails = ThumbnailRequestQueue();
 
   static Stream<ImageDownloadProgress> _loadThumbnail(
     String url,

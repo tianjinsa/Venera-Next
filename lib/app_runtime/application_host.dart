@@ -22,6 +22,7 @@ class ApplicationHost {
     this.placement,
     this.windowHotkeys,
     this.sourceInstallations,
+    this.closeAgent,
     SourceUpdateService? sourceUpdates,
     AppDataOperations? dataOperations,
     ApplicationUpdateService? applicationUpdates,
@@ -35,6 +36,7 @@ class ApplicationHost {
        dataOperations = dataOperations ?? AppDataOperations.instance;
 
   final CoreBootstrap core;
+  final Future<void> Function()? closeAgent;
   final DataSyncController sync;
   final WindowPlacementHost? placement;
   final WindowHotkeyHost? windowHotkeys;
@@ -106,6 +108,7 @@ class ApplicationHost {
     // Each mount must join its real tasks even if cancelling/subscription
     // release fails. Older mounts cannot disappear from the final drain.
     await Future.wait([
+      if (closeAgent case final close?) attempt('Agent session', close),
       attempt('selection tasks', selections.closeAndWait),
       // Selections and startup mounts may be awaiting this shared check.
       // Start cancellation before waiting for any of those consumers.

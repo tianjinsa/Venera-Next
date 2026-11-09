@@ -116,6 +116,7 @@ class LocalManager with ChangeNotifier implements DownloadTaskStorage {
   final _comicDirectories = <(String, int), _ComicLocation>{};
   final _storageAccess = _ComicStorageAccess();
   bool _disposed = false;
+  bool get isInitialized => _database != null && !_disposed;
   bool _notifierDisposed = false;
 
   factory LocalManager({

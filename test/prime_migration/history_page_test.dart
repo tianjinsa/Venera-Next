@@ -1,0 +1,708 @@
+import '../support/comic_source_fixture.dart';
+import 'package:venera_next/routing/app_navigation.dart';
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:venera_next/components/appbar.dart';
+import 'package:venera_next/components/image.dart';
+import 'package:venera_next/components/loading.dart';
+import 'package:venera_next/components/scroll.dart';
+import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
+import 'package:venera_next/foundation/appdata.dart';
+import 'package:venera_next/features/comic_source/comic_source.dart';
+import 'package:venera_next/foundation/comic_type.dart';
+import 'package:venera_next/features/history/history.dart';
+import 'package:venera_next/foundation/translations.dart';
+
+import '../support/comic_image_fixture.dart';
+
+class _Source extends ComicSourceFixture {
+  _Source() : super(key: 'history-search-source');
+  @override
+  String get name => _name;
+  String _name = 'Original source';
+  set name(String value) => _name = value;
+  @override
+  bool get enableTagsTranslate => false;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _History extends HistoryManager {
+  _History() : super.create();
+  List<History> records = [];
+  int fullReads = 0;
+  int itemReads = 0;
+  int pageReads = 0;
+  int identityReads = 0;
+  final limits = <int>[];
+  final identityResponses = <Future<Set<ComicID>>>[];
+
+  @override
+  History? find(String id, ComicType type) {
+    itemReads++;
+    return records
+        .where((comic) => comic.id == id && comic.type == type)
+        .firstOrNull;
+  }
+
+  @override
+  List<History> getAll() {
+    fullReads++;
+    return List.of(records);
+  }
+
+  @override
+  Future<HistoryPageResult> getPage({
+    HistoryCursor? cursor,
+    int limit = 60,
+    String query = '',
+  }) async {
+    pageReads++;
+    limits.add(limit);
+    final matching = records.where((item) => item.matchesQuery(query)).toList();
+    final start = cursor == null
+        ? 0
+        : matching.indexWhere(
+                (item) =>
+                    item.id == cursor.id && item.type.value == cursor.type,
+              ) +
+              1;
+    final items = matching.skip(start).take(limit).toList();
+    return HistoryPageResult(
+      items,
+      nextCursor: start + items.length < matching.length
+          ? HistoryCursor.fromHistory(items.last)
+          : null,
+    );
+  }
+
+  @override
+  Future<Set<ComicID>> getMatchingIds({String query = ''}) async {
+    identityReads++;
+    if (identityResponses.isNotEmpty) return identityResponses.removeAt(0);
+    return {
+      for (final item in records)
+        if (item.matchesQuery(query)) ComicID(item.type, item.id),
+    };
+  }
+
+  @override
+  Future<void> batchDeleteHistories(List<ComicID> histories) async {
+    final identities = histories.toSet();
+    records.removeWhere(
+      (item) => identities.contains(ComicID(item.type, item.id)),
+    );
+    notifyListeners();
+  }
+
+  @override
+  Future<void> remove(String id, ComicType type) async {
+    records.removeWhere((comic) => comic.id == id && comic.type == type);
+    notifyListeners();
+  }
+}
+
+class _CountedHistory extends History {
+  _CountedHistory(String id)
+    : super.fromMap({
+        'id': id,
+        'type': 42,
+        'title': 'Comic $id',
+        'subtitle': 'Author',
+        'cover': 'https://example.invalid/$id.png',
+        'time': 1700000000000,
+        'ep': 2,
+        'page': 3,
+      });
+
+  int searchReads = 0;
+  int tagReads = 0;
+  int descriptionReads = 0;
+
+  @override
+  String get description {
+    descriptionReads++;
+    return super.description;
+  }
+
+  @override
+  String get searchText {
+    searchReads++;
+    return super.searchText;
+  }
+
+  @override
+  List<String>? get tags {
+    tagReads++;
+    return super.tags;
+  }
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(AppTranslation.init);
+  late _History history;
+  late Map<String, dynamic> snapshot;
+  late ComicImageFixture images;
+  const detailedThumbnailSize = Size(320, 384);
+
+  History record(String id, String title, String author) => History.fromMap({
+    'id': id,
+    'type': 42,
+    'title': title,
+    'subtitle': author,
+    'cover': 'https://example.invalid/$id.png',
+    'time': 1700000000000,
+    'ep': 2,
+    'page': 3,
+  });
+
+  setUp(() {
+    snapshot = jsonDecode(jsonEncode(appdata.toJson()));
+    appdata.settings['showFavoriteStatusOnTile'] = false;
+    appdata.settings['showHistoryStatusOnTile'] = false;
+    appdata.settings['blockedWords'] = [];
+    appdata.settings['blockedAuthors'] = [];
+    appdata.settings['language'] = 'en-US';
+    appdata.settings['comicDisplayMode'] = 'detailed';
+    appdata.settings['comicTileScale'] = 1.0;
+    configureComicWidgets(
+      tileImageProviderResolver: (comic) =>
+          comic is History ? HistoryImageProvider(comic) : null,
+    );
+    history = _History()
+      ..records = [
+        record('lost', 'Lost comic', 'Alpha'),
+        record('other', 'Another comic', 'Beta'),
+        record('third', 'Third comic', 'Alpha'),
+      ];
+    images = ComicImageFixture()
+      ..cache(history.records, thumbnailSize: detailedThumbnailSize);
+  });
+
+  tearDown(() {
+    expect(
+      history.fullReads,
+      0,
+      reason: 'The page must never read all history',
+    );
+    images.dispose();
+    configureComicWidgets();
+    for (final entry in (snapshot['settings'] as Map).entries) {
+      appdata.settings[entry.key as String] = entry.value;
+    }
+  });
+
+  Future<void> mount(WidgetTester tester, {bool pushRoute = false}) async {
+    addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: appNavigation.rootNavigatorKey,
+        home: pushRoute
+            ? Builder(
+                builder: (context) => Scaffold(
+                  body: TextButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => HistoryPage(manager: history),
+                      ),
+                    ),
+                    child: const Text('Open history'),
+                  ),
+                ),
+              )
+            : HistoryPage(manager: history),
+      ),
+    );
+    if (pushRoute) await tester.tap(find.text('Open history'));
+    await tester.pumpAndSettle();
+  }
+
+  List<String> visibleIds(WidgetTester tester) => tester
+      .widget<SliverGridComics>(
+        find.byType(SliverGridComics, skipOffstage: false),
+      )
+      .comics
+      .map((comic) => comic.id)
+      .toList();
+
+  Future<void> openSearch(WidgetTester tester) async {
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('history displays keyword matches and still supports search', (
+    tester,
+  ) async {
+    appdata.settings['blockedWords'] = ['Lost', 'Beta', 'Chapter'];
+    await mount(tester);
+    expect(
+      tester
+          .widgetList<ComicTile>(find.byType(ComicTile))
+          .map((tile) => tile.comic.id),
+      containsAll(['lost', 'other', 'third']),
+    );
+
+    await openSearch(tester);
+    await tester.enterText(find.byType(TextField), 'lost');
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(
+      tester
+          .widgetList<ComicTile>(find.byType(ComicTile))
+          .map((tile) => tile.comic.id),
+      ['lost'],
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'history search opens explicitly and back cancels a pending query',
+    (tester) async {
+      await mount(tester, pushRoute: true);
+      expect(find.byType(TextField), findsNothing);
+      await openSearch(tester);
+      expect(find.byType(BackButton), findsNothing);
+      expect(find.byType(SliverSearchBar), findsNothing);
+      await tester.enterText(find.byType(TextField), 'lost');
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(visibleIds(tester), ['lost']);
+      await tester.tap(find.byTooltip('Clear'));
+      await tester.pump();
+      expect(visibleIds(tester), ['lost', 'other', 'third']);
+      await tester.enterText(find.byType(TextField), 'missing');
+      await appNavigation.rootNavigatorKey.currentState!.maybePop();
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(HistoryPage), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
+      expect(visibleIds(tester), ['lost', 'other', 'third']);
+      expect(history.pageReads, 4);
+      await openSearch(tester);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        '',
+      );
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      await appNavigation.rootNavigatorKey.currentState!.maybePop();
+      await tester.pumpAndSettle();
+      expect(find.byType(HistoryPage), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'history typing issues only the final paged search after debounce',
+    (tester) async {
+      await mount(tester);
+      await openSearch(tester);
+      for (final query in ['l', 'lo', 'lost', 'LOST alpha']) {
+        await tester.enterText(find.byType(TextField), query);
+      }
+      await tester.pump();
+      expect(visibleIds(tester), ['lost', 'other', 'third']);
+      expect(history.pageReads, 1);
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(visibleIds(tester), ['lost']);
+      expect(history.pageReads, 2);
+      await tester.enterText(find.byType(TextField), 'third');
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(history.pageReads, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('history notifications coalesce and refresh the active query', (
+    tester,
+  ) async {
+    await mount(tester);
+    await openSearch(tester);
+    await tester.enterText(find.byType(TextField), 'alpha');
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(visibleIds(tester), ['lost', 'third']);
+    history.records = [
+      record('lost', 'Renamed comic', 'Beta'),
+      record('new', 'New comic', 'Alpha'),
+    ];
+    images.cache(history.records, thumbnailSize: detailedThumbnailSize);
+    for (var i = 0; i < 20; i++) {
+      history.notifyListeners();
+    }
+    expect(history.pageReads, 2);
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(history.pageReads, 3);
+    expect(visibleIds(tester), ['new']);
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pump();
+    expect(visibleIds(tester), ['lost', 'new']);
+    history.notifyListeners();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(history.pageReads, 4);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'history multi-select uses the current search even before debounce',
+    (tester) async {
+      await mount(tester);
+      await openSearch(tester);
+      await tester.enterText(find.byType(TextField), 'alpha');
+      await tester.tap(find.byTooltip('Multi-Select'));
+      await tester.pumpAndSettle();
+      expect(visibleIds(tester), ['lost', 'third']);
+      await tester.tap(find.byTooltip('Select All'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Delete'));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(history.records.map((comic) => comic.id), ['other']);
+      expect(visibleIds(tester), isEmpty);
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+      expect(visibleIds(tester), ['other']);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('history search refreshes source names when sources change', (
+    tester,
+  ) async {
+    final source = _Source();
+    ComicSourceManager().add(source);
+    history.records = [
+      record('lost', 'Lost comic', 'Alpha')
+        ..type = ComicType.fromKey(source.key),
+    ];
+    images.cache(history.records, thumbnailSize: detailedThumbnailSize);
+    await mount(tester);
+    await openSearch(tester);
+    await tester.enterText(find.byType(TextField), 'Renamed source');
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(visibleIds(tester), isEmpty);
+    source.name = 'Renamed source';
+    ComicSourceManager().notifyListeners();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(visibleIds(tester), ['lost']);
+    expect(history.pageReads, 3);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final mode in ['detailed', 'brief']) {
+    testWidgets('1200 histories stay lazy while scrolling ($mode)', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 3;
+      tester.view.physicalSize = const Size(1200, 2400);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      appdata.settings['comicDisplayMode'] = mode;
+      appdata.settings['showHistoryStatusOnTile'] = true;
+      appdata.settings['blockedWords'] = List.generate(
+        300,
+        (i) => 'unrelated blocked keyword $i',
+      );
+      final records = List.generate(1200, (i) => _CountedHistory('large-$i'));
+      history.records = records;
+      images.cache(
+        records.take(50),
+        thumbnailSize: mode == 'detailed'
+            ? detailedThumbnailSize
+            : const Size(384, 512),
+      );
+
+      await mount(tester);
+      expect(history.pageReads, 1);
+      expect(visibleIds(tester), hasLength(60));
+      expect(history.itemReads, 0);
+      expect(records.fold(0, (sum, comic) => sum + comic.searchReads), 0);
+      expect(find.byType(ComicTile).evaluate().length, lessThan(30));
+      expect(records.last.tagReads, 0);
+      expect(records.last.descriptionReads, 0);
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+      await tester.pumpAndSettle();
+      expect(history.pageReads, 1);
+      expect(history.itemReads, 0);
+      expect(records.last.tagReads, 0);
+      expect(find.byType(ComicTile).evaluate().length, lessThan(30));
+      expect(
+        tester.widget<ComicTile>(find.byType(ComicTile).first).comic.id,
+        isNot('large-0'),
+      );
+
+      for (var i = 0; i < 20; i++) {
+        history.notifyListeners();
+      }
+      expect(records.last.tagReads, 0);
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(history.pageReads, 2);
+      expect(records.last.tagReads, 0);
+      expect(records.last.descriptionReads, 0);
+      expect(records.fold(0, (sum, comic) => sum + comic.searchReads), 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final mode in ['detailed', 'brief']) {
+    testWidgets('dated scrollbar follows paged and filtered history ($mode)', (
+      tester,
+    ) async {
+      appdata.settings['comicDisplayMode'] = mode;
+      appdata.settings['blockedWords'] = ['Comic'];
+      appdata.settings['blockedAuthors'] = ['Hidden'];
+      final records = List.generate(
+        240,
+        (i) => _CountedHistory('dated-$i')
+          ..subtitle = i % 3 == 0 ? 'Hidden' : 'Author'
+          ..time = DateTime(2026, 10, 10).subtract(Duration(days: i)),
+      );
+      history.records = records;
+      images.cache(
+        records,
+        thumbnailSize: mode == 'detailed'
+            ? detailedThumbnailSize
+            : const Size(384, 512),
+      );
+      await mount(tester);
+      expect(visibleIds(tester), hasLength(60));
+      final scrollbar = tester.widget<AppScrollBar>(find.byType(AppScrollBar));
+      expect(
+        scrollbar.dragLabelBuilder!(),
+        records[1].lastReadTime.split(' ').first,
+      );
+      final tagReads = records.fold(0, (sum, comic) => sum + comic.tagReads);
+      final descriptionReads = records.fold(
+        0,
+        (sum, comic) => sum + comic.descriptionReads,
+      );
+      for (var i = 0; i < 100; i++) {
+        scrollbar.dragLabelBuilder!();
+      }
+      expect(records.fold(0, (sum, comic) => sum + comic.tagReads), tagReads);
+      expect(
+        records.fold(0, (sum, comic) => sum + comic.descriptionReads),
+        descriptionReads,
+      );
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byIcon(Icons.arrow_drop_down)),
+      );
+      await gesture.moveBy(const Offset(0, 30));
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 2000));
+      await tester.pumpAndSettle();
+      expect(scrollbar.controller.offset, greaterThan(0));
+      expect(visibleIds(tester), hasLength(120));
+      expect(history.limits, everyElement(60));
+      final label = scrollbar.dragLabelBuilder!()!;
+      expect(find.text(label), findsOneWidget);
+      final viewport = tester.getRect(find.byType(AppScrollBar));
+      final visibleDates = tester
+          .widgetList<ComicTile>(find.byType(ComicTile))
+          .where((tile) {
+            final rect = tester.getRect(find.byWidget(tile));
+            return rect.bottom > viewport.top + scrollbar.topPadding &&
+                rect.top < viewport.bottom;
+          })
+          .map((tile) => (tile.comic as History).lastReadTime.split(' ').first);
+      expect(visibleDates, contains(label));
+      expect(records.last.tagReads, 0);
+      expect(records.last.descriptionReads, 0);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text(label), findsNothing);
+
+      await openSearch(tester);
+      await tester.enterText(find.byType(TextField), 'dated-239');
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
+      expect(visibleIds(tester), ['dated-239']);
+      expect(
+        scrollbar.dragLabelBuilder!(),
+        records.last.lastReadTime.split(' ').first,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'scrolling appends a page and selection covers unloaded history',
+    (tester) async {
+      history.records = List.generate(180, (i) => _CountedHistory('paged-$i'));
+      images.cache(
+        history.records.take(125),
+        thumbnailSize: detailedThumbnailSize,
+      );
+      await mount(tester);
+      expect(visibleIds(tester), hasLength(60));
+      final scroll = tester
+          .widget<CustomScrollView>(find.byType(CustomScrollView))
+          .controller!;
+      scroll.jumpTo(scroll.position.maxScrollExtent - 1);
+      await tester.pumpAndSettle();
+      expect(visibleIds(tester), hasLength(120));
+      expect(history.pageReads, 2);
+      expect(history.limits, everyElement(60));
+
+      await tester.tap(find.byTooltip('Multi-Select'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Select All'));
+      await tester.pump();
+      expect(find.text('180'), findsOneWidget);
+      expect(history.identityReads, 1);
+      expect(visibleIds(tester), hasLength(120));
+      await tester.tap(find.byTooltip('Invert Selection'));
+      await tester.pump();
+      expect(find.text('0'), findsOneWidget);
+      await tester.tap(find.byTooltip('Select All'));
+      await tester.pump();
+      expect(find.text('180'), findsOneWidget);
+      await tester.tap(find.byTooltip('Delete'));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(history.records, isEmpty);
+      expect(visibleIds(tester), isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final allBlocked in [false, true]) {
+    testWidgets(
+      'author-filtered pages keep prefetching (all blocked: $allBlocked)',
+      (tester) async {
+        history.records = List.generate(
+          180,
+          (i) => record(
+            'author-$i',
+            'Comic $i',
+            allBlocked || i < 60 ? 'Hidden' : 'Shown',
+          ),
+        );
+        appdata.settings['blockedAuthors'] = ['Hidden'];
+        images.cache(history.records, thumbnailSize: detailedThumbnailSize);
+        await mount(tester);
+        expect(history.pageReads, allBlocked ? 3 : 2);
+        if (allBlocked) {
+          expect(find.byType(ComicTile), findsNothing);
+        } else {
+          expect(
+            tester.widget<ComicTile>(find.byType(ComicTile).first).comic.id,
+            'author-60',
+          );
+        }
+        expect(find.byType(SliverListLoadingIndicator), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'a cancelled select-all cannot overwrite a new selection session',
+    (tester) async {
+      await mount(tester);
+      await tester.tap(find.byTooltip('Multi-Select'));
+      await tester.pumpAndSettle();
+      final pending = Completer<Set<ComicID>>();
+      history.identityResponses.add(pending.future);
+      await tester.tap(find.byTooltip('Select All'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Multi-Select'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(ComicTile).first);
+      await tester.pump();
+      pending.complete({
+        for (final item in history.records) ComicID(item.type, item.id),
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('1'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('search can find a record beyond the loaded pages', (
+    tester,
+  ) async {
+    history.records = List.generate(180, (i) => _CountedHistory('paged-$i'));
+    images.cache(
+      history.records.take(60),
+      thumbnailSize: detailedThumbnailSize,
+    );
+    images.cache([history.records.last], thumbnailSize: detailedThumbnailSize);
+    await mount(tester);
+    await openSearch(tester);
+    await tester.enterText(find.byType(TextField), 'paged-179');
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(visibleIds(tester), ['paged-179']);
+    expect(history.pageReads, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('filtering history preserves the remaining cover state', (
+    tester,
+  ) async {
+    await mount(tester);
+    Finder cover(String id) => find.descendant(
+      of: find.byWidgetPredicate(
+        (widget) => widget is ComicTile && widget.comic.id == id,
+      ),
+      matching: find.byType(AnimatedImage),
+    );
+    final originalState = tester.state(cover('third'));
+    await openSearch(tester);
+    await tester.enterText(find.byType(TextField), 'third');
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(tester.state(cover('third')), same(originalState));
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pumpAndSettle();
+    expect(tester.state(cover('third')), same(originalState));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a refreshed cover keeps its old frame until the new one loads', (
+    tester,
+  ) async {
+    await mount(tester);
+    final updated = record('lost', 'Lost comic', 'Alpha')
+      ..cover = 'https://example.invalid/new-cover.png';
+    final ready = Completer<void>();
+    images.cacheProvider(
+      ResizeImage(
+        HistoryImageProvider(updated),
+        width: detailedThumbnailSize.width.toInt(),
+        height: detailedThumbnailSize.height.toInt(),
+        policy: ResizeImagePolicy.fit,
+      ),
+      ready: ready.future,
+    );
+    final tile = find.byWidgetPredicate(
+      (widget) => widget is ComicTile && widget.comic.id == 'lost',
+    );
+    final cover = find.descendant(
+      of: tile,
+      matching: find.byType(AnimatedImage),
+    );
+    final originalState = tester.state(cover);
+    history.records[0] = updated;
+    history.notifyListeners();
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(tester.state(cover), same(originalState));
+    expect(
+      tester
+          .widget<RawImage>(
+            find.descendant(of: cover, matching: find.byType(RawImage)),
+          )
+          .image,
+      isNotNull,
+    );
+    ready.complete();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+}

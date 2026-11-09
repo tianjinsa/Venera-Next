@@ -1,3 +1,4 @@
+import 'package:venera_next/foundation/batched_notifications.dart';
 import 'package:venera_next/foundation/operation_failure.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
@@ -47,7 +48,7 @@ void _notifyFollowUpdatesChanged() {
   );
 }
 
-class LocalFavoritesManager with ChangeNotifier {
+class LocalFavoritesManager with ChangeNotifier, BatchedNotifications {
   factory LocalFavoritesManager() => _cache ??= LocalFavoritesManager._create();
 
   LocalFavoritesManager._create();
@@ -457,6 +458,10 @@ class LocalFavoritesManager with ChangeNotifier {
   void notifyListeners() =>
       AppDataOperations.instance.publish(super.notifyListeners);
 
+  @override
+  void publishBatchedNotification() =>
+      AppDataOperations.instance.publish(super.publishBatchedNotification);
+
   static LocalFavoritesManager? _cache;
 
   static LocalFavoritesManager? get cache => _cache;
@@ -519,6 +524,8 @@ class LocalFavoritesManager with ChangeNotifier {
   final _pendingSettingsRepairs = <String>{};
 
   bool _isClosed = true;
+
+  bool get isInitialized => _database != null && !_isClosed;
 
   int get totalComics {
     return _identityIndex.length;

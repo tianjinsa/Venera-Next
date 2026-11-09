@@ -124,6 +124,18 @@ void main() {
         'eInkRefreshFutureOption',
       ]) {
         final effects = readerSettingEffects(key).toList();
+        if (key == ReaderPreferences.readerLineEnhancement.key ||
+            key == ReaderPreferences.readerLineEnhancementStrength.key ||
+            key == ReaderPreferences.readerNightMode.key ||
+            key == ReaderPreferences.readerNightModeIntensity.key) {
+          expect(
+            effects,
+            isEmpty,
+            reason:
+                'Appearance updates compositing without rebuilding the viewport',
+          );
+          continue;
+        }
         expect(effects.last, ReaderSettingEffect.rebuildReader, reason: key);
         expect(effects.toSet().length, effects.length, reason: key);
         if (effects.contains(ReaderSettingEffect.updateSystemUi)) {

@@ -1,0 +1,352 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:venera_next/features/agent/agent_models.dart';
+import 'package:venera_next/features/agent/agent_settings_page.dart';
+import 'package:venera_next/features/agent/agent_showcase_view.dart';
+import 'package:venera_next/features/agent/agent_store.dart';
+import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
+import 'package:venera_next/foundation/appdata.dart';
+import 'package:venera_next/features/local_comics/local.dart';
+import 'agent_test_support.dart';
+
+void main() {
+  testWidgets(
+    'default thinking uses a live dropdown and saves the selected level',
+    (tester) async {
+      final root = (await tester.runAsync(
+        () => Directory.systemTemp.createTemp('agent-settings-'),
+      ))!;
+      configureAgentTestPaths(root.path);
+      final store = (await tester.runAsync(
+        () => AgentStore.open('${root.path}/agent'),
+      ))!;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(850, 2200);
+      Finder field(String name) => find.byKey(ValueKey('agent-model-$name'));
+      try {
+        await tester.pumpWidget(
+          MaterialApp(home: AgentSettingsPage(store: store)),
+        );
+        await tapAgentSetting(tester, 'agent-settings-models');
+        await tester.tap(find.byKey(const ValueKey('agent-add-model')));
+        await tester.pumpAndSettle();
+        await tester.enterText(field('name'), '我的模型');
+        await tester.enterText(field('model'), 'example-model');
+        await tapAgentSetting(tester, 'agent-model-thinking-settings');
+        await tester.enterText(
+          field('thinking'),
+          jsonEncode([
+            {
+              'id': 'low',
+              'label': '快速',
+              'params': {'reasoning_effort': 'low'},
+            },
+            {
+              'id': 'high',
+              'label': '深入',
+              'params': {'reasoning_effort': 'high'},
+            },
+          ]),
+        );
+        await tester.pump();
+        expect(
+          find.descendant(of: field('default'), matching: find.text('快速')),
+          findsOneWidget,
+        );
+        await tester.tap(field('default'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('深入').last);
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(of: field('default'), matching: find.text('深入')),
+          findsOneWidget,
+        );
+        await tester.enterText(
+          field('thinking'),
+          '[{"id":"low","label":"快速","params":{}}]',
+        );
+        await tester.pump();
+        expect(
+          find.descendant(of: field('default'), matching: find.text('快速')),
+          findsOneWidget,
+        );
+        await tester.enterText(field('thinking'), '[');
+        await tester.pump();
+        expect(
+          tester
+              .widget<InkWell>(
+                find.descendant(
+                  of: field('default'),
+                  matching: find.byType(InkWell),
+                ),
+              )
+              .onTap,
+          isNull,
+        );
+        expect(find.text('请先填写有效的思考深度列表'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.enterText(
+          field('thinking'),
+          '[{"id":"deep","label":"深度思考","params":{"reasoning_effort":"high"}}]',
+        );
+        await tester.enterText(field('context'), '200000');
+        await tester.pump();
+        expect(
+          find.descendant(of: field('default'), matching: find.text('深度思考')),
+          findsOneWidget,
+        );
+        expect(find.textContaining('最大工具轮数'), findsNothing);
+        expect(field('rounds'), findsNothing);
+        await tester.tap(find.text('完成配置'));
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          await tester.tap(find.text('保存模型'));
+          for (var i = 0; i < 100 && store.settings.models.isEmpty; i++) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+          }
+        });
+        await tester.pumpAndSettle();
+        expect(store.settings.models.single.defaultThinking, 'deep');
+        expect(store.settings.models.single.contextWindowTokens, 200000);
+        expect(
+          store.settings.models.single.toJson().containsKey('max_tool_rounds'),
+          false,
+        );
+        expect(find.text('模型管理'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        store.close();
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        await tester.runAsync(() => root.delete(recursive: true));
+      }
+    },
+  );
+
+  testWidgets('native protocols offer selectable thinking levels', (
+    tester,
+  ) async {
+    final root = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('agent-native-thinking-'),
+    ))!;
+    configureAgentTestPaths(root.path);
+    final store = (await tester.runAsync(
+      () => AgentStore.open('${root.path}/agent'),
+    ))!;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(850, 2400);
+    Finder field(String name) => find.byKey(ValueKey('agent-model-$name'));
+    Finder chip(String id) => field('thinking-$id');
+    bool selected(String id) => tester.widget<FilterChip>(chip(id)).selected;
+    try {
+      await tester.pumpWidget(
+        MaterialApp(home: AgentSettingsPage(store: store)),
+      );
+      await tapAgentSetting(tester, 'agent-settings-models');
+      await tester.tap(find.byKey(const ValueKey('agent-add-model')));
+      await tester.pumpAndSettle();
+      await tester.enterText(field('name'), 'Claude');
+      await tester.enterText(field('model'), 'claude-test');
+      await tester.tap(field('protocol'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Anthropic Messages').last);
+      await tester.pumpAndSettle();
+      await tapAgentSetting(tester, 'agent-model-thinking-settings');
+      // No JSON is needed: supported levels are listed as choices.
+      expect(field('thinking'), findsNothing);
+      expect(chip('off'), findsOneWidget);
+      expect(chip('max'), findsOneWidget);
+      expect(chip('minimal'), findsNothing);
+      for (final id in AgentThinkingLevel.nativeDefaults) {
+        expect(selected(id), true);
+      }
+      await tester.tap(chip('xhigh'));
+      await tester.tap(chip('default'));
+      await tester.pump();
+      expect(selected('xhigh'), true);
+      expect(selected('default'), false);
+      expect(
+        find.descendant(of: field('default'), matching: find.text('低')),
+        findsOneWidget,
+      );
+      await tester.tap(field('default'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('超高').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('完成配置'));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.tap(find.text('保存模型'));
+        for (var i = 0; i < 100 && store.settings.models.isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+      await tester.pumpAndSettle();
+      final model = store.settings.models.single;
+      expect(model.protocol, AgentProtocol.messages);
+      expect(model.thinkingLevels.map((e) => e.id), [
+        'low',
+        'medium',
+        'high',
+        'xhigh',
+      ]);
+      expect(model.defaultThinking, 'xhigh');
+      expect(model.thinking('xhigh').params, {
+        'thinking': {'type': 'adaptive', 'display': 'summarized'},
+        'output_config': {'effort': 'xhigh'},
+      });
+
+      // Switching to Responses keeps the shared choices.
+      await tester.tap(find.text('Claude'));
+      await tester.pumpAndSettle();
+      await tester.tap(field('protocol'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OpenAI Responses').last);
+      await tester.pumpAndSettle();
+      await tapAgentSetting(tester, 'agent-model-thinking-settings');
+      expect(chip('minimal'), findsOneWidget);
+      expect(chip('off'), findsNothing);
+      expect(selected('xhigh'), true);
+      expect(selected('none'), false);
+      // The last enabled level cannot be removed.
+      for (final id in ['low', 'medium', 'high', 'xhigh']) {
+        await tester.tap(chip(id));
+        await tester.pump();
+      }
+      expect(selected('xhigh'), true);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      store.close();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      await tester.runAsync(() => root.delete(recursive: true));
+    }
+  });
+
+  for (final mode in ['detailed', 'brief']) {
+    testWidgets(
+      'collection showcases fold by operation and favorite folder in $mode mode',
+      (tester) async {
+        final root = (await tester.runAsync(
+          () => Directory.systemTemp.createTemp('agent-operation-ui-'),
+        ))!;
+        configureAgentTestPaths(root.path);
+        final previousMode = appdata.settings['comicDisplayMode'];
+        final previousBadge = appdata.settings['showFavoriteStatusOnTile'];
+        appdata.settings['comicDisplayMode'] = mode;
+        appdata.settings['showFavoriteStatusOnTile'] = false;
+        LocalManager().dispose();
+        final local = LocalManager(initializeSources: () async {});
+        await tester.runAsync(() async {
+          await local.init();
+          await appdata.saveData(false);
+        });
+        final store = (await tester.runAsync(
+          () => AgentStore.open('${root.path}/agent'),
+        ))!;
+        final conversation = store.createConversation();
+        const first = AgentComic(
+          sourceKey: 'local',
+          comicId: 'first',
+          title: '收藏的漫画',
+        );
+        const second = AgentComic(
+          sourceKey: 'local',
+          comicId: 'second',
+          title: '稍后阅读的漫画',
+        );
+        final folderId = store.recordOperationComics(
+          conversation.id,
+          'favorites',
+          [first],
+          folder: '常看',
+        );
+        store.recordOperationComics(conversation.id, 'favorites', [
+          second,
+        ], folder: '待整理');
+        final laterId = store.recordOperationComics(conversation.id, 'later', [
+          second,
+        ]);
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(304, 1100);
+        try {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: StatefulBuilder(
+                  builder: (context, setState) => AgentShowcasePanel(
+                    conversationId: conversation.id,
+                    groups: store.showcases(conversation.id),
+                    clear: () =>
+                        setState(() => store.clearShowcases(conversation.id)),
+                    hideGroup: (id) => setState(() => store.hideShowcase(id)),
+                    hideComic: (id, comic) =>
+                        setState(() => store.hideComic(id, comic)),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('收藏'), findsOneWidget);
+          expect(find.text('稍后再看'), findsOneWidget);
+          expect(find.text('常看'), findsNothing);
+          expect(find.byType(ComicTile), findsNothing);
+          await tester.tap(
+            find.byKey(
+              ValueKey('toggle-showcase-favorites-${conversation.id}'),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('常看'), findsOneWidget);
+          expect(find.text('待整理'), findsOneWidget);
+          expect(find.byType(ComicTile), findsNothing);
+          await tester.tap(find.byKey(ValueKey('toggle-showcase-$folderId')));
+          await tester.pumpAndSettle();
+          expect(find.byType(ComicTile), findsOneWidget);
+          final remove = find.byKey(
+            ValueKey('remove-$folderId-${first.identity}'),
+          );
+          expect(
+            tester
+                .getRect(find.byType(ComicTile))
+                .overlaps(tester.getRect(remove)),
+            false,
+          );
+          await tester.tap(find.byKey(ValueKey('toggle-showcase-$laterId')));
+          await tester.pumpAndSettle();
+          expect(find.byType(ComicTile), findsNWidgets(2));
+          await tester.tap(remove);
+          await tester.pumpAndSettle();
+          expect(
+            store.showcases(conversation.id).any((g) => g.id == folderId),
+            false,
+          );
+          expect(
+            store
+                .showcases(conversation.id)
+                .singleWhere((g) => g.id == laterId)
+                .comics
+                .single
+                .comicId,
+            'second',
+          );
+          expect(tester.takeException(), isNull);
+        } finally {
+          await tester.pumpWidget(const SizedBox.shrink());
+          store.close();
+          local.dispose();
+          appdata.settings['comicDisplayMode'] = previousMode;
+          appdata.settings['showFavoriteStatusOnTile'] = previousBadge;
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+          await tester.runAsync(() => root.delete(recursive: true));
+        }
+      },
+    );
+  }
+}

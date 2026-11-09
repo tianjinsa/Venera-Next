@@ -1,7 +1,10 @@
+import 'history_paging.dart';
 import 'history_cache.dart';
 import 'history_repository.dart';
 import 'history_model.dart';
 import 'history_retention_change.dart';
+import 'package:venera_next/foundation/reading_statistic.dart';
+import 'package:venera_next/foundation/batched_notifications.dart';
 import 'dart:async';
 import 'dart:isolate';
 
@@ -34,7 +37,7 @@ typedef HistoryDurationStorageWriter =
       int durationMs,
     );
 
-class HistoryManager with ChangeNotifier {
+class HistoryManager with ChangeNotifier, BatchedNotifications {
   static HistoryManager? _cache;
 
   static HistoryManager? get cache => _cache;
@@ -50,6 +53,10 @@ class HistoryManager with ChangeNotifier {
 
   @override
   void notifyListeners() => _operations.publish(super.notifyListeners);
+
+  @override
+  void publishBatchedNotification() =>
+      _operations.publish(super.publishBatchedNotification);
 
   /// Image favorites share this database lifetime and ordered access queue.
   /// The callback may own a background reader, and must await its actual close.
@@ -136,7 +143,7 @@ class HistoryManager with ChangeNotifier {
         throw StateError('History initialization was closed before admission');
       }
       _dbPath = "${App.dataPath}/history.db";
-      database = openSqliteDatabase(_dbPath);
+      database = openSqliteDatabase(_dbPath, writeAheadLog: true);
       _database = database;
       HistoryRepository(database).initialize();
       ImageFavoritesRepository(database).initialize();
@@ -151,6 +158,7 @@ class HistoryManager with ChangeNotifier {
       if (hasPendingWrites) await waitForAsyncWrites();
       _checkInitialization(generation);
       isInitialized = true;
+      _closingPageReads = false;
       notifyListeners();
       _checkInitialization(generation);
     } catch (_) {
@@ -168,13 +176,16 @@ class HistoryManager with ChangeNotifier {
   static Future<void> _addHistoryAsync(
     String dbPath,
     History newItem,
-    bool replaceMetadata,
-  ) {
+    bool replaceMetadata, {
+    bool restoreSnapshot = false,
+  }) {
     return Isolate.run(() {
-      var db = openSqliteDatabase(dbPath);
+      var db = openSqliteDatabase(dbPath, writeAheadLog: true);
       try {
         final repository = HistoryRepository(db);
-        if (replaceMetadata) {
+        if (restoreSnapshot) {
+          repository.restoreHistory(newItem);
+        } else if (replaceMetadata) {
           repository.importHistory(newItem);
         } else {
           repository.writeProgress(newItem);
@@ -196,7 +207,7 @@ class HistoryManager with ChangeNotifier {
         PersistenceFailure? failure;
         var committed = false;
         try {
-          db = openSqliteDatabase(dbPath);
+          db = openSqliteDatabase(dbPath, writeAheadLog: true);
           // This repository call owns a complete transaction on this fresh
           // connection. A rollback failure leaves its commit state uncertain.
           HistoryRepository(db).addReadDuration(item, durationMs);
@@ -259,14 +270,18 @@ class HistoryManager with ChangeNotifier {
   Future<void> importHistory(History newItem) =>
       _writeHistory(newItem, replaceMetadata: true);
 
+  Future<void> restoreHistory(History snapshot) =>
+      _writeHistory(snapshot, replaceMetadata: true, restoreSnapshot: true);
+
   /// Serialize a synchronous external commit with accepted history writes.
   /// The writer must finish its transaction before returning. Cache publication
   /// and completion callbacks run without yielding to later queued mutations.
   Future<void> importStorage(
     void Function(String databasePath) write, {
     required void Function() onCommitted,
+    bool useRollbackJournal = false,
   }) {
-    return _enqueueAsyncWrite(() {
+    Future<void> commit() => _enqueueAsyncWrite(() {
       if (!isInitialized) {
         throw StateError('History database is closed');
       }
@@ -276,22 +291,75 @@ class HistoryManager with ChangeNotifier {
         if (!isInitialized || generation != _generation) {
           throw StateError('History import belongs to a closed connection');
         }
-        write(path);
+        if (useRollbackJournal) {
+          _importWithRollbackJournal(() => write(path));
+        } else {
+          write(path);
+        }
         _historyCache.refresh(invalidateRecords: true);
         _operations.publish(onCommitted);
         notifyListeners();
       };
     });
+    // Acquire exclusive admission before the local queue. Attached-database
+    // atomic commits need a rollback journal and no live paging connections.
+    return useRollbackJournal ? _operations.run(commit) : commit();
   }
 
-  Future<void> _writeHistory(History newItem, {required bool replaceMetadata}) {
+  void _importWithRollbackJournal(void Function() write) {
+    ({Object error, StackTrace stackTrace})? failure;
+    var committed = false;
+    try {
+      final mode = _db
+          .select('PRAGMA journal_mode = DELETE;')
+          .first
+          .values
+          .single;
+      if (mode != 'delete') {
+        throw StateError('Cannot enable rollback journal for history import');
+      }
+      write();
+      committed = true;
+    } catch (error, stackTrace) {
+      failure = (error: error, stackTrace: stackTrace);
+    }
+    try {
+      final mode = _db.select('PRAGMA journal_mode = WAL;').first.values.single;
+      if (mode != 'wal') throw StateError('Cannot restore history WAL');
+    } catch (error, stackTrace) {
+      throw PersistenceFailure(
+        commitState: committed
+            ? PersistenceCommitState.committed
+            : PersistenceCommitState.unknown,
+        cause: failure?.error ?? error,
+        stackTrace: failure?.stackTrace ?? stackTrace,
+        cleanupFailures: failure == null
+            ? const []
+            : [(error: error, stackTrace: stackTrace)],
+      );
+    }
+    if (failure != null) {
+      Error.throwWithStackTrace(failure.error, failure.stackTrace);
+    }
+  }
+
+  Future<void> _writeHistory(
+    History newItem, {
+    required bool replaceMetadata,
+    bool restoreSnapshot = false,
+  }) {
     final snapshot = newItem.copy();
     return _enqueueAsyncWrite(() {
       if (_database == null) throw StateError('History database is closed');
       final path = _dbPath;
       final generation = _generation;
       return () async {
-        await _addHistoryAsync(path, snapshot, replaceMetadata);
+        await _addHistoryAsync(
+          path,
+          snapshot,
+          replaceMetadata,
+          restoreSnapshot: restoreSnapshot,
+        );
         if (isInitialized && generation == _generation) {
           _cachePersistedHistory(snapshot.id, snapshot.type.value);
           notifyListeners();
@@ -446,7 +514,7 @@ class HistoryManager with ChangeNotifier {
     String? subtitle,
     String? cover,
   }) => Isolate.run(() {
-    final db = openSqliteDatabase(path);
+    final db = openSqliteDatabase(path, writeAheadLog: true);
     try {
       return HistoryRepository(db).updateMetadata(
         id,
@@ -466,7 +534,7 @@ class HistoryManager with ChangeNotifier {
     String path,
     void Function(HistoryRepository) mutate,
   ) => Isolate.run(() {
-    final db = openSqliteDatabase(path);
+    final db = openSqliteDatabase(path, writeAheadLog: true);
     try {
       mutate(HistoryRepository(db));
     } finally {
@@ -540,6 +608,20 @@ class HistoryManager with ChangeNotifier {
     return _delete((repository) => repository.remove(id, value));
   }
 
+  Future<void> batchDeleteHistories(List<ComicID> ids) {
+    final captured = ids.map((id) => (id.id, id.type.value)).toList();
+    return _delete(
+      (repository) => runSqliteTransaction(repository.db, () {
+        for (final (id, type) in captured) {
+          repository.remove(id, type);
+        }
+      }, immediate: true),
+    );
+  }
+
+  List<ReadingStatistic> readingStatistics(int days) =>
+      _repository.readingStatistics(days);
+
   void updateCache() => _historyCache.refresh();
 
   History? find(String id, ComicType type) =>
@@ -551,6 +633,61 @@ class HistoryManager with ChangeNotifier {
   int getTotalReadDurationMs() => _repository.getTotalReadDurationMs();
   int countWithReadDuration() => _repository.countWithReadDuration();
   List<History> getAllByReadDuration() => _repository.getAllByReadDuration();
+
+  final _pendingPageReads = <Future<void>>{};
+  bool _closingPageReads = false;
+
+  Future<T> _readPage<T>(Future<T> Function(String path) read) {
+    if (_closingPageReads) {
+      return Future.error(StateError('History database is closing'));
+    }
+    final result = _operations.access(() async {
+      if (!isInitialized || _closingPageReads) {
+        throw StateError('History database is closed');
+      }
+      final generation = _generation;
+      final value = await read(_dbPath);
+      if (!isInitialized || generation != _generation) {
+        throw StateError('History read belongs to a closed connection');
+      }
+      return value;
+    });
+    final settled = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    _pendingPageReads.add(settled);
+    settled.whenComplete(() => _pendingPageReads.remove(settled));
+    return result;
+  }
+
+  Map<int, String> _searchSources() => {
+    for (final source in ComicSource.all())
+      source.key.hashCode: '${source.key}\n${source.name}',
+  };
+
+  Future<HistoryPageResult> getPage({
+    HistoryCursor? cursor,
+    int limit = 60,
+    String query = '',
+  }) {
+    final sources = _searchSources();
+    return _readPage(
+      (path) =>
+          readHistoryPage(path, query, sources, cursor, limit.clamp(1, 500)),
+    );
+  }
+
+  Future<Set<ComicID>> getMatchingIds({String query = ''}) {
+    final sources = _searchSources();
+    return _readPage((path) => readHistoryIds(path, query, sources));
+  }
+
+  Future<void> closeAfterReads() async {
+    _closingPageReads = true;
+    await Future.wait(List.of(_pendingPageReads));
+    close();
+  }
 
   void close() {
     ++_generation;

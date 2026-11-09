@@ -1,3 +1,4 @@
+import 'package:venera_next/features/history/history_paging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/app_runtime/core_bootstrap.dart';
@@ -36,6 +37,14 @@ class _HistoryManager extends HistoryManager {
   final List<History> items;
   @override
   List<History> getAll() => items;
+  @override
+  Future<HistoryPageResult> getPage({
+    HistoryCursor? cursor,
+    int limit = 60,
+    String query = '',
+  }) async => HistoryPageResult(
+    items.where((item) => item.matchesQuery(query)).take(limit).toList(),
+  );
 }
 
 History _history(_Source source) => History.fromMap({
@@ -122,6 +131,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(home: HistoryPage(manager: manager)),
         );
+        await tester.pumpAndSettle();
         if (mode == 'detailed') {
           expect(find.text('Chapter 21 / 55 - Page 162 / 233'), findsOneWidget);
         } else {

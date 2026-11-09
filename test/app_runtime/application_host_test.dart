@@ -27,6 +27,33 @@ CoreBootstrap _core(
 
 void main() {
   test(
+    'Agent work drains before final persistence closes its stores',
+    () async {
+      final fixture = SyncTestFixture();
+      final released = Completer<void>();
+      var stopped = false, storesClosed = false;
+      final core = _core(() async => storesClosed = true);
+      await core.start();
+      final host = ApplicationHost(
+        core: core,
+        sync: fixture.controller,
+        dataOperations: AppDataOperations(),
+        closeAgent: () async {
+          stopped = true;
+          await released.future;
+        },
+      );
+      final closing = host.close();
+      await pumpEventQueue();
+      expect(stopped, isTrue);
+      expect(storesClosed, isFalse);
+      released.complete();
+      await closing;
+      expect(storesClosed, isTrue);
+    },
+  );
+
+  test(
     'source cancellation starts before waiting for its UI and mount consumers',
     () async {
       final sources = _ClosingSourceUpdates();

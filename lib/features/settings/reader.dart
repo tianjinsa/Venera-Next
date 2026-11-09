@@ -669,6 +669,53 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
             comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
             useDeviceSettings: useDeviceSpecificSettings,
           ).toSliver(),
+          ListTile(
+            title: Text('${'Line enhancement'.tl} / ${'Night mode'.tl}'),
+          ).toSliver(),
+          SwitchSetting.reader(
+            title: 'Line enhancement'.tl,
+            preference: ReaderPreferences.readerLineEnhancement,
+            subtitle:
+                'Deepen faint lines and text. Reduce strength for color comics.'
+                    .tl,
+            onChanged: () => widget.onChanged?.call('readerLineEnhancement'),
+            comicId: isEnabledSpecificSettings ? widget.comicId : null,
+            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
+            useDeviceSettings: useDeviceSpecificSettings,
+          ).toSliver(),
+          SliderSetting.reader(
+            title: 'Line enhancement strength'.tl,
+            preference: ReaderPreferences.readerLineEnhancementStrength,
+            valueFormatter: (value) => '${(value * 100).round()}%',
+            onChanged: () =>
+                widget.onChanged?.call('readerLineEnhancementStrength'),
+            comicId: isEnabledSpecificSettings ? widget.comicId : null,
+            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
+            useDeviceSettings: useDeviceSpecificSettings,
+          ).toSliver(),
+          SelectSetting.reader(
+            title: 'Night mode'.tl,
+            preference: ReaderPreferences.readerNightMode,
+            optionTranslation: {
+              'none': 'Off'.tl,
+              'warm': 'Warm'.tl,
+              'dark': 'Dark'.tl,
+              'red': 'Red'.tl,
+            },
+            onChanged: () => widget.onChanged?.call('readerNightMode'),
+            comicId: isEnabledSpecificSettings ? widget.comicId : null,
+            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
+            useDeviceSettings: useDeviceSpecificSettings,
+          ).toSliver(),
+          SliderSetting.reader(
+            title: 'Night mode intensity'.tl,
+            preference: ReaderPreferences.readerNightModeIntensity,
+            valueFormatter: (value) => '${(value * 100).round()}%',
+            onChanged: () => widget.onChanged?.call('readerNightModeIntensity'),
+            comicId: isEnabledSpecificSettings ? widget.comicId : null,
+            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
+            useDeviceSettings: useDeviceSpecificSettings,
+          ).toSliver(),
           CallbackSetting(
             title: "Custom Image Processing".tl,
             callback: () => context.to(() => _CustomImageProcessing()),

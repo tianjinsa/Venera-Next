@@ -273,6 +273,7 @@ class AppScrollBar extends StatefulWidget {
     required this.controller,
     required this.child,
     this.topPadding = 0,
+    this.dragLabelBuilder,
   });
 
   final ScrollController controller;
@@ -280,6 +281,7 @@ class AppScrollBar extends StatefulWidget {
   final Widget child;
 
   final double topPadding;
+  final String? Function()? dragLabelBuilder;
 
   @override
   State<AppScrollBar> createState() => _AppScrollBarState();
@@ -317,10 +319,10 @@ class _AppScrollBarState extends State<AppScrollBar> {
         _showScrollbar();
       }
       ..onEnd = (_) {
-        _dragPosition = null;
+        setState(() => _dragPosition = null);
         _scheduleHide();
       }
-      ..onCancel = () => _dragPosition = null;
+      ..onCancel = () => setState(() => _dragPosition = null);
   }
 
   @override
@@ -475,6 +477,32 @@ class _AppScrollBarState extends State<AppScrollBar> {
                 child: widget.child,
               ),
             ),
+            if (_dragPosition != null)
+              if (widget.dragLabelBuilder?.call() case final String label)
+                Positioned(
+                  top: top + widget.topPadding,
+                  right: _scrollIndicatorSize,
+                  child: IgnorePointer(
+                    child: Material(
+                      color: Theme.of(context).colorScheme.inverseSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onInverseSurface,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             if (scrollHeight > 0 &&
                 height.isFinite &&
                 height > _scrollIndicatorSize)

@@ -83,6 +83,14 @@ class ReaderSettings {
   T read<T extends Object>(Preference<T> preference) =>
       preference.normalize(_values[preference.key]);
 
+  bool get readerLineEnhancement =>
+      read(ReaderPreferences.readerLineEnhancement);
+  double get readerLineEnhancementStrength =>
+      read(ReaderPreferences.readerLineEnhancementStrength).toDouble();
+  String get readerNightMode => read(ReaderPreferences.readerNightMode);
+  double get readerNightModeIntensity =>
+      read(ReaderPreferences.readerNightModeIntensity).toDouble();
+
   String get readerMode => _values['readerMode'] as String;
   String get quickCollectImage => _values['quickCollectImage'] as String;
   String get longPressAction => _values['longPressAction'] as String;

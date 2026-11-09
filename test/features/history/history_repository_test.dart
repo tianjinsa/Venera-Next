@@ -35,6 +35,29 @@ void main() {
   tearDown(() => db.dispose());
 
   test(
+    'undo restores duration and chapter metadata without overwriting a newer history',
+    () {
+      final snapshot = item()
+        ..readDurationMs = 123450
+        ..maxChapter = 55
+        ..chapterTitle = '第三章'
+        ..groupTitle = '分组';
+      repository.restoreHistory(snapshot);
+      final restored = repository.find(snapshot.id, snapshot.type.value)!;
+      expect(restored.readDurationMs, 123450);
+      expect(restored.maxChapter, 55);
+      expect(restored.chapterTitle, '第三章');
+      expect(restored.groupTitle, '分组');
+      repository.writeProgress(item()..page = 8);
+      repository.addReadDuration(item(), 50);
+      repository.restoreHistory(snapshot);
+      final newer = repository.find(snapshot.id, snapshot.type.value)!;
+      expect(newer.page, 8);
+      expect(newer.readDurationMs, 123500);
+    },
+  );
+
+  test(
     'chapter snapshots survive reload, duration writes and metadata refresh',
     () {
       final value = item()
@@ -157,7 +180,7 @@ void main() {
     },
   );
 
-  test('cache observes source replacement under an id-only primary key', () {
+  test('cache preserves the same ID from independent source types', () {
     db.execute('DROP TABLE history');
     repository.initialize();
     final cache = HistoryCache(
@@ -170,11 +193,11 @@ void main() {
     cache.record(a);
     repository.writeProgress(b);
     cache.record(b);
-    expect(repository.count(), 1);
-    expect(cache.find('shared', 0), isNull);
+    expect(repository.count(), 2);
+    expect(cache.find('shared', 0)?.type.value, 0);
     expect(identical(cache.find('shared', 1), b), isTrue);
     cache.clear();
-    expect(cache.find('shared', 0), isNull);
+    expect(cache.find('shared', 0)?.type.value, 0);
     expect(cache.find('shared', 1)?.type.value, 1);
   });
 

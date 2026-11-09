@@ -1,0 +1,815 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:uuid/uuid.dart';
+
+typedef AgentJson = Map<String, dynamic>;
+
+enum AgentSendMode { insert, queue }
+
+const agentToolLabels = {
+  'list_sources': '查看漫画源',
+  'source_info': '查看漫画源详情',
+  'source_categories': '读取分类',
+  'source_catalog': '浏览漫画源仓库',
+  'source_install': '安装漫画源',
+  'source_update': '更新漫画源',
+  'list_search_options': '读取搜索选项',
+  'search_source': '搜索漫画',
+  'search_all': '多源搜索',
+  'search_web': '搜索网页',
+  'comic_open_by_id': '按 ID 查看漫画',
+  'comic_resolve': '识别漫画',
+  'comic_get': '查看漫画详情',
+  'read_web': '读取网页正文',
+  'comic_read_cover': '读取漫画封面',
+  'comic_chapters': '读取章节目录',
+  'comic_status': '查询漫画状态',
+  'comic_comments': '读取评论',
+  'showcase_comics': '展示漫画',
+  'explore_load': '读取发现页',
+  'category_comics': '读取分类漫画',
+  'ranking_comics': '读取排行榜',
+  'fav_list_folders': '查看收藏夹',
+  'fav_list': '读取收藏',
+  'fav_search': '搜索收藏',
+  'fav_check': '检查收藏状态',
+  'fav_add': '加入收藏',
+  'fav_remove': '取消收藏',
+  'fav_move': '移动收藏',
+  'fav_create_folder': '创建收藏夹',
+  'fav_rename_folder': '重命名收藏夹',
+  'later_list': '读取稍后再看',
+  'later_check': '检查稍后再看状态',
+  'later_add': '加入稍后再看',
+  'later_remove': '移出稍后再看',
+  'updates_list': '查看追更',
+  'updates_set_folder': '设置追更收藏夹',
+  'fav_delete_folder': '删除收藏夹',
+  'local_chapters': '已下载章节',
+  'source_library_list': '漫画源仓库',
+  'source_library_update': '管理漫画源仓库',
+  'app_logs': '查看应用日志',
+  'source_code_read': '读取漫画源代码',
+  'source_code_grep': '搜索漫画源代码',
+  'source_code_edit': '修改漫画源代码',
+  'source_backups': '查看源代码备份',
+  'source_backup_update': '管理源代码备份',
+  'history_list': '读取阅读历史',
+  'history_remove': '删除阅读历史',
+  'local_list': '读取本地漫画',
+  'local_delete': '删除本地漫画',
+  'download_start': '加入下载',
+  'download_list': '查看下载队列',
+  'download_control': '管理下载任务',
+  'net_fav_folders': '查看网络收藏夹',
+  'net_fav_list': '读取网络收藏',
+  'net_fav_add': '加入网络收藏',
+  'net_fav_remove': '取消网络收藏',
+  'open_comic': '打开漫画',
+  'open_page': '打开页面',
+  'blocked_words_list': '查看屏蔽词',
+  'blocked_words_update': '修改屏蔽词',
+  'reading_stats': '查看阅读统计',
+};
+
+String agentId() => const Uuid().v4();
+int agentNow() => DateTime.now().millisecondsSinceEpoch;
+AgentJson agentObject(Object? value) => value is Map
+    ? Map<String, dynamic>.from(value)
+    : throw const FormatException('需要 JSON 对象');
+
+class AgentException implements Exception {
+  final String code;
+  final String message;
+  const AgentException(this.code, this.message);
+  AgentJson toJson() => {
+    'ok': false,
+    'error': {'code': code, 'message': message},
+  };
+  @override
+  String toString() => message;
+}
+
+/// Source requests cannot be aborted, but their late results must be ignored.
+class AgentRun {
+  final _cancelled = Completer<void>();
+  bool get isCancelled => _cancelled.isCompleted;
+  Future<void> get whenCancelled => _cancelled.future;
+  void cancel() {
+    if (!isCancelled) _cancelled.complete();
+  }
+
+  void check() {
+    if (isCancelled) {
+      throw const AgentException('CANCELLED', '已停止等待');
+    }
+  }
+
+  Future<T> wait<T>(
+    Future<T> work, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    check();
+    try {
+      final result = await Future.any<T>([
+        work,
+        whenCancelled.then<T>(
+          (_) => throw const AgentException('CANCELLED', '已停止等待'),
+        ),
+      ]).timeout(timeout);
+      check();
+      return result;
+    } on TimeoutException {
+      throw const AgentException('TIMEOUT', '请求超时，请稍后重试');
+    }
+  }
+}
+
+/// Output limit sent to Anthropic Messages when none is configured.
+const agentDefaultMaxTokens = 32000;
+
+/// Parse a token count such as `32000`, `32k` or `1m` (k = 1000).
+int? agentParseTokens(String text) {
+  final match = RegExp(
+    r'^(\d+(?:\.\d+)?)\s*([km]?)$',
+    caseSensitive: false,
+  ).firstMatch(text.trim().replaceAll(',', '').replaceAll('_', ''));
+  if (match == null) return null;
+  final value =
+      double.parse(match[1]!) *
+      switch (match[2]!.toLowerCase()) {
+        'k' => 1000,
+        'm' => 1000000,
+        _ => 1,
+      };
+  return value >= 1 && value == value.roundToDouble() ? value.round() : null;
+}
+
+/// Show a token count in the short form accepted by [agentParseTokens].
+String agentFormatTokens(int tokens) => tokens % 1000000 == 0
+    ? '${tokens ~/ 1000000}m'
+    : tokens % 1000 == 0
+    ? '${tokens ~/ 1000}k'
+    : '$tokens';
+
+class AgentThinkingLevel {
+  final String id;
+  final String label;
+  final AgentJson params;
+  const AgentThinkingLevel({
+    required this.id,
+    required this.label,
+    this.params = const {},
+  });
+  factory AgentThinkingLevel.fromJson(AgentJson json) => AgentThinkingLevel(
+    id: json['id'] as String,
+    label: json['label'] as String,
+    params: agentObject(json['params'] ?? {}),
+  );
+  AgentJson toJson() => {'id': id, 'label': label, 'params': params};
+
+  /// Thinking levels a protocol configures through its own request field.
+  /// Chat Completions has no common field, so its levels stay user-defined.
+  static List<AgentThinkingLevel> native(AgentProtocol protocol) =>
+      switch (protocol) {
+        AgentProtocol.chat => const [],
+        AgentProtocol.responses => [
+          const AgentThinkingLevel(id: 'default', label: '默认'),
+          const AgentThinkingLevel(
+            id: 'none',
+            label: '不思考',
+            params: {
+              'reasoning': {'effort': 'none'},
+            },
+          ),
+          for (final (id, label) in _responsesEfforts)
+            AgentThinkingLevel(
+              id: id,
+              label: label,
+              params: {
+                'reasoning': {'effort': id, 'summary': 'auto'},
+              },
+            ),
+        ],
+        AgentProtocol.messages => [
+          const AgentThinkingLevel(id: 'default', label: '默认'),
+          const AgentThinkingLevel(
+            id: 'off',
+            label: '不思考',
+            params: {
+              'thinking': {'type': 'disabled'},
+            },
+          ),
+          for (final (id, label) in _messagesEfforts)
+            AgentThinkingLevel(
+              id: id,
+              label: label,
+              params: {
+                'thinking': {'type': 'adaptive', 'display': 'summarized'},
+                'output_config': {'effort': id},
+              },
+            ),
+        ],
+      };
+
+  /// Levels enabled for a newly configured native protocol.
+  static const nativeDefaults = ['default', 'low', 'medium', 'high'];
+
+  static const _responsesEfforts = [
+    ('minimal', '极低'),
+    ('low', '低'),
+    ('medium', '中'),
+    ('high', '高'),
+    ('xhigh', '超高'),
+    ('max', '最高'),
+  ];
+  static const _messagesEfforts = [
+    ('low', '低'),
+    ('medium', '中'),
+    ('high', '高'),
+    ('xhigh', '超高'),
+    ('max', '最高'),
+  ];
+}
+
+/// The wire protocol of a model service. Every protocol shares the same
+/// conversation history; only the request body and stream events differ.
+enum AgentProtocol {
+  chat('chat', 'Chat Completions', '/chat/completions'),
+  responses('responses', 'OpenAI Responses', '/responses'),
+  messages('messages', 'Anthropic Messages', '/messages');
+
+  final String id;
+  final String label;
+  final String path;
+  const AgentProtocol(this.id, this.label, this.path);
+
+  /// Native search follows the API protocol, not a model or provider allowlist.
+  bool get supportsNativeWebSearch => this == responses || this == messages;
+
+  static AgentProtocol parse(Object? value) =>
+      values.firstWhere((p) => p.id == value, orElse: () => chat);
+}
+
+class AgentModel {
+  final String id;
+  final String name;
+  final String baseUrl;
+  final String model;
+  final bool supportsVision;
+  final bool includeReasoning;
+  final bool stream;
+  final List<AgentThinkingLevel> thinkingLevels;
+  final String defaultThinking;
+  final AgentJson extraBody;
+  final Map<String, String> headers;
+  final int contextWindowTokens;
+  final double? temperature;
+  final AgentProtocol protocol;
+
+  /// Output token limit. Anthropic Messages requires one; the others only
+  /// send it when configured.
+  final int? maxOutputTokens;
+  final bool nativeWebSearch;
+  const AgentModel({
+    required this.id,
+    required this.name,
+    required this.baseUrl,
+    required this.model,
+    this.supportsVision = false,
+    this.includeReasoning = false,
+    this.stream = true,
+    this.thinkingLevels = const [
+      AgentThinkingLevel(id: 'default', label: '默认'),
+    ],
+    this.defaultThinking = 'default',
+    this.extraBody = const {},
+    this.headers = const {},
+    this.contextWindowTokens = 128000,
+    this.temperature,
+    this.protocol = AgentProtocol.chat,
+    this.maxOutputTokens,
+    this.nativeWebSearch = false,
+  });
+  factory AgentModel.fromJson(AgentJson json) => AgentModel(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    baseUrl: json['base_url'] as String,
+    model: json['model'] as String,
+    supportsVision: json['supports_vision'] as bool? ?? false,
+    includeReasoning: json['include_reasoning_in_context'] as bool? ?? false,
+    stream: json['stream'] as bool? ?? true,
+    thinkingLevels:
+        (json['thinking_levels'] as List? ??
+                [
+                  {'id': 'default', 'label': '默认', 'params': {}},
+                ])
+            .map((e) => AgentThinkingLevel.fromJson(agentObject(e)))
+            .toList(),
+    defaultThinking: json['default_thinking'] as String? ?? 'default',
+    extraBody: agentObject(json['extra_body'] ?? {}),
+    headers: Map<String, String>.from(json['headers'] as Map? ?? {}),
+    contextWindowTokens: json['context_window_tokens'] as int? ?? 128000,
+    temperature: (json['temperature'] as num?)?.toDouble(),
+    protocol: AgentProtocol.parse(json['protocol']),
+    maxOutputTokens: json['max_output_tokens'] as int?,
+    nativeWebSearch: json['native_web_search'] as bool? ?? false,
+  );
+  Uri get endpoint {
+    final uri = Uri.tryParse(baseUrl.trim());
+    if (uri == null ||
+        !['https', 'http'].contains(uri.scheme) ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasFragment ||
+        uri.hasQuery) {
+      throw const FormatException('API 地址需要是有效的 HTTP(S) 地址，不含账号或查询参数');
+    }
+    var path = uri.path.replaceFirst(RegExp(r'/+$'), '');
+    var explicitEndpoint = false;
+    // A complete endpoint of any protocol is accepted as its base address.
+    for (final other in AgentProtocol.values) {
+      if (path.endsWith(other.path)) {
+        explicitEndpoint = true;
+        path = path.substring(0, path.length - other.path.length);
+        break;
+      }
+    }
+    // Official Responses and Messages services are versioned under /v1.
+    if (path.isEmpty && protocol != AgentProtocol.chat && !explicitEndpoint) {
+      path = '/v1';
+    }
+    return uri.replace(path: '$path${protocol.path}');
+  }
+
+  void validate() {
+    endpoint;
+    if (id.isEmpty ||
+        [
+          AgentWebSearchSettings.tavilySecretId,
+          AgentWebSearchSettings.deepseekSecretId,
+        ].contains(id) ||
+        name.trim().isEmpty ||
+        model.trim().isEmpty) {
+      throw const FormatException('请填写显示名称和模型 ID');
+    }
+    if (contextWindowTokens < 1) {
+      throw const FormatException('模型上下文容量需要是正整数');
+    }
+    if (thinkingLevels.isEmpty ||
+        thinkingLevels.any((e) => e.id.isEmpty || e.label.trim().isEmpty) ||
+        thinkingLevels.map((e) => e.id).toSet().length !=
+            thinkingLevels.length ||
+        !thinkingLevels.any((e) => e.id == defaultThinking)) {
+      throw const FormatException('思考深度需要唯一 ID、显示名称以及有效的默认值');
+    }
+    if (headers.entries.any(
+      (e) =>
+          e.key.trim().isEmpty ||
+          e.key.contains(RegExp(r'[\r\n:]')) ||
+          e.value.contains(RegExp(r'[\r\n]')),
+    )) {
+      throw const FormatException('自定义请求头格式无效');
+    }
+    if (temperature != null &&
+        (!temperature!.isFinite || temperature! < 0 || temperature! > 2)) {
+      throw const FormatException('temperature 应为 0–2');
+    }
+    if (maxOutputTokens != null && maxOutputTokens! < 1) {
+      throw const FormatException('最大输出 tokens 需要是正整数');
+    }
+    if (nativeWebSearch && !protocol.supportsNativeWebSearch) {
+      throw const FormatException('原生搜索需要 Responses 或 Messages 接口');
+    }
+  }
+
+  AgentThinkingLevel thinking(String? id) => thinkingLevels.firstWhere(
+    (e) => e.id == id,
+    orElse: () => thinkingLevels.firstWhere(
+      (e) => e.id == defaultThinking,
+      orElse: () => thinkingLevels.first,
+    ),
+  );
+  AgentJson toJson() => {
+    'id': id,
+    'name': name,
+    'base_url': baseUrl,
+    'model': model,
+    'supports_vision': supportsVision,
+    'include_reasoning_in_context': includeReasoning,
+    'stream': stream,
+    'thinking_levels': thinkingLevels.map((e) => e.toJson()).toList(),
+    'default_thinking': defaultThinking,
+    'extra_body': extraBody,
+    'headers': headers,
+    'context_window_tokens': contextWindowTokens,
+    'temperature': temperature,
+    'protocol': protocol.id,
+    'max_output_tokens': maxOutputTokens,
+    'native_web_search': nativeWebSearch,
+  };
+}
+
+enum AgentSearchEngine {
+  bing('Bing'),
+  google('Google'),
+  tavily('Tavily'),
+  deepseek('DeepSeek');
+
+  final String label;
+  const AgentSearchEngine(this.label);
+}
+
+class AgentWebSearchSettings {
+  /// Stored beside model keys in secrets.json, never in ordinary config.
+  static const tavilySecretId = 'web_search:tavily';
+  static const deepseekSecretId = 'web_search:deepseek';
+  static const defaultDeepseekBaseUrl = 'https://api.deepseek.com/anthropic/v1';
+  static const defaultDeepseekModel = 'deepseek-v4-flash';
+  final bool bing;
+  final bool google;
+  final bool tavily;
+  final bool deepseek;
+  final String deepseekBaseUrl;
+  final String deepseekModel;
+  const AgentWebSearchSettings({
+    this.bing = false,
+    this.google = false,
+    this.tavily = false,
+    this.deepseek = false,
+    this.deepseekBaseUrl = defaultDeepseekBaseUrl,
+    this.deepseekModel = defaultDeepseekModel,
+  });
+
+  factory AgentWebSearchSettings.fromJson(AgentJson json) =>
+      AgentWebSearchSettings(
+        bing: json['bing'] == true,
+        google: json['google'] == true,
+        tavily: json['tavily'] == true,
+        deepseek: json['deepseek'] == true,
+        deepseekBaseUrl:
+            json['deepseek_base_url'] as String? ?? defaultDeepseekBaseUrl,
+        deepseekModel:
+            json['deepseek_model'] as String? ?? defaultDeepseekModel,
+      );
+
+  bool enabled(AgentSearchEngine engine) => switch (engine) {
+    AgentSearchEngine.bing => bing,
+    AgentSearchEngine.google => google,
+    AgentSearchEngine.tavily => tavily,
+    AgentSearchEngine.deepseek => deepseek,
+  };
+
+  List<AgentSearchEngine> get engines =>
+      AgentSearchEngine.values.where(enabled).toList();
+
+  AgentWebSearchSettings withEngine(AgentSearchEngine engine, bool value) =>
+      AgentWebSearchSettings(
+        bing: engine == AgentSearchEngine.bing ? value : bing,
+        google: engine == AgentSearchEngine.google ? value : google,
+        tavily: engine == AgentSearchEngine.tavily ? value : tavily,
+        deepseek: engine == AgentSearchEngine.deepseek ? value : deepseek,
+        deepseekBaseUrl: deepseekBaseUrl,
+        deepseekModel: deepseekModel,
+      );
+
+  AgentWebSearchSettings withDeepseek({
+    required String baseUrl,
+    required String model,
+    required bool enabled,
+  }) => AgentWebSearchSettings(
+    bing: bing,
+    google: google,
+    tavily: tavily,
+    deepseek: enabled,
+    deepseekBaseUrl: baseUrl,
+    deepseekModel: model,
+  );
+
+  AgentModel get deepseekSearchModel => AgentModel(
+    id: 'deepseek-search',
+    name: 'DeepSeek 搜索',
+    baseUrl: deepseekBaseUrl,
+    model: deepseekModel,
+    protocol: AgentProtocol.messages,
+    stream: false,
+    nativeWebSearch: true,
+    maxOutputTokens: 4096,
+  );
+
+  AgentJson toJson() => {
+    'bing': bing,
+    'google': google,
+    'tavily': tavily,
+    'deepseek': deepseek,
+    'deepseek_base_url': deepseekBaseUrl,
+    'deepseek_model': deepseekModel,
+  };
+}
+
+class AgentSettings {
+  final List<AgentModel> models;
+  final String? defaultModelId;
+  final String confirmPolicy;
+
+  /// Automatic source backups kept per source; older ones are removed.
+  final int autoBackupLimit;
+
+  /// Backups the agent creates on purpose, per source. They are never removed
+  /// automatically; creating more fails until old ones are deleted. 0 means
+  /// no limit.
+  final int manualBackupLimit;
+  final AgentWebSearchSettings webSearch;
+  const AgentSettings({
+    this.models = const [],
+    this.defaultModelId,
+    this.confirmPolicy = 'never',
+    this.autoBackupLimit = 10,
+    this.manualBackupLimit = 20,
+    this.webSearch = const AgentWebSearchSettings(),
+  });
+  factory AgentSettings.fromJson(AgentJson json) => AgentSettings(
+    models: (json['models'] as List? ?? [])
+        .map((e) => AgentModel.fromJson(agentObject(e)))
+        .toList(),
+    defaultModelId: json['default_model_id'] as String?,
+    confirmPolicy: json['confirm_policy'] as String? ?? 'never',
+    autoBackupLimit: json['auto_backup_limit'] as int? ?? 10,
+    manualBackupLimit: json['manual_backup_limit'] as int? ?? 20,
+    webSearch: AgentWebSearchSettings.fromJson(
+      agentObject(json['web_search'] ?? const {}),
+    ),
+  );
+
+  static const _unchanged = Object();
+
+  AgentSettings copyWith({
+    List<AgentModel>? models,
+    Object? defaultModelId = _unchanged,
+    String? confirmPolicy,
+    int? autoBackupLimit,
+    int? manualBackupLimit,
+    AgentWebSearchSettings? webSearch,
+  }) => AgentSettings(
+    models: models ?? this.models,
+    defaultModelId: identical(defaultModelId, _unchanged)
+        ? this.defaultModelId
+        : defaultModelId as String?,
+    confirmPolicy: confirmPolicy ?? this.confirmPolicy,
+    autoBackupLimit: autoBackupLimit ?? this.autoBackupLimit,
+    manualBackupLimit: manualBackupLimit ?? this.manualBackupLimit,
+    webSearch: webSearch ?? this.webSearch,
+  );
+  AgentModel? findModel(String? id) {
+    for (final model in models) {
+      if (model.id == id) return model;
+    }
+    return null;
+  }
+
+  AgentModel? get defaultModel =>
+      findModel(defaultModelId) ?? (models.isEmpty ? null : models.first);
+  AgentJson toJson() => {
+    'version': 1,
+    'models': models.map((e) => e.toJson()).toList(),
+    'default_model_id': defaultModelId,
+    'confirm_policy': confirmPolicy,
+    'auto_backup_limit': autoBackupLimit,
+    'manual_backup_limit': manualBackupLimit,
+    'web_search': webSearch.toJson(),
+  };
+}
+
+class AgentComic {
+  final String sourceKey;
+  final String comicId;
+  final String title;
+  final String subtitle;
+  final String cover;
+  final String description;
+  final List<String> tags;
+  const AgentComic({
+    required this.sourceKey,
+    required this.comicId,
+    required this.title,
+    this.subtitle = '',
+    this.cover = '',
+    this.description = '',
+    this.tags = const [],
+  });
+  String get identity => jsonEncode([sourceKey, comicId]);
+  AgentJson get ref => {'source_key': sourceKey, 'comic_id': comicId};
+  factory AgentComic.fromJson(AgentJson json) => AgentComic(
+    sourceKey: json['source_key'] as String,
+    comicId: json['comic_id'] as String,
+    title: json['title'] as String,
+    subtitle: json['subtitle'] as String? ?? '',
+    cover: json['cover'] as String? ?? '',
+    description: json['description'] as String? ?? '',
+    tags: List<String>.from(json['tags'] as List? ?? []),
+  );
+  AgentJson toJson() => {
+    ...ref,
+    'title': title,
+    'subtitle': subtitle,
+    'cover': cover,
+    'description': description,
+    'tags': tags,
+  };
+}
+
+class AgentConversation {
+  final String id;
+  String title;
+  String? modelId;
+  String? thinkingId;
+  final int createdAt;
+  int updatedAt;
+  int messageCount;
+  int storageBytes;
+  AgentConversation({
+    required this.id,
+    this.title = '新对话',
+    this.modelId,
+    this.thinkingId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.messageCount = 0,
+    this.storageBytes = 0,
+  });
+}
+
+class AgentImageAttachment {
+  final String id;
+  final String name;
+  final String mimeType;
+  final int byteLength;
+  const AgentImageAttachment({
+    required this.id,
+    required this.name,
+    required this.mimeType,
+    required this.byteLength,
+  });
+  factory AgentImageAttachment.fromJson(AgentJson json) => AgentImageAttachment(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    mimeType: json['mime_type'] as String,
+    byteLength: json['byte_length'] as int,
+  );
+  AgentJson toJson() => {
+    'type': 'image',
+    'id': id,
+    'name': name,
+    'mime_type': mimeType,
+    'byte_length': byteLength,
+  };
+}
+
+class AgentImageDraft {
+  final AgentImageAttachment attachment;
+  final Uint8List bytes;
+  const AgentImageDraft(this.attachment, this.bytes);
+}
+
+class AgentTextAttachment {
+  final String id;
+  final String name;
+  final String mimeType;
+  final int byteLength;
+  final String encoding;
+  const AgentTextAttachment({
+    required this.id,
+    required this.name,
+    required this.mimeType,
+    required this.byteLength,
+    this.encoding = 'utf-8',
+  });
+  factory AgentTextAttachment.fromJson(AgentJson json) => AgentTextAttachment(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    mimeType: json['mime_type'] as String,
+    byteLength: json['byte_length'] as int,
+    encoding: json['encoding'] as String? ?? 'utf-8',
+  );
+  AgentJson toJson() => {
+    'type': 'file',
+    'id': id,
+    'name': name,
+    'mime_type': mimeType,
+    'byte_length': byteLength,
+    'encoding': encoding,
+  };
+}
+
+class AgentTextDraft {
+  final AgentTextAttachment attachment;
+  final Uint8List bytes;
+  const AgentTextDraft(this.attachment, this.bytes);
+}
+
+String agentFormatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+}
+
+class AgentMessage {
+  final String id;
+  final String conversationId;
+  final String role;
+  final List<AgentJson> parts;
+  final String? modelId;
+  final String? thinkingId;
+  final int createdAt;
+  String state;
+  String? error;
+  AgentMessage({
+    required this.id,
+    required this.conversationId,
+    required this.role,
+    required this.parts,
+    this.modelId,
+    this.thinkingId,
+    required this.createdAt,
+    this.state = 'done',
+    this.error,
+  });
+  String get text => parts
+      .where((p) => p['type'] == 'text')
+      .map((p) => p['text'] as String? ?? '')
+      .join();
+  String get displayText => parts
+      .where((p) => p['type'] == 'text')
+      .map((p) => p['display_text'] as String? ?? p['text'] as String? ?? '')
+      .join();
+  bool get needsNativeContinuation => parts.any(
+    (p) => p['type'] == 'provider_state' && p['continue_turn'] == true,
+  );
+  Iterable<AgentJson> get tools => parts.where((p) => p['type'] == 'tool_call');
+  List<AgentImageAttachment> get images => parts
+      .where((p) => p['type'] == 'image')
+      .map(AgentImageAttachment.fromJson)
+      .toList();
+  List<AgentTextAttachment> get files => parts
+      .where((p) => p['type'] == 'file')
+      .map(AgentTextAttachment.fromJson)
+      .toList();
+  String? get followUpTo {
+    if (role != 'user') return null;
+    for (final part in parts) {
+      if (part['follow_up_to'] is String) return part['follow_up_to'] as String;
+    }
+    return null;
+  }
+
+  bool get isFollowUp => followUpTo != null;
+
+  /// A separate future task, never part of the current model context.
+  /// `queued` continues to mean an insertion into the task already running.
+  bool get isPendingTask => role == 'user' && state == 'pending_task';
+
+  void appendText(String type, String text) {
+    if (text.isEmpty) return;
+    if (parts.isNotEmpty && parts.last['type'] == type) {
+      parts.last['text'] = (parts.last['text'] as String) + text;
+    } else {
+      parts.add({'type': type, 'text': text});
+    }
+  }
+}
+
+class AgentShowcase {
+  final String id;
+  final String title;
+  final String note;
+  final int createdAt;
+  final List<AgentComic> comics;
+  final String kind;
+  final String? folder;
+  const AgentShowcase({
+    required this.id,
+    required this.title,
+    required this.note,
+    required this.createdAt,
+    required this.comics,
+    this.kind = 'discovery',
+    this.folder,
+  });
+}
+
+/// Successful cover receipts, including the single-image legacy format.
+List<AgentJson> agentCoverResults(Object? data) {
+  if (data is! Map) return const [];
+  if (data['image'] is Map) return [agentObject(data)];
+  final results = data['results'];
+  if (results is! List) return const [];
+  return [
+    for (final row in results)
+      if (row is Map && row['status'] == 'ok' && row['image'] is Map)
+        agentObject(row),
+  ];
+}

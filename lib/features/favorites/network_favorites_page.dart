@@ -108,6 +108,7 @@ class _NormalFavoritePageState extends State<_NormalFavoritePage> {
   Widget build(BuildContext context) {
     final data = widget.data;
     return ComicList(
+      filterBlockedComics: false,
       key: comicListKey,
       leadingSliver: SliverAppbar(
         style: context.width < changePoint
@@ -533,6 +534,7 @@ class _FavoriteFolder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ComicList(
+      filterBlockedComics: false,
       key: comicListKey,
       enablePageStorage: true,
       leadingSliver: SliverAppbar(

@@ -5,16 +5,20 @@ import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/extensions.dart';
 
 String? _cachedProxy;
+String? _cachedConfiguration;
 
 DateTime? _cachedProxyTime;
 
 Future<String?> getProxy() async {
-  if (_cachedProxyTime != null &&
+  final configuration = GlobalPreferenceStore(appdata.settings).network.proxy;
+  if (_cachedConfiguration == configuration &&
+      _cachedProxyTime != null &&
       DateTime.now().difference(_cachedProxyTime!).inSeconds < 1) {
     return _cachedProxy;
   }
   String? proxy = await _getProxy();
   _cachedProxy = proxy;
+  _cachedConfiguration = configuration;
   _cachedProxyTime = DateTime.now();
   return proxy;
 }

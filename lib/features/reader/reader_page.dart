@@ -1543,6 +1543,9 @@ class ReaderState extends State<Reader>
 
   void setImageCacheSize() => unawaited(_imageCachePolicy.configure());
 
+  @override
+  void didHaveMemoryPressure() => _imageCachePolicy.handleMemoryPressure();
+
   late final _volumeController = ReaderVolumeController(
     connect: createVolumeConnection,
     nextPage: () {

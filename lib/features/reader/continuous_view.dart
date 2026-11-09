@@ -1,3 +1,4 @@
+import 'image_cache_policy.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -768,7 +769,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
   }
 
   void cacheImages(int current) {
-    if (!mounted) return;
+    if (!mounted || !ReaderImageCachePolicy.allowActivePrecache) return;
     for (int i = current + 1; i <= current + preCacheCount; i++) {
       if (crossChapter) {
         var imageRef = _imageRefAt(i);

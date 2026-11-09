@@ -1,3 +1,4 @@
+import 'image_cache_policy.dart';
 import 'dart:async';
 
 import 'package:flutter/painting.dart';
@@ -17,7 +18,11 @@ class ReaderImagePrecache {
   Future<void>? _disposal;
 
   void preload(ReaderImageProvider provider, ImageConfiguration configuration) {
-    if (_disposal != null || _pending.containsKey(provider)) return;
+    if (!ReaderImageCachePolicy.allowActivePrecache ||
+        _disposal != null ||
+        _pending.containsKey(provider)) {
+      return;
+    }
     late final _ReaderPrecacheEntry entry;
     final task = _work.start(onCancel: () => entry.release());
     if (task == null) return;

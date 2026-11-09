@@ -21,11 +21,19 @@ class PaneItemEntry {
   IconData icon;
 
   IconData activeIcon;
+  final bool keepBottomBarWithKeyboard;
+  final Widget Function(BuildContext context, Widget icon)? iconBuilder;
+  Widget buildIcon(BuildContext context, bool enabled) {
+    final child = Icon(enabled ? activeIcon : icon);
+    return iconBuilder?.call(context, child) ?? child;
+  }
 
   PaneItemEntry({
     required this.label,
     required this.icon,
     required this.activeIcon,
+    this.keepBottomBarWithKeyboard = false,
+    this.iconBuilder,
   });
 }
 
@@ -50,6 +58,7 @@ class NaviPane extends StatefulWidget {
     required this.pageBuilder,
     this.initialPage = 0,
     this.onPageChanged,
+    this.mobileTitleAccessory,
     required this.observer,
     required this.navigatorKey,
     super.key,
@@ -64,6 +73,7 @@ class NaviPane extends StatefulWidget {
   final void Function(int index)? onPageChanged;
 
   final int initialPage;
+  final Widget? mobileTitleAccessory;
 
   final NaviObserver observer;
 
@@ -303,7 +313,12 @@ class NaviPaneState extends State<NaviPane>
               widget.paneItems[currentPage].label,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const Spacer(),
+            if (widget.mobileTitleAccessory != null) ...[
+              const SizedBox(width: 8),
+              Expanded(child: widget.mobileTitleAccessory!),
+              const SizedBox(width: 4),
+            ] else
+              const Spacer(),
             for (var action in widget.paneActions)
               Tooltip(
                 message: action.label,
@@ -435,7 +450,7 @@ class _SideNaviWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final icon = Icon(enabled ? entry.activeIcon : entry.icon);
+    final icon = entry.buildIcon(context, enabled);
     return ClickInkWell(
       autofocus: autofocus,
       borderRadius: BorderRadius.circular(12),
@@ -564,9 +579,7 @@ class _SingleBottomNaviWidgetState extends State<_SingleBottomNaviWidget>
   Widget buildContent() {
     final value = controller.value;
     final colorScheme = Theme.of(context).colorScheme;
-    final icon = Icon(
-      widget.enabled ? widget.entry.activeIcon : widget.entry.icon,
-    );
+    final icon = widget.entry.buildIcon(context, widget.enabled);
     return Center(
       child: Container(
         width: 64,
@@ -795,21 +808,43 @@ class _NaviMainViewState extends State<_NaviMainView> {
   @override
   Widget build(BuildContext context) {
     var shouldShowAppBar = state.controller.value < 2;
+    final keepBottomBar =
+        state.widget.paneItems[state.currentPage].keepBottomBarWithKeyboard;
+    final content = AnimatedSwitcher(
+      duration: fastAnimationDuration,
+      child: state.buildMainViewContent(),
+    );
     return Column(
       children: [
         if (shouldShowAppBar) state.buildTop().paddingTop(context.padding.top),
         Expanded(
-          child: MediaQuery.removePadding(
-            context: context,
-            removeTop: shouldShowAppBar,
-            child: AnimatedSwitcher(
-              duration: fastAnimationDuration,
-              child: state.buildMainViewContent(),
+          child: Builder(
+            builder: (context) => MediaQuery.removePadding(
+              context: context,
+              removeTop: shouldShowAppBar,
+              child: content,
             ),
           ),
         ),
+        // Resizing pages release this space; floating-input pages retain it.
         if (shouldShowAppBar)
-          state.buildBottom().paddingBottom(context.padding.bottom),
+          Builder(
+            builder: (context) {
+              if (!keepBottomBar &&
+                  MediaQuery.viewInsetsOf(context).bottom > 0) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                key: const ValueKey('navi-bottom-bar'),
+                padding: EdgeInsets.only(
+                  bottom: keepBottomBar
+                      ? MediaQuery.viewPaddingOf(context).bottom
+                      : context.padding.bottom,
+                ),
+                child: state.buildBottom(),
+              );
+            },
+          ),
       ],
     );
   }

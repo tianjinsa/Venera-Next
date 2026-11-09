@@ -1,0 +1,1260 @@
+import 'agent_file_picker.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
+import 'package:flutter/services.dart';
+import 'package:venera_next/features/comic_source/comic_source.dart';
+import 'agent_attachment_view.dart';
+import 'agent_controller.dart';
+import 'agent_floating_composer.dart';
+import 'agent_history_view.dart';
+import 'agent_images.dart';
+import 'agent_message_view.dart';
+import 'agent_model_header.dart';
+import 'agent_models.dart';
+import 'agent_queue_view.dart';
+import 'agent_session.dart';
+import 'agent_settings_page.dart';
+import 'agent_showcase_view.dart';
+import 'agent_turn_view.dart';
+
+enum _AgentAttachmentType { images, files }
+
+class AgentPage extends StatefulWidget {
+  /// A controller owned by this page and disposed with it. Without one the
+  /// page shows the app-wide [AgentSession], which keeps running after the
+  /// page is left.
+  final AgentController? controller;
+  final Future<List<AgentImageDraft>> Function()? imagePicker;
+  final Future<List<AgentTextDraft>> Function()? filePicker;
+  final AgentModelHeaderBridge? modelHeaderBridge;
+
+  /// Shown on its own route instead of in the navigation tab: adds a back
+  /// button and keeps clear of the system bars.
+  final bool standalone;
+  const AgentPage({
+    super.key,
+    this.controller,
+    this.imagePicker,
+    this.filePicker,
+    this.modelHeaderBridge,
+    this.standalone = false,
+  });
+  @override
+  State<AgentPage> createState() => _AgentPageState();
+}
+
+class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
+  AgentController? _controller;
+  String? _loadError;
+  final _draft = TextEditingController();
+  final _draftImages = <AgentImageDraft>[];
+  final _draftFiles = <AgentTextDraft>[];
+  String? _draftConversation;
+  bool _pickingAttachments = false;
+  final _historySearch = TextEditingController();
+  final _scroll = ScrollController();
+
+  /// Following resumes only when a scroll ends at the bottom, within about a
+  /// line; elsewhere the jump arrow of the context row brings it back.
+  static const _followThreshold = 24.0;
+  bool _followOutput = true;
+  bool _userScrolling = false;
+  bool _followScheduled = false;
+  final _scrollPointers = <int>{};
+  ScrollDirection _userScrollDirection = ScrollDirection.idle;
+  final _showcaseScroll = ScrollController();
+
+  /// Whether newer content lies below the viewport of the message list.
+  final _belowBottom = ValueNotifier(false);
+  double _width = 0;
+  String? _focusedGroup;
+  int _focusRevision = 0;
+
+  /// Tickers stop while a route covers this page, which tells the shared
+  /// session whether the agent is in view.
+  ValueListenable<TickerModeData>? _tickerMode;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final controller = widget.controller ?? await AgentSession.open();
+      if (!mounted) {
+        if (widget.controller != null) controller.dispose();
+        return;
+      }
+      controller.addListener(_onUpdate);
+      controller.streamRevision.addListener(_scheduleFollow);
+      setState(() {
+        _controller = controller;
+        _loadError = null;
+      });
+      widget.modelHeaderBridge?.bind(controller);
+      _visibilityChanged();
+      _onUpdate();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadError = 'Agent 数据无法打开。请检查数据目录或配置文件；原文件未被覆盖。';
+        });
+      }
+    }
+  }
+
+  void _onUpdate() {
+    if (!mounted) return;
+    final conversationId = _controller?.conversation.id;
+    if (_draftConversation != conversationId) {
+      _draftConversation = conversationId;
+      _draft.clear();
+      _draftImages.clear();
+      _draftFiles.clear();
+      _focusedGroup = null;
+      _followOutput = true;
+      _userScrolling = false;
+      _scrollPointers.clear();
+      _userScrollDirection = ScrollDirection.idle;
+      _belowBottom.value = false;
+    }
+    if (_controller?.messages.isEmpty ?? true) _belowBottom.value = false;
+    _scheduleFollow();
+  }
+
+  void _trackBottom(ScrollMetrics metrics) {
+    _belowBottom.value = metrics.extentAfter > _followThreshold;
+  }
+
+  /// Move to the newest message and keep following streamed output.
+  void _jumpToBottom() {
+    if (!_scroll.hasClients) return;
+    _followOutput = true;
+    _userScrolling = false;
+    final position = _scroll.position;
+    if (position.extentAfter <= 0) return;
+    position
+        .animateTo(
+          position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        )
+        // A lazy list may grow its extent while animating; settle at the end.
+        .whenComplete(_scheduleFollow);
+  }
+
+  void _scheduleFollow() {
+    if (!_followOutput ||
+        _userScrolling ||
+        _scrollPointers.isNotEmpty ||
+        _followScheduled) {
+      return;
+    }
+    _followScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _followScheduled = false;
+      // A queued frame must not reclaim the scroll position after a drag starts.
+      if (!mounted ||
+          !_followOutput ||
+          _userScrolling ||
+          _scrollPointers.isNotEmpty ||
+          !_scroll.hasClients) {
+        return;
+      }
+      final position = _scroll.position;
+      if (!position.isScrollingNotifier.value && position.extentAfter > 0) {
+        _scroll.jumpTo(position.maxScrollExtent);
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _onScrollPointerEnd(PointerEvent event) {
+    _scrollPointers.remove(event.pointer);
+    _scheduleFollow();
+  }
+
+  bool _onMessageScroll(ScrollNotification notification) {
+    // Tool details and other nested scroll views do not change chat following.
+    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
+      return false;
+    }
+    _trackBottom(notification.metrics);
+    if (notification is ScrollStartNotification &&
+        notification.dragDetails != null) {
+      _followOutput = false;
+      _userScrolling = true;
+      _userScrollDirection = ScrollDirection.idle;
+    } else if (notification is UserScrollNotification &&
+        notification.direction != ScrollDirection.idle) {
+      _followOutput = false;
+      _userScrolling = true;
+      _userScrollDirection = notification.direction;
+    } else if (notification is ScrollEndNotification) {
+      if (_userScrolling) {
+        // For this non-reversed list, swiping up advances toward newer messages.
+        // Wait for both the drag and its ballistic scroll to finish before
+        // following again, even when the finger stays inside the bottom zone.
+        _followOutput =
+            _userScrollDirection == ScrollDirection.reverse &&
+            notification.metrics.extentAfter <= _followThreshold;
+        _userScrolling = false;
+        _userScrollDirection = ScrollDirection.idle;
+      }
+      _scheduleFollow();
+    }
+    return false;
+  }
+
+  bool _onMessageMetrics(ScrollMetricsNotification notification) {
+    if (notification.depth == 0 && notification.metrics.axis == Axis.vertical) {
+      _trackBottom(notification.metrics);
+      _scheduleFollow();
+    }
+    return false;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final mode = TickerMode.getValuesNotifier(context);
+    if (mode == _tickerMode) return;
+    _tickerMode?.removeListener(_visibilityChanged);
+    _tickerMode = mode..addListener(_visibilityChanged);
+    _visibilityChanged();
+  }
+
+  void _visibilityChanged() {
+    if (widget.controller != null) return;
+    AgentSession.setPageVisible(
+      context,
+      _controller != null && _tickerMode!.value.enabled,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The shared session saves its own checkpoints.
+    if (state != AppLifecycleState.resumed && widget.controller != null) {
+      _controller?.checkpoint();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AgentPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final controller = _controller;
+    if (controller != null &&
+        oldWidget.modelHeaderBridge != widget.modelHeaderBridge) {
+      oldWidget.modelHeaderBridge?.unbind(controller);
+      widget.modelHeaderBridge?.bind(controller);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tickerMode?.removeListener(_visibilityChanged);
+    if (widget.controller == null) AgentSession.setPageVisible(context, false);
+    if (_controller != null) widget.modelHeaderBridge?.unbind(_controller!);
+    _controller?.removeListener(_onUpdate);
+    _controller?.streamRevision.removeListener(_scheduleFollow);
+    if (widget.controller != null) _controller?.dispose();
+    _draft.dispose();
+    _historySearch.dispose();
+    _scroll.dispose();
+    _showcaseScroll.dispose();
+    _belowBottom.dispose();
+    super.dispose();
+  }
+
+  void _error(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error is AgentException ? error.message : '操作未完成，请重试'),
+      ),
+    );
+  }
+
+  Future<void> _act(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      _error(e);
+    }
+  }
+
+  Future<void> _settings() async {
+    final controller = _controller!;
+    await controller.stopAndWait();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AgentSettingsPage(store: controller.store),
+      ),
+    );
+    if (mounted) controller.reload();
+  }
+
+  Future<void> _send({AgentSendMode mode = AgentSendMode.insert}) async {
+    final controller = _controller!;
+    if (controller.isStopping ||
+        _pickingAttachments ||
+        _draft.text.trim().isEmpty &&
+            _draftImages.isEmpty &&
+            _draftFiles.isEmpty) {
+      return;
+    }
+    if (controller.model == null) {
+      await _settings();
+      return;
+    }
+    final text = _draft.text;
+    final images = _draftImages.toList();
+    final files = _draftFiles.toList();
+    final conversationId = controller.conversation.id;
+    setState(() {
+      _draft.clear();
+      _draftImages.clear();
+      _draftFiles.clear();
+    });
+    try {
+      await controller.send(text, images: images, files: files, mode: mode);
+    } catch (e) {
+      if (mounted) {
+        if (controller.conversation.id == conversationId) {
+          setState(() {
+            _draft.text = _draft.text.isEmpty ? text : '$text\n${_draft.text}';
+            _draftImages.insertAll(0, images);
+            _draftFiles.insertAll(0, files);
+          });
+        }
+        _error(e);
+      }
+    }
+  }
+
+  Future<void> _pickAttachments(_AgentAttachmentType type) async {
+    if (_pickingAttachments || _controller!.isStopping) return;
+    final conversationId = _controller!.conversation.id;
+    setState(() => _pickingAttachments = true);
+    try {
+      switch (type) {
+        case _AgentAttachmentType.images:
+          final images = await (widget.imagePicker ?? pickAgentImages)();
+          if (mounted && _controller!.conversation.id == conversationId) {
+            setState(() => _draftImages.addAll(images));
+          }
+        case _AgentAttachmentType.files:
+          final files = await (widget.filePicker ?? pickAgentTextFiles)();
+          if (mounted && _controller!.conversation.id == conversationId) {
+            setState(() => _draftFiles.addAll(files));
+          }
+      }
+    } catch (e) {
+      _error(e);
+    } finally {
+      if (mounted) setState(() => _pickingAttachments = false);
+    }
+  }
+
+  Future<String?> _editText(
+    String title,
+    String initial, {
+    bool multiline = false,
+  }) async {
+    final input = TextEditingController(text: initial);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: TextField(
+            controller: input,
+            autofocus: true,
+            minLines: multiline ? 3 : 1,
+            maxLines: multiline ? 8 : 1,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, input.text),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    return result;
+  }
+
+  Future<bool> _deleteConversations(
+    List<AgentConversation> conversations,
+  ) async {
+    final bytes = conversations.fold<int>(
+      0,
+      (total, c) => total + c.storageBytes,
+    );
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          conversations.length == 1
+              ? '删除这段对话？'
+              : '删除 ${conversations.length} 段对话？',
+        ),
+        content: Text(
+          '将一并删除图片、文件、文字、工具运行记录和展示记录，内容约 ${agentFormatBytes(bytes)}。\n\n已经加入收藏和稍后再看的漫画不受影响。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            key: const ValueKey('agent-confirm-delete'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return false;
+    try {
+      await _controller!.deleteConversations(conversations);
+      return true;
+    } catch (e) {
+      _error(e);
+      return false;
+    }
+  }
+
+  Future<void> _history() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (sheetContext) => SizedBox(
+      height: MediaQuery.sizeOf(sheetContext).height * .85,
+      child: AnimatedBuilder(
+        animation: _controller!,
+        builder: (_, _) =>
+            _historyPanel(close: () => Navigator.pop(sheetContext)),
+      ),
+    ),
+  );
+  Future<void> _showcase([String? id]) async {
+    if (id != null) {
+      setState(() {
+        _focusedGroup = id;
+        _focusRevision++;
+      });
+    }
+    if (_width >= 720) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _showcaseScroll.hasClients) {
+          _showcaseScroll.animateTo(
+            0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => SizedBox(
+        height: MediaQuery.sizeOf(sheetContext).height * .85,
+        child: AnimatedBuilder(
+          animation: _controller!,
+          builder: (_, _) =>
+              _showcasePanel(close: () => Navigator.pop(sheetContext)),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    if (controller == null) {
+      return Material(
+        child: Center(
+          child: _loadError == null
+              ? const CircularProgressIndicator()
+              : Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_loadError!),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () {
+                          setState(() => _loadError = null);
+                          _load();
+                        },
+                        child: const Text('重新打开'),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      );
+    }
+    final page = Scaffold(
+      resizeToAvoidBottomInset: false,
+      body: AnimatedBuilder(
+        animation: controller,
+        builder: (_, _) => LayoutBuilder(
+          builder: (context, constraints) {
+            _width = constraints.maxWidth;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_width >= 1024) ...[
+                  SizedBox(width: 240, child: _historyPanel()),
+                  const VerticalDivider(width: 1, thickness: .6),
+                ],
+                Expanded(child: _chat()),
+                if (_width >= 720) ...[
+                  const VerticalDivider(width: 1, thickness: .6),
+                  SizedBox(
+                    width: 304,
+                    child: _showcasePanel(scroll: _showcaseScroll),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    if (!widget.standalone) return page;
+    // Its own route has no navigation bars to keep clear of the system bars.
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surface,
+      child: SafeArea(maintainBottomViewPadding: true, child: page),
+    );
+  }
+
+  Widget _chat() {
+    final controller = _controller!;
+    final model = controller.model;
+    final entries = <List<AgentMessage>>[];
+    for (final message in controller.messages) {
+      final startsTurn = message.role == 'user' && !message.isFollowUp;
+      if (startsTurn ||
+          entries.isEmpty ||
+          entries.last.first.role == 'user' && !entries.last.first.isFollowUp) {
+        entries.add([message]);
+      } else {
+        entries.last.add(message);
+      }
+    }
+    return Column(
+      children: [
+        // Laid out like the app's Appbar, so the tab matches other pages.
+        SizedBox(
+          height: 56,
+          child: Row(
+            children: [
+              const SizedBox(width: 8),
+              if (widget.standalone) ...[
+                IconButton(
+                  key: const ValueKey('agent-back'),
+                  tooltip: '返回',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (_width < 1024) ...[
+                IconButton(
+                  tooltip: '历史对话',
+                  onPressed: _history,
+                  icon: const Icon(Icons.history),
+                ),
+                const SizedBox(width: 8),
+              ] else
+                const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  controller.conversation.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 20),
+                ),
+              ),
+              IconButton(
+                tooltip: '新对话',
+                onPressed: () => _act(controller.newConversation),
+                icon: const Icon(Icons.add_comment_outlined),
+              ),
+              if (_width < 720)
+                Badge(
+                  isLabelVisible: controller.showcases.isNotEmpty,
+                  label: Text(
+                    controller.showcases
+                        .fold<int>(0, (n, g) => n + g.comics.length)
+                        .toString(),
+                  ),
+                  child: IconButton(
+                    tooltip: '展示漫画',
+                    onPressed: () => _showcase(),
+                    icon: const Icon(Icons.view_sidebar_outlined),
+                  ),
+                ),
+              IconButton(
+                key: const ValueKey('agent-settings'),
+                tooltip: 'Agent 设置',
+                onPressed: () => _act(_settings),
+                icon: const Icon(Icons.tune),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+        ),
+        if (model != null &&
+            !(widget.modelHeaderBridge != null &&
+                agentUsesMobileModelHeader(context)))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: AgentModelPickerButton(controller: controller),
+          ),
+        const Divider(height: 1, thickness: .6),
+        Expanded(
+          child: controller.messages.isEmpty
+              ? _empty(model == null)
+              : Listener(
+                  // Holding a fling is not reported as an active scroll, but
+                  // must still keep streaming output from moving the viewport.
+                  onPointerDown: (event) => _scrollPointers.add(event.pointer),
+                  onPointerUp: _onScrollPointerEnd,
+                  onPointerCancel: _onScrollPointerEnd,
+                  child: NotificationListener<ScrollMetricsNotification>(
+                    onNotification: _onMessageMetrics,
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: _onMessageScroll,
+                      child: ListView.builder(
+                        key: const ValueKey('agent-messages'),
+                        controller: _scroll,
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                        itemCount: entries.length,
+                        itemBuilder: (_, index) {
+                          final messages = entries[index];
+                          final message = messages.first;
+                          if (message.role == 'user' && !message.isFollowUp) {
+                            return Align(
+                              key: ValueKey(message.id),
+                              alignment: Alignment.topCenter,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 860,
+                                ),
+                                child: AgentUserMessageView(
+                                  message: message,
+                                  busy: controller.busy,
+                                  imageLoader: (message, image) =>
+                                      controller.store.imageBytes(
+                                        message.conversationId,
+                                        image.id,
+                                      ),
+                                  fileLoader: (message, file) =>
+                                      controller.store.textFileBytes(
+                                        message.conversationId,
+                                        file.id,
+                                      ),
+                                  onEdit: () async {
+                                    final text = await _editText(
+                                      '编辑后重发（替换后续回复）',
+                                      message.text,
+                                      multiline: true,
+                                    );
+                                    if (text != null) {
+                                      await _act(
+                                        () => controller.editAndResend(
+                                          message,
+                                          text,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                            );
+                          }
+                          final current = index == entries.length - 1;
+                          Widget turn(BuildContext context) => AgentTurnView(
+                            messages: messages,
+                            imageLoader: (message, image) => controller.store
+                                .imageBytes(message.conversationId, image.id),
+                            fileLoader: (message, file) => controller.store
+                                .textFileBytes(message.conversationId, file.id),
+                            running: current && controller.busy,
+                            interrupted:
+                                current &&
+                                controller.error != null &&
+                                controller.hasUnfinishedTask,
+                            modelName:
+                                controller.store.settings
+                                    .findModel(message.modelId)
+                                    ?.name ??
+                                '未配置模型',
+                            busy: controller.busy,
+                            onRegenerate: current
+                                ? () => _act(controller.regenerate)
+                                : null,
+                            canRetry: controller.canRetry,
+                            onRetry: (message, call) =>
+                                _act(() => controller.retryTool(message, call)),
+                            onShowcase: (id) => _showcase(id),
+                            hasUndo: (id) => controller.store.hasUndo(
+                              id,
+                              controller.conversation.id,
+                            ),
+                            onUndo: (id) => _act(() async {
+                              final result = await controller.undo(id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '恢复 ${result['restored']} 本，跳过 ${result['skipped']} 本，失败 ${result['failed']} 本',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }),
+                          );
+                          return Align(
+                            key: ValueKey(message.id),
+                            alignment: Alignment.topCenter,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 860),
+                              // Only the running turn follows streamed text.
+                              child: current && controller.busy
+                                  ? ValueListenableBuilder<int>(
+                                      valueListenable:
+                                          controller.streamRevision,
+                                      builder: (context, _, _) => turn(context),
+                                    )
+                                  : turn(context),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+        if (controller.confirmation != null)
+          _confirmation(controller.confirmation!),
+        if (!controller.busy && controller.error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  controller.error!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (controller.pendingMessages.isEmpty)
+                      TextButton.icon(
+                        onPressed: () => _act(controller.resume),
+                        icon: const Icon(Icons.play_arrow, size: 16),
+                        label: const Text('继续'),
+                      ),
+                    PopupMenuButton<String>(
+                      tooltip: '重试回复',
+                      onSelected: (value) => _act(
+                        () => controller.regenerate(
+                          useCurrentModel: value == 'current',
+                        ),
+                      ),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'original',
+                          child: Text('沿用原模型重新生成'),
+                        ),
+                        PopupMenuItem(value: 'current', child: Text('用当前模型重试')),
+                      ],
+                      child: const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text('重新生成'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        AgentQueueStatus(
+          controller: controller,
+          onResume: () => _act(controller.resume),
+          onCancel: (id) =>
+              _act(() async => controller.cancelQueuedMessage(id)),
+        ),
+        AgentFloatingComposer(
+          child: Material(
+            color: Theme.of(context).colorScheme.surface,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [if (model != null) _contextStatus(), _composer()],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _empty(bool noModel) => Center(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.auto_awesome,
+            size: 42,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            noModel ? '先连接一个模型' : '让 Agent 帮你整理漫画',
+            style: Theme.of(context).textTheme.titleLarge,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            noModel ? '配置模型后，即可通过对话搜索漫画、整理收藏和稍后再看。' : '告诉我漫画名称或源 ID，以及你想进行的操作。',
+            textAlign: TextAlign.center,
+          ),
+          if (noModel) ...[
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () => _act(_settings),
+              icon: const Icon(Icons.settings_outlined),
+              label: const Text('配置模型'),
+            ),
+          ],
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ComicSourcePage()),
+            ),
+            icon: const Icon(Icons.extension_outlined),
+            label: const Text('管理漫画源'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _contextStatus() {
+    final controller = _controller!;
+    final usage = controller.usage;
+    final capacity = controller.model!.contextWindowTokens;
+    final label = controller.compacting
+        ? '正在压缩上下文…'
+        : controller.compactionQueued
+        ? '压缩已排队，当前操作结束后处理'
+        : usage == null
+        ? controller.contextNotice ?? '上下文 · 等待接口统计'
+        : '上下文 ${usage.totalTokens} / $capacity · ${(usage.totalTokens / capacity * 100).toStringAsFixed(1)}%';
+    final detail = usage == null
+        ? '等待模型返回 token 使用统计后更新占用量。达到容量90%时自动压缩。'
+        : '最近一次响应：输入 ${usage.inputTokens ?? "未知"}（其中缓存 ${usage.cachedTokens ?? "未知"}），输出 ${usage.outputTokens ?? "未知"}。总计 ${usage.totalTokens} tokens。缓存属于输入时不重复计数。';
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
+      child: Row(
+        children: [
+          Expanded(
+            // Tapping the status moves to the newest message.
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _belowBottom,
+              builder: (context, below, _) => InkWell(
+                key: const ValueKey('agent-jump-bottom'),
+                borderRadius: BorderRadius.circular(8),
+                onTap: _jumpToBottom,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.data_usage, size: 14, color: color),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Tooltip(
+                          message: detail,
+                          child: Text(
+                            label,
+                            key: const ValueKey('agent-context-status'),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(color: color),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      if (below) ...[
+                        const SizedBox(width: 4),
+                        RotatedBox(
+                          key: const ValueKey('agent-jump-bottom-icon'),
+                          quarterTurns: 1,
+                          child: Icon(
+                            Icons.double_arrow_rounded,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('agent-compact'),
+            tooltip: '压缩上下文',
+            onPressed:
+                controller.compacting ||
+                    controller.compactionQueued ||
+                    controller.isStopping ||
+                    (!controller.busy && !controller.canCompact)
+                ? null
+                : () => _act(controller.requestCompaction),
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.compress_rounded, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _composer() {
+    final controller = _controller!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      child: Shortcuts(
+        shortcuts: {
+          const SingleActivator(LogicalKeyboardKey.enter, control: true):
+              const _SendAgentIntent(),
+          const SingleActivator(LogicalKeyboardKey.enter, meta: true):
+              const _SendAgentIntent(),
+        },
+        child: Actions(
+          actions: {
+            _SendAgentIntent: CallbackAction<_SendAgentIntent>(
+              onInvoke: (_) {
+                _send();
+                return null;
+              },
+            ),
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_draftImages.isNotEmpty || _draftFiles.isNotEmpty) ...[
+                AgentAttachmentStrip(
+                  key: const ValueKey('agent-draft-attachments'),
+                  images: _draftImages
+                      .map((image) => image.attachment)
+                      .toList(),
+                  files: _draftFiles.map((file) => file.attachment).toList(),
+                  readImage: (image) => _draftImages
+                      .firstWhere((draft) => draft.attachment.id == image.id)
+                      .bytes,
+                  readFile: (file) => _draftFiles
+                      .firstWhere((draft) => draft.attachment.id == file.id)
+                      .bytes,
+                  onRemoveImage: (image) => setState(
+                    () => _draftImages.removeWhere(
+                      (draft) => draft.attachment.id == image.id,
+                    ),
+                  ),
+                  onRemoveFile: (file) => setState(
+                    () => _draftFiles.removeWhere(
+                      (draft) => draft.attachment.id == file.id,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  PopupMenuButton<_AgentAttachmentType>(
+                    key: const ValueKey('agent-attach'),
+                    tooltip: '添加附件',
+                    enabled: !_pickingAttachments && !controller.isStopping,
+                    onSelected: _pickAttachments,
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        key: ValueKey('agent-upload-images'),
+                        value: _AgentAttachmentType.images,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.photo_library_outlined),
+                          title: Text('上传图片'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        key: ValueKey('agent-upload-files'),
+                        value: _AgentAttachmentType.files,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.description_outlined),
+                          title: Text('上传文件'),
+                        ),
+                      ),
+                    ],
+                    icon: _pickingAttachments
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.attach_file, size: 22),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('agent-input'),
+                      controller: _draft,
+                      minLines: 1,
+                      maxLines: 5,
+                      textInputAction: TextInputAction.newline,
+                      // Filled like the search bar on the home page.
+                      decoration: InputDecoration(
+                        hintText: '输入消息…',
+                        filled: true,
+                        fillColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHigh,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _draft,
+                    builder: (context, value, _) {
+                      final hasContent =
+                          value.text.trim().isNotEmpty ||
+                          _draftImages.isNotEmpty ||
+                          _draftFiles.isNotEmpty;
+                      final pause = controller.busy && !hasContent;
+                      if (controller.busy && hasContent) {
+                        final scheme = Theme.of(context).colorScheme;
+                        return PopupMenuButton<AgentSendMode>(
+                          key: const ValueKey('agent-send'),
+                          tooltip: '选择发送方式',
+                          enabled:
+                              !controller.isStopping && !_pickingAttachments,
+                          onSelected: (mode) => _send(mode: mode),
+                          style: IconButton.styleFrom(
+                            backgroundColor: scheme.primary,
+                            foregroundColor: scheme.onPrimary,
+                          ),
+                          icon: const Icon(Icons.arrow_upward, size: 20),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              key: ValueKey('agent-send-insert'),
+                              value: AgentSendMode.insert,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.input_rounded),
+                                title: Text('插入消息'),
+                                subtitle: Text('随下一次请求处理'),
+                              ),
+                            ),
+                            PopupMenuItem(
+                              key: ValueKey('agent-send-queue'),
+                              value: AgentSendMode.queue,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.playlist_add_rounded),
+                                title: Text('排队消息'),
+                                subtitle: Text('当前任务完成后处理'),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return IconButton.filled(
+                        key: ValueKey(pause ? 'agent-stop' : 'agent-send'),
+                        tooltip: pause ? '暂停' : '发送（Ctrl+Enter）',
+                        onPressed: controller.isStopping
+                            ? null
+                            : pause
+                            ? controller.stop
+                            : _pickingAttachments || !hasContent
+                            ? null
+                            : _send,
+                        icon: Icon(
+                          pause ? Icons.pause_rounded : Icons.arrow_upward,
+                          size: 20,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _confirmation(AgentConfirmation confirmation) {
+    final args = confirmation.arguments;
+    final count = args['comics'] ?? args['comic_ids'] ?? args['keys'];
+    const actions = {
+      'pause': '暂停',
+      'resume': '继续',
+      'retry': '重试',
+      'prioritize': '移到队首',
+      'cancel': '取消并删除未完成文件',
+    };
+    return Container(
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.primaryContainer.withValues(alpha: .36),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: .6,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '允许${agentToolLabels[confirmation.name] ?? confirmation.name}？',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              [
+                if (count is List)
+                  args['keys'] != null
+                      ? '涉及 ${count.length} 个漫画源'
+                      : '涉及 ${count.length} 本漫画',
+                if (args['source_key'] != null) '漫画源：${args['source_key']}',
+                if (args['action'] != null)
+                  '操作：${actions[args['action']] ?? args['action']}',
+                if (args['folder'] != null) '收藏夹：${args['folder']}',
+                if (args['from_folder'] != null)
+                  '从“${args['from_folder']}”移到“${args['to_folder']}”',
+                if (args['name'] != null) '名称：${args['name']}',
+                if (args['names'] is List)
+                  '名称：${(args['names'] as List).join('、')}',
+                if (args['renames'] is List)
+                  '重命名 ${(args['renames'] as List).length} 个收藏夹',
+                if (args['add'] is List && (args['add'] as List).isNotEmpty)
+                  '添加：${(args['add'] as List).join('、')}',
+                if (args['remove'] is List &&
+                    (args['remove'] as List).isNotEmpty)
+                  '移除：${(args['remove'] as List).join('、')}',
+              ].join(' · '),
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilledButton(
+                  onPressed: () => _controller!.answerConfirmation(true),
+                  child: const Text('允许'),
+                ),
+                TextButton(
+                  onPressed: () => _controller!.answerConfirmation(false),
+                  child: const Text('拒绝'),
+                ),
+                TextButton(
+                  onPressed: () =>
+                      _controller!.answerConfirmation(true, allowSession: true),
+                  child: const Text('本会话允许'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _historyPanel({VoidCallback? close}) {
+    final controller = _controller!;
+    return AgentHistoryPanel(
+      conversations: controller.conversations,
+      currentId: controller.conversation.id,
+      search: _historySearch,
+      onSearch: controller.searchHistory,
+      onNew: () => _act(controller.newConversation),
+      close: close,
+      onSelect: (conversation) {
+        close?.call();
+        _act(() => controller.selectConversation(conversation));
+      },
+      onRename: (conversation) async {
+        final text = await _editText('重命名对话', conversation.title);
+        if (text != null) controller.renameConversation(conversation, text);
+      },
+      onDelete: _deleteConversations,
+    );
+  }
+
+  Widget _showcasePanel({VoidCallback? close, ScrollController? scroll}) {
+    final controller = _controller!;
+    return AgentShowcasePanel(
+      conversationId: controller.conversation.id,
+      groups: controller.showcases,
+      focusedGroup: _focusedGroup,
+      focusRevision: _focusRevision,
+      close: close,
+      scroll: scroll,
+      clear: controller.clearShowcases,
+      hideGroup: controller.hideShowcase,
+      hideComic: controller.hideComic,
+    );
+  }
+}
+
+class _SendAgentIntent extends Intent {
+  const _SendAgentIntent();
+}

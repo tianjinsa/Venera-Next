@@ -1,3 +1,4 @@
+import 'reader_appearance.dart';
 import 'dart:async';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/components/tv_navigation.dart';
@@ -246,7 +247,12 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
               absorbing: widget.data.animating,
               child: ExcludeFocus(
                 excluding: _isOpen && TvNavigation.enabledOf(context),
-                child: widget.child,
+                child: ReaderColorEffects(
+                  comicId: widget.data.comicId,
+                  sourceKey: widget.data.sourceKey,
+                  enhanceLines: !isOnChapterCommentsPage,
+                  child: widget.child,
+                ),
               ),
             ),
           ),

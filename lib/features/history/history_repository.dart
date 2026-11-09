@@ -2,6 +2,8 @@ import 'package:venera_next/foundation/sqlite_transaction.dart';
 import 'history_row.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'history_model.dart';
+import 'package:venera_next/foundation/reading_statistic.dart';
+import 'package:venera_next/foundation/comic_type.dart';
 
 /// History schema, queries and writes on a caller-owned connection.
 /// The manager owns scheduling, connection lifetime, caching and notifications.
@@ -13,9 +15,16 @@ class HistoryRepository {
   String get _table => '$_schema."history"';
 
   void initialize() {
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS $_schema.reading_daily (
+        day TEXT NOT NULL, comic_id TEXT NOT NULL, comic_type INTEGER NOT NULL,
+        duration_ms INTEGER NOT NULL, last_read_at INTEGER NOT NULL,
+        PRIMARY KEY(day, comic_id, comic_type)
+      );
+    ''');
     db.execute("""
         create table if not exists $_table  (
-          id text primary key,
+          id text,
           title text,
           subtitle text,
           cover text,
@@ -29,7 +38,8 @@ class HistoryRepository {
           chapter_group int,
           chapter_title text,
           group_title text,
-          read_duration_ms integer not null default 0
+          read_duration_ms integer not null default 0,
+          PRIMARY KEY(id, type)
         );
       """);
 
@@ -50,6 +60,31 @@ class HistoryRepository {
         db.execute('alter table $_table add column $name text;');
       }
     }
+    columns = db.select('PRAGMA $_schema.table_info("history");');
+    if (!columns.any(
+      (column) => column['name'] == 'type' && column['pk'] == 2,
+    )) {
+      runSqliteTransaction(db, () {
+        db.execute('''CREATE TABLE $_schema.history_migrated (
+          id TEXT NOT NULL, title TEXT, subtitle TEXT, cover TEXT,
+          time INT, type INT NOT NULL, ep INT, page INT, readEpisode TEXT,
+          max_page INT, max_chapter INT, chapter_group INT, chapter_title TEXT,
+          group_title TEXT, read_duration_ms INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY(id, type));''');
+        const names =
+            'id, title, subtitle, cover, time, type, ep, page, readEpisode, '
+            'max_page, max_chapter, chapter_group, chapter_title, group_title, read_duration_ms';
+        db.execute(
+          'INSERT INTO $_schema.history_migrated ($names) SELECT $names FROM $_table;',
+        );
+        db.execute('DROP TABLE $_table;');
+        db.execute('ALTER TABLE $_schema.history_migrated RENAME TO history;');
+      }, immediate: true);
+    }
+    db.execute(
+      'CREATE INDEX IF NOT EXISTS $_schema.history_time_identity_idx '
+      'ON history(time DESC, id DESC, type DESC);',
+    );
   }
 
   List<History> getAll() {
@@ -258,6 +293,21 @@ class HistoryRepository {
   void importHistory(History item) =>
       _writeHistory(item, replaceMetadata: true);
 
+  /// Undo restores the full deleted snapshot, without changing a newer record
+  /// created while the undo was waiting for admission.
+  void restoreHistory(History item) {
+    db.execute(
+      '''
+      INSERT OR IGNORE INTO $_table
+        (id, title, subtitle, cover, time, type, ep, page, readEpisode,
+         max_page, max_chapter, chapter_group, chapter_title, group_title,
+         read_duration_ms)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ''',
+      [..._historyValues(item), item.readDurationMs],
+    );
+  }
+
   void _writeHistory(History item, {required bool replaceMetadata}) {
     runSqliteTransaction(db, () {
       db.execute(_updateHistorySql, [
@@ -300,6 +350,64 @@ class HistoryRepository {
           durationMs,
         ]);
       }
+      final end = DateTime.now();
+      var start = end.subtract(Duration(milliseconds: durationMs));
+      while (start.isBefore(end)) {
+        final midnight = DateTime(start.year, start.month, start.day + 1);
+        final stop = midnight.isBefore(end) ? midnight : end;
+        final day =
+            '${start.year.toString().padLeft(4, '0')}-'
+            '${start.month.toString().padLeft(2, '0')}-'
+            '${start.day.toString().padLeft(2, '0')}';
+        db.execute(
+          '''
+          INSERT INTO $_schema.reading_daily VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(day, comic_id, comic_type) DO UPDATE SET
+            duration_ms = duration_ms + excluded.duration_ms,
+            last_read_at = MAX(last_read_at, excluded.last_read_at);
+        ''',
+          [
+            day,
+            item.id,
+            item.type.value,
+            stop.difference(start).inMilliseconds,
+            stop.millisecondsSinceEpoch,
+          ],
+        );
+        start = stop;
+      }
     }, immediate: true);
+  }
+
+  List<ReadingStatistic> readingStatistics(int days) {
+    final now = DateTime.now();
+    final cutoff = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: days.clamp(1, 365) - 1))
+        .toIso8601String()
+        .substring(0, 10);
+    return db
+        .select(
+          '''
+      SELECT d.*, h.title, h.subtitle, h.cover FROM $_schema.reading_daily d
+      JOIN $_table h ON h.id = d.comic_id AND h.type = d.comic_type
+      WHERE d.day >= ? ORDER BY d.day, d.comic_id, d.comic_type;
+    ''',
+          [cutoff],
+        )
+        .map(
+          (row) => ReadingStatistic(
+            day: row['day'] as String,
+            comicId: row['comic_id'] as String,
+            comicType: ComicType(row['comic_type'] as int),
+            title: row['title'] as String,
+            author: row['subtitle'] as String,
+            cover: row['cover'] as String,
+            durationSeconds: (row['duration_ms'] as int) ~/ 1000,
+            lastReadAt: DateTime.fromMillisecondsSinceEpoch(
+              row['last_read_at'] as int,
+            ),
+          ),
+        )
+        .toList();
   }
 }

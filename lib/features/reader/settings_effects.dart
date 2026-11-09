@@ -67,6 +67,13 @@ class ReaderSettingsRequest {
 }
 
 Iterable<ReaderSettingEffect> readerSettingEffects(String key) sync* {
+  // The compositing wrapper listens directly; keep page/zoom controllers alive.
+  if (key == ReaderPreferences.readerLineEnhancement.key ||
+      key == ReaderPreferences.readerLineEnhancementStrength.key ||
+      key == ReaderPreferences.readerNightMode.key ||
+      key == ReaderPreferences.readerNightModeIntensity.key) {
+    return;
+  }
   if (key == ReaderPreferences.readerMode.key) {
     yield ReaderSettingEffect.applyMode;
     yield ReaderSettingEffect.rebindImageGesture;

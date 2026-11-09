@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/rendering.dart';
+import 'comic_blocking.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/keyword_filter.dart';
@@ -35,6 +37,8 @@ class SliverGridComics extends StatefulWidget {
     this.selections,
     this.useFavoriteDisplaySettings = false,
     this.showHiddenCount = true,
+    this.filterBlockedWords = true,
+    this.filterBlockedComics = true,
   });
 
   final List<Comic> comics;
@@ -53,26 +57,64 @@ class SliverGridComics extends StatefulWidget {
 
   final bool useFavoriteDisplaySettings;
   final bool showHiddenCount;
+  final bool filterBlockedWords;
+  final bool filterBlockedComics;
 
   @override
-  State<SliverGridComics> createState() => _SliverGridComicsState();
+  State<SliverGridComics> createState() => SliverGridComicsState();
 }
 
-class _SliverGridComicsState extends State<SliverGridComics> {
+class SliverGridComicsState extends State<SliverGridComics> {
   List<Comic> comics = [];
   List<int> heroIDs = [];
 
   static int _nextHeroID = 0;
+  final _gridKey = GlobalKey();
+  List<Comic> _sourceComics = const [];
+  ComicBlockFilter? _blockFilter;
+  bool? _filterWords;
+
+  Comic? get firstVisibleComic {
+    final grid = _gridKey.currentContext?.findRenderObject();
+    if (grid is! RenderSliverGrid || grid.geometry == null || comics.isEmpty) {
+      return null;
+    }
+    final layout = grid.gridDelegate.getLayout(grid.constraints);
+    final offset = grid.constraints.scrollOffset + grid.constraints.overlap;
+    final index = layout.getMinChildIndexForScrollOffset(
+      offset.clamp(0.0, double.infinity),
+    );
+    return comics[index.clamp(0, comics.length - 1)];
+  }
 
   void _refreshComics() {
     final previousIDs = <(String, String), List<int>>{};
     for (var i = 0; i < comics.length; i++) {
       (previousIDs[(comics[i].sourceKey, comics[i].id)] ??= []).add(heroIDs[i]);
     }
-    final filter = KeywordFilter.fromSettings(appdata.settings);
-    comics = widget.comics
-        .where((comic) => isBlocked(comic, filter: filter) == null)
-        .toList();
+    final filter = widget.filterBlockedComics
+        ? ComicBlockFilter.fromSettings(appdata.settings)
+        : null;
+    if (identical(filter, _blockFilter) &&
+        _filterWords == widget.filterBlockedWords &&
+        _sourceComics.length == widget.comics.length &&
+        Iterable.generate(
+          _sourceComics.length,
+        ).every((i) => identical(_sourceComics[i], widget.comics[i]))) {
+      return;
+    }
+    _blockFilter = filter;
+    _filterWords = widget.filterBlockedWords;
+    _sourceComics = List.of(widget.comics);
+    comics = [
+      for (final comic in widget.comics)
+        if (filter == null ||
+            !filter.blocks(
+              comic,
+              filterBlockedWords: widget.filterBlockedWords,
+            ))
+          comic,
+    ];
     heroIDs = [
       for (final comic in comics)
         switch (previousIDs[(comic.sourceKey, comic.id)]) {
@@ -122,6 +164,7 @@ class _SliverGridComicsState extends State<SliverGridComics> {
               : ComicTileDisplayMode.detailed)
         : null;
     final grid = _SliverGridComics(
+      gridKey: _gridKey,
       comics: comics,
       heroIDs: heroIDs,
       selection: widget.selections,
@@ -142,6 +185,7 @@ class _SliverGridComicsState extends State<SliverGridComics> {
       slivers: [
         SliverToBoxAdapter(
           child: KeywordHiddenNotice(
+            filterBlockedWords: widget.filterBlockedWords,
             count: hidden,
             comics: () => mounted ? widget.comics : const [],
           ),
@@ -153,7 +197,9 @@ class _SliverGridComicsState extends State<SliverGridComics> {
 }
 
 class _SliverGridComics extends StatelessWidget {
+  final GlobalKey gridKey;
   const _SliverGridComics({
+    required this.gridKey,
     required this.comics,
     required this.heroIDs,
     this.onLastItemBuild,
@@ -191,47 +237,59 @@ class _SliverGridComics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final indexes = {
+      for (var i = 0; i < comics.length; i++)
+        (comics[i].sourceKey, comics[i].id): i,
+    };
     return SliverGrid(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        if (index == comics.length - 1) {
-          onLastItemBuild?.call();
-        }
-        var badge = badgeBuilder?.call(comics[index]);
-        var isSelected = selection == null
-            ? false
-            : selection![comics[index]] ?? false;
-        var comic = ComicTile(
-          comic: comics[index],
-          badge: badge,
-          menuOptions: menuBuilder?.call(comics[index]),
-          onTap: onTap != null
-              ? () => onTap!(comics[index], heroIDs[index])
-              : null,
-          onLongPressed: onLongPressed != null
-              ? () => onLongPressed!(comics[index], heroIDs[index])
-              : null,
-          onBlocked: onBlocked,
-          heroID: heroIDs[index],
-          displayMode: favoriteDisplayMode,
-        );
-        if (selection == null) {
-          return comic;
-        }
-        return AnimatedContainer(
-          key: ValueKey(comics[index].id),
-          duration: const Duration(milliseconds: 150),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? Theme.of(
-                    context,
-                  ).colorScheme.secondaryContainer.toOpacity(0.72)
+      key: gridKey,
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (index == comics.length - 1) {
+            onLastItemBuild?.call();
+          }
+          var badge = badgeBuilder?.call(comics[index]);
+          var isSelected = selection == null
+              ? false
+              : selection![comics[index]] ?? false;
+          var comic = ComicTile(
+            key: ValueKey((comics[index].sourceKey, comics[index].id)),
+            comic: comics[index],
+            badge: badge,
+            menuOptions: menuBuilder?.call(comics[index]),
+            onTap: onTap != null
+                ? () => onTap!(comics[index], heroIDs[index])
                 : null,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(4),
-          child: comic,
-        );
-      }, childCount: comics.length),
+            onLongPressed: onLongPressed != null
+                ? () => onLongPressed!(comics[index], heroIDs[index])
+                : null,
+            onBlocked: onBlocked,
+            heroID: heroIDs[index],
+            displayMode: favoriteDisplayMode,
+          );
+          if (selection == null) {
+            return comic;
+          }
+          return AnimatedContainer(
+            key: ValueKey((comics[index].sourceKey, comics[index].id)),
+            duration: const Duration(milliseconds: 150),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.secondaryContainer.toOpacity(0.72)
+                  : null,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(4),
+            child: comic,
+          );
+        },
+        childCount: comics.length,
+        findChildIndexCallback: (key) {
+          return key is ValueKey<(String, String)> ? indexes[key.value] : null;
+        },
+      ),
       gridDelegate: SliverGridDelegateWithComics(
         galleryColumns: galleryColumns,
         forceDetailed: favoriteDisplayMode == ComicTileDisplayMode.detailed,
@@ -241,14 +299,22 @@ class _SliverGridComics extends StatelessWidget {
 }
 
 /// return the first blocked keyword, or null if not blocked
-String? isBlocked(Comic item, {KeywordFilter? filter}) {
-  return (filter ?? KeywordFilter.fromSettings(appdata.settings))
-      .firstComicMatch(
-        title: item.title,
-        subtitle: item.subtitle,
-        description: item.description,
-        tags: item.tags ?? const [],
-      );
+String? isBlocked(
+  Comic item, {
+  KeywordFilter? filter,
+  bool filterBlockedWords = true,
+}) {
+  if (filter != null) {
+    return filter.firstComicMatch(
+      title: item.title,
+      subtitle: item.subtitle,
+      description: item.description,
+      tags: item.tags ?? const [],
+    );
+  }
+  return ComicBlockFilter.fromSettings(
+    appdata.settings,
+  ).firstReason(item, filterBlockedWords: filterBlockedWords);
 }
 
 class ComicList extends StatefulWidget {
@@ -265,6 +331,7 @@ class ComicList extends StatefulWidget {
     this.reloadHandlerCallback,
     this.enablePageStorage = false,
     this.useFavoriteDisplaySettings = false,
+    this.filterBlockedComics = true,
   });
 
   final Future<Res<List<Comic>>> Function(int page)? loadPage;
@@ -288,6 +355,7 @@ class ComicList extends StatefulWidget {
   final bool enablePageStorage;
 
   final bool useFavoriteDisplaySettings;
+  final bool filterBlockedComics;
 
   @override
   State<ComicList> createState() => ComicListState();
@@ -638,6 +706,7 @@ class ComicListState extends State<ComicList> {
           comics: _data[_page] ?? const [],
           menuBuilder: widget.menuBuilder,
           useFavoriteDisplaySettings: widget.useFavoriteDisplaySettings,
+          filterBlockedComics: widget.filterBlockedComics,
         ),
         if (_data[_page]!.length > 6 && _maxPage != 1)
           _buildSliverPageSelector(),
@@ -684,6 +753,7 @@ class ComicListState extends State<ComicList> {
           comics: _data.values.expand((element) => element).toList(),
           menuBuilder: widget.menuBuilder,
           useFavoriteDisplaySettings: widget.useFavoriteDisplaySettings,
+          filterBlockedComics: widget.filterBlockedComics,
           onLastItemBuild: () {
             if (_error == null &&
                 (_maxPage == null || _data.length < _maxPage!)) {

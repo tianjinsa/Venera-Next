@@ -1103,6 +1103,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
               ),
             ),
           SliverGridComics(
+            filterBlockedComics: false,
             comics: displayedComics,
             showHiddenCount: true,
             selections: selectedComics,

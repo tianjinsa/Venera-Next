@@ -55,6 +55,7 @@ Future<void> importLegacyPicaArchive(
         );
         favorites.refreshImportedFavorites(data.folders);
       },
+      useRollbackJournal: true,
       onCommitted: () {
         if (data.folders.isNotEmpty || data.links.isNotEmpty) {
           favorites.notifyImportedFavorites(data.folders.keys);

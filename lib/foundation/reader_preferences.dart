@@ -229,7 +229,37 @@ abstract final class ReaderPreferences {
     'splitDualPageInvert',
     false,
   );
+  static const readerLineEnhancement = BoolPreference(
+    'readerLineEnhancement',
+    false,
+  );
+  static const readerLineEnhancementStrength = NumericPreference(
+    'readerLineEnhancementStrength',
+    0.5,
+    min: 0,
+    max: 1,
+    step: 0.05,
+    integer: false,
+  );
+  static const readerNightMode = ChoicePreference('readerNightMode', 'none', [
+    'none',
+    'warm',
+    'dark',
+    'red',
+  ]);
+  static const readerNightModeIntensity = NumericPreference(
+    'readerNightModeIntensity',
+    0.25,
+    min: 0,
+    max: 0.8,
+    step: 0.05,
+    integer: false,
+  );
   static const all = <Preference<Object>>[
+    readerLineEnhancement,
+    readerLineEnhancementStrength,
+    readerNightMode,
+    readerNightModeIntensity,
     readerMode,
     pagedReaderMode,
     longStripReaderMode,

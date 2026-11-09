@@ -1,3 +1,4 @@
+import 'package:venera_next/features/agent/agent_integration.dart';
 import 'package:flutter/material.dart';
 import 'package:venera_next/features/discovery/discovery.dart';
 import 'package:venera_next/features/favorites/favorites.dart';
@@ -22,6 +23,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   late final NaviObserver _observer;
+  final _agentModelHeader = AgentModelHeaderBridge();
 
   GlobalKey<NavigatorState>? _navigatorKey;
 
@@ -38,7 +40,7 @@ class _MainPageState extends State<MainPage> {
     _observer = NaviObserver();
     _navigatorKey = GlobalKey();
     appNavigation.mainNavigatorKey = _navigatorKey;
-    index = int.parse(
+    index = agentInitialPage(
       GlobalPreferenceStore(
         appdata.settings,
       ).read(DiscoveryPreferences.initialPage),
@@ -46,9 +48,19 @@ class _MainPageState extends State<MainPage> {
     super.initState();
   }
 
-  final _pages = [
+  @override
+  void dispose() {
+    _agentModelHeader.dispose();
+    super.dispose();
+  }
+
+  late final _pages = [
     const HomePage(),
     const FavoritesPage(key: PageStorageKey('favorites')),
+    AgentPage(
+      key: const PageStorageKey('agent'),
+      modelHeaderBridge: _agentModelHeader,
+    ),
     const ExplorePage(key: PageStorageKey('explore')),
     const CategoriesPage(key: PageStorageKey('categories')),
   ];
@@ -59,6 +71,9 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return NaviPane(
       initialPage: index,
+      mobileTitleAccessory: index == agentTabIndex
+          ? AgentModelHeader(bridge: _agentModelHeader)
+          : null,
       observer: _observer,
       navigatorKey: _navigatorKey!,
       paneItems: [
@@ -72,6 +87,7 @@ class _MainPageState extends State<MainPage> {
           icon: Icons.local_activity_outlined,
           activeIcon: Icons.local_activity,
         ),
+        agentPaneItem,
         PaneItemEntry(
           label: 'Explore'.tl,
           icon: Icons.explore_outlined,

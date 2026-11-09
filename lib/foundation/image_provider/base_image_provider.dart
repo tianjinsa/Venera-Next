@@ -253,9 +253,11 @@ abstract class BaseImageProvider<T extends BaseImageProvider<T>>
     void checkStop() => attempt.check();
     _cancelSignals[checkStop] = attempt.whenCancelled;
     int retryTime = 1;
+    int attempts = 0;
     Uint8List? data;
     var emptyRetries = 0;
     while (data == null) {
+      attempts++;
       attempt.check();
       try {
         final loaded = await load(chunkEvents, checkStop);
@@ -275,7 +277,9 @@ abstract class BaseImageProvider<T extends BaseImageProvider<T>>
             attempt.isCancelled) {
           rethrow;
         }
-        if (error is _EmptyImageDataException) rethrow;
+        if (error is _EmptyImageDataException || attempts >= maxLoadAttempts) {
+          rethrow;
+        }
         if (error is FileSystemException && !retryFileSystemErrors) rethrow;
         if (error.toString().contains('Invalid Status Code: 404') ||
             error.toString().contains('Invalid Status Code: 403')) {
@@ -354,6 +358,8 @@ abstract class BaseImageProvider<T extends BaseImageProvider<T>>
   }
 
   bool get enableResize => false;
+
+  int get maxLoadAttempts => 4;
 
   bool get retryFileSystemErrors => true;
 }
