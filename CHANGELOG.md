@@ -27,6 +27,7 @@
 
 ### 文档与分发
 
+- 修复 Android ARM64 单架构构建的 Gradle ABI 冲突：关闭通用包时清空 Flutter 预置的 NDK ABI 过滤，避免与 APK 拆分互斥；全架构构建继续过滤通用包中的原生库。
 - 构建工作流按累计 runner 用时优化：Android 手机／TV 在同一任务顺序构建，复用原生编译与依赖缓存；开发构建默认手机版 ARM64，可选择 flavor、架构和其他平台。PR 按改动范围选择重型测试与平台冒烟，Android 单平台不启动 Apple 检查；完整发布仍校验双版本全部 8 个 APK。Rust 保留已安装工具链并缓存实际编译目录，磁盘清理由整目录删除改为低空间时按需执行。
 - GitHub Actions 手动构建增加默认关闭的 `skip_tests` 选项，覆盖普通平台与鸿蒙测试，并保留静态检查、编译和产物校验。Android 签名从仓库 Secrets 在 runner 临时目录生成，使用受限权限并在任务结束时清理，兼容 `storeFile=keystore.jks`，无需将证书放入源码目录。
 - 中英文 README 统一章节编号和可点击目录，截图归入项目介绍；下载安装依次排列 Android 手机／平板、Android TV、Windows、鸿蒙、Linux、iOS、macOS，并保留旧标题锚点。

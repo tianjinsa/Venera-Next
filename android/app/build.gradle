@@ -108,16 +108,19 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
-            ndk {
-                abiFilters(*buildAbis)
-            }
             signingConfig signingConfigs.release
         }
         debug {
-            ndk {
-                abiFilters(*buildAbis)
-            }
             signingConfig signingConfigs.debug
+        }
+    }
+
+    // Flutter seeds NDK filters for all three ABIs. AGP forbids NDK filters
+    // alongside ABI splits without a universal APK, including ARM64-only CI.
+    buildTypes.configureEach { buildType ->
+        buildType.ndk.abiFilters.clear()
+        if (buildAbis.size() > 1) {
+            buildType.ndk.abiFilters.addAll(buildAbis)
         }
     }
 
