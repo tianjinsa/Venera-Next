@@ -67,7 +67,7 @@ git diff --check
 
 CI 会使用 `flutter test --coverage` 生成 `coverage/lcov.info`，在工作流摘要中显示行覆盖率，并上传报告产物。当前覆盖率用于建立可见基线，尚未设置统一硬阈值；涉及关键业务路径的改动仍必须增加针对性测试。
 
-PR 还会运行 `依赖安全审查` 和 `PR 平台冒烟构建`。依赖审查会阻止引入高危或严重漏洞依赖；当改动涉及 Flutter 代码、原生平台目录、依赖、构建脚本或工作流时，平台工作流会执行 Android 手机版／TV 版 Debug 和 Windows Debug 构建，文档等不影响构建的改动会跳过这些平台任务。质量流程另运行真实 TV flavor 的导航、输入、低内存和更新回归。Dart 格式检查只针对本次修改的 Dart 文件执行，避免历史格式差异阻塞后续贡献。`main` 分支要求 PR 通过代码分析、依赖审查和平台冒烟构建门禁，并禁止直接强推或删除分支。
+PR 还会运行 `依赖安全审查` 和 `PR 平台冒烟构建`。依赖审查会阻止引入高危或严重漏洞依赖；平台工作流按改动选择 Android、Windows、Linux、macOS 或 iOS 冒烟构建；Android 手机／TV 在同一 runner 上顺序验证 ARM64，文档等不影响构建的改动跳过平台任务。质量流程另运行真实 TV flavor 的导航、输入、低内存和更新回归。Dart 格式检查只针对本次修改的 Dart 文件执行，避免历史格式差异阻塞后续贡献。`main` 分支要求 PR 通过代码分析、依赖审查和平台冒烟构建门禁，并禁止直接强推或删除分支。
 
 涉及发布版本时再运行：
 
@@ -101,7 +101,7 @@ flutter build apk --release --flavor mobile
 flutter build apk --release --flavor tv
 ```
 
-构建产物分别位于 `build/app/outputs/apk/mobile/release/` 和 `build/app/outputs/apk/tv/release/`。Android 必须明确指定 `--flavor mobile` 或 `--flavor tv`；不设置全局 `default-flavor`，避免影响 iOS/macOS 的原有 Xcode scheme。GitHub Actions 开启 Android 时会同时构建两种。TV 的独立包名、版本码偏移、更新方式和发布校验见 [Android TV 分发说明](../distribution/android_tv.zh.md)。
+构建产物分别位于 `build/app/outputs/apk/mobile/release/` 和 `build/app/outputs/apk/tv/release/`。Android 必须明确指定 `--flavor mobile` 或 `--flavor tv`；不设置全局 `default-flavor`，避免影响 iOS/macOS 的原有 Xcode scheme。GitHub Actions 手动构建可选手机版、TV 或两者；完整发布仍构建两种。TV 的独立包名、版本码偏移、更新方式和发布校验见 [Android TV 分发说明](../distribution/android_tv.zh.md)。
 
 签名文件和密码属于敏感信息，不应提交到仓库。
 
@@ -145,9 +145,13 @@ python .github/scripts/release_version.py --check --tag v1.2.3
 
 `pubspec.yaml`、发布 tag 和 `CHANGELOG.md` 版本章节必须与 `release.json` 一致。`alt_store.json` 不是版本源；正式版 GitHub Release 成功后，工作流会根据发布资产更新它，RC 预发布不会更新 AltStore 源。
 
-`代码分析` 工作流会运行版本与结构检查、Python 脚本测试、修改文件的 Dart 格式检查、`flutter analyze`、完整 Dart 测试及覆盖率汇总。`依赖安全审查` 会检查 PR 新增或升级的依赖，`PR 平台冒烟构建` 会按改动范围验证 Android 和 Windows 编译。`完整构建` 在开始多平台构建前会复用同一质量工作流；手动平台构建和 tag 发布则共同复用 `.github/workflows/build.yml`，避免两套构建定义产生差异。
+`代码分析` 先执行轻量版本／结构／架构检查，再根据完整 PR diff 或 push 的全部提交选择测试。纯文档和分发元数据不启动 Flutter、模拟器或 Apple runner；Dart 改动保留完整 Flutter 测试和覆盖率，平台原生检查按受影响目录执行。未知输入、无法读取 diff、手动构建及 tag 发布保守地使用完整范围。`依赖安全审查` 会检查 PR 新增或升级的依赖；`PR 平台冒烟构建` 按受影响平台编译，Android 手机／TV 共用一个 runner，冒烟只编译 ARM64。`完整构建` 在开始多平台构建前复用同一质量工作流。
 
-手动运行 `构建`、`完整构建` 或 `HarmonyOS Release HAP` 时，可勾选 `skip_tests` 跳过测试，默认不勾选。该选项会传递至复用工作流，跳过 Python、Dart、Swift、Rust 测试、Android Provider 回归、Windows 原生／启动测试、Linux AppImage 冒烟测试及鸿蒙主机测试；静态分析、版本／依赖检查、编译和产物完整性／签名校验仍然执行。PR、主分支 CI 和 tag 自动发布默认继续运行测试。
+开发工作在 `codex/agent-center-tab` 分支进行。手动 `构建` 默认只启用 Android 手机版 ARM64，其他平台需勾选；可通过 `android_flavors` 选择 `mobile`、`tv`、`both`，通过 `android_architecture` 选择 `arm64` 或 `all`（ARM32、ARM64、x86_64 与通用包）。两种 Android 安装包顺序构建，共用 Flutter、Gradle 和原生 Rust 编译目录，每种通过独立签名／内容校验后立即暂存，统一上传为 `android_build`。Android 单平台质量检查不占用 Apple runner。`完整构建` 和所有 tag 构建固定为双版本、全部架构；发布门禁仍要求完整的 8 个 APK 和两份 manifest。
+
+Rust 缓存覆盖下载源码及实际 Cargo 输出目录，按操作系统、主机架构、目标平台／profile、锁文件、工具链、构建配置和 Rust 源码区分；源码变化可恢复同配置的依赖缓存，由 Cargo 判定重新编译。准备脚本保留可用工具链，只安装缺失工具链或 targets。Gradle 启用任务缓存。Android runner 至少保留 20 GiB 空间；空间足够时不清理，只有 GitHub 托管 runner 空间不足时才按需删除无关工具，不删除整个 `/opt/hostedtoolcache`、Android SDK 或 Flutter。
+
+手动运行 `构建`、`完整构建` 或 `HarmonyOS Release HAP` 时，可勾选 `skip_tests` 跳过测试，默认不勾选。该选项会传递至复用工作流，跳过 Python、Dart、Swift、Rust 测试、Android Provider 回归、Windows 原生／启动测试、Linux AppImage 冒烟测试及鸿蒙主机测试；静态分析、版本／依赖检查、编译和产物完整性／签名校验仍然执行。PR 和主分支 CI 默认运行受影响范围的测试；tag 自动发布默认运行完整测试。
 
 Android release 工作流需要以下仓库 Secrets：
 

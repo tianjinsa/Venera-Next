@@ -2,6 +2,10 @@ name: "代码分析"
 on:
   workflow_call:
     inputs:
+      platforms:
+        description: 'Quality platforms: all, android, apple or desktop'
+        type: string
+        default: all
       skip_tests:
         description: '跳过测试，仍执行静态检查'
         required: false
@@ -20,9 +24,36 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: 检查构建元数据并选择测试范围
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      analyze: ${{ steps.scope.outputs.analyze }}
+      flutter: ${{ steps.scope.outputs.flutter }}
+      apple: ${{ steps.scope.outputs.apple }}
+      rhttp_ios: ${{ steps.scope.outputs.rhttp_ios }}
+      provider: ${{ steps.scope.outputs.provider }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: 判断本次改动需要的检查
+        id: scope
+        env:
+          QUALITY_PLATFORMS: ${{ inputs.platforms || 'all' }}
+        run: python3 .github/scripts/ci_scope.py
+      - run: python3 .github/scripts/release_version.py --check
+      - run: python3 .github/scripts/check_structure_imports.py
+      - run: python3 .github/scripts/check_architecture_dependencies.py
+      - name: 验证构建与维护脚本
+        if: ${{ !inputs.skip_tests && steps.scope.outputs.python == 'true' }}
+        run: python3 -m unittest discover -s .github/scripts/tests -p "test_*.py"
+
   apple-directory-access:
+    needs: changes
     name: Apple 目录授权与跨会话恢复
-    if: ${{ !inputs.skip_tests }}
+    if: ${{ !inputs.skip_tests && needs.changes.outputs.apple == 'true' }}
     runs-on: macos-15
     timeout-minutes: 10
     steps:
@@ -30,12 +61,17 @@ jobs:
       - run: swift test --package-path apple
 
   rhttp-native:
+    needs: changes
     name: Rhttp 原生回调生命周期
-    if: ${{ !inputs.skip_tests }}
+    if: ${{ !inputs.skip_tests && needs.changes.outputs.flutter == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: linux-test
+          paths: packages/rhttp/rust/target
       - name: 验证锁定原生源码的取消与回调收尾
         env:
           RUSTFLAGS: --cfg reqwest_unstable
@@ -52,11 +88,17 @@ jobs:
           retention-days: 1
 
   rhttp-ios:
+    needs: changes
+    if: ${{ needs.changes.outputs.rhttp_ios == 'true' }}
     name: iOS Rhttp 原生依赖兼容性
     runs-on: macos-15
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: ios-check
+          paths: packages/rhttp/rust/target
       - run: sudo xcode-select --switch /Applications/Xcode_16.4.app
       - name: 准备 iOS Rust 工具链
         run: python3 .github/scripts/prepare_rust_toolchain.py --target aarch64-apple-ios
@@ -68,6 +110,8 @@ jobs:
           cargo check --locked --manifest-path packages/rhttp/rust/Cargo.toml --target aarch64-apple-ios --lib
 
   analyze:
+    needs: changes
+    if: ${{ needs.changes.outputs.analyze == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -80,11 +124,6 @@ jobs:
           flutter-version-file: pubspec.yaml
           architecture: x64
           cache: true
-      - run: python3 .github/scripts/release_version.py --check
-      - run: python3 .github/scripts/check_structure_imports.py
-      - run: python3 .github/scripts/check_architecture_dependencies.py
-      - run: python3 -m unittest discover -s .github/scripts/tests -p "test_*.py"
-        if: ${{ !inputs.skip_tests }}
       - run: flutter pub get --enforce-lockfile
       - name: 准备并验证独立代码审查工具
         working-directory: tool/code_audit
@@ -117,8 +156,8 @@ jobs:
 
   flutter-tests:
     name: Flutter 测试与覆盖率
-    if: ${{ !inputs.skip_tests }}
-    needs: rhttp-native
+    if: ${{ !inputs.skip_tests && needs.changes.outputs.flutter == 'true' }}
+    needs: [changes, rhttp-native]
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -193,8 +232,9 @@ jobs:
           retention-days: 14
 
   android-saf-provider:
+    needs: changes
     name: Android 文档存储真实 Provider 回归
-    if: ${{ !inputs.skip_tests }}
+    if: ${{ !inputs.skip_tests && needs.changes.outputs.provider == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

@@ -17,45 +17,34 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
-      platform: ${{ steps.changed.outputs.platform }}
+      android: ${{ steps.changed.outputs.android }}
+      windows: ${{ steps.changed.outputs.windows }}
       desktop: ${{ steps.changed.outputs.desktop }}
+      desktop_matrix: ${{ steps.changed.outputs.desktop_matrix }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: 判断是否需要平台构建
         id: changed
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" --)"
-          printf '%s\n' "$changed_files"
-          if printf '%s\n' "$changed_files" | grep -Eq \
-            '^(lib/|packages/|assets/|android/|apple/|windows/|ios/|macos/|linux/|debian/|patch/|\.github/workflows/|\.github/scripts/|pubspec\.yaml$|pubspec\.lock$|rust-toolchain\.toml$|analysis_options\.yaml$)'; then
-            echo "platform=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "platform=false" >> "$GITHUB_OUTPUT"
-          fi
-          if printf '%s\n' "$changed_files" | grep -Eq \
-            '^(packages/[^/]+/(linux|macos|windows|src)/|linux/|macos/|pubspec\.(yaml|lock)$)'; then
-            echo "desktop=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "desktop=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: python3 .github/scripts/ci_scope.py
 
   android:
-    name: ${{ matrix.flavor == 'tv' && 'Android TV 冒烟构建' || 'Android 冒烟构建' }}
+    name: Android 手机／TV ARM64 冒烟构建
     needs: changes
-    if: ${{ needs.changes.outputs.platform == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        flavor: [mobile, tv]
+    if: ${{ needs.changes.outputs.android == 'true' }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 35
+    timeout-minutes: 50
+    env:
+      ANDROID_BUILD_ABIS: arm64-v8a
     steps:
       - uses: actions/checkout@v7
+      - name: 按需准备 Android 磁盘空间
+        run: python3 .github/scripts/prepare_android_space.py
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: android-debug-arm64
+          paths: build/rhttp/build
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -65,9 +54,7 @@ jobs:
       - name: 准备 Rust 工具链
         run: |
           python3 .github/scripts/prepare_rust_toolchain.py \
-            --target aarch64-linux-android \
-            --target armv7-linux-androideabi \
-            --target x86_64-linux-android
+            --target aarch64-linux-android
       - uses: actions/setup-java@v6
         with:
           distribution: oracle
@@ -95,23 +82,18 @@ jobs:
             'storeFile=../debug.keystore' \
             > android/key.properties
       - run: flutter pub get --enforce-lockfile
-      - name: 构建 Android Debug APK
-        env:
-          ANDROID_FLAVOR: ${{ matrix.flavor }}
-        run: flutter build apk --debug --flavor "$ANDROID_FLAVOR" --target-platform android-arm,android-arm64,android-x64
-      - name: 验证 Android 原生编码包与第三方声明
-        env:
-          ANDROID_FLAVOR: ${{ matrix.flavor }}
-        run: python3 .github/scripts/check_native_codec_bundle.py --platform android --root "build/app/outputs/apk/$ANDROID_FLAVOR/debug"
-      - name: 验证 Android 文档存储 ABI 与声明
-        env:
-          ANDROID_FLAVOR: ${{ matrix.flavor }}
-        run: python3 .github/scripts/check_saf_bundle.py --root "build/app/outputs/apk/$ANDROID_FLAVOR/debug"
+      - name: 顺序编译和验证 Android 手机版与 TV 版
+        run: |
+          for flavor in mobile tv; do
+            flutter build apk --debug --no-pub --flavor "$flavor" --target-platform android-arm64
+            python3 .github/scripts/check_native_codec_bundle.py --platform android --root "build/app/outputs/apk/$flavor/debug"
+            python3 .github/scripts/check_saf_bundle.py --root "build/app/outputs/apk/$flavor/debug"
+          done
 
   windows:
     name: Windows 冒烟构建
     needs: changes
-    if: ${{ needs.changes.outputs.platform == 'true' }}
+    if: ${{ needs.changes.outputs.windows == 'true' }}
     runs-on: windows-2025
     timeout-minutes: 35
     env:
@@ -120,6 +102,10 @@ jobs:
       GIT_CONFIG_VALUE_0: 'true'
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: windows-debug
+          paths: build/windows/x64/plugins/rhttp/cargokit_build
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -192,24 +178,18 @@ jobs:
     if: ${{ needs.changes.outputs.desktop == 'true' }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: Linux
-            runner: ubuntu-24.04
-            target: linux
-            architecture: x64
-          - platform: macOS
-            runner: macos-15
-            target: macos
-            architecture: arm64
-          - platform: iOS
-            runner: macos-15
-            target: ios
-            architecture: arm64
+      matrix: ${{ fromJSON(needs.changes.outputs.desktop_matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: ${{ matrix.target }}-debug
+          paths: |
+            build/linux/x64/debug/plugins/rhttp/cargokit_build
+            build/macos/**/rhttp.build
+            build/ios/**/rhttp.build
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -271,14 +251,16 @@ jobs:
       - name: 汇总平台构建结果
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
-          PLATFORM_REQUIRED: ${{ needs.changes.outputs.platform }}
+          ANDROID_REQUIRED: ${{ needs.changes.outputs.android }}
+          WINDOWS_REQUIRED: ${{ needs.changes.outputs.windows }}
           DESKTOP_REQUIRED: ${{ needs.changes.outputs.desktop }}
           ANDROID_RESULT: ${{ needs.android.result }}
           WINDOWS_RESULT: ${{ needs.windows.result }}
           DESKTOP_RESULT: ${{ needs.desktop.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" || \
-                ("$PLATFORM_REQUIRED" == "true" && ("$ANDROID_RESULT" != "success" || "$WINDOWS_RESULT" != "success")) || \
+                ("$ANDROID_REQUIRED" == "true" && "$ANDROID_RESULT" != "success") || \
+                ("$WINDOWS_REQUIRED" == "true" && "$WINDOWS_RESULT" != "success") || \
                 ("$DESKTOP_REQUIRED" == "true" && "$DESKTOP_RESULT" != "success") || \
                 ("$ANDROID_RESULT" != "success" && "$ANDROID_RESULT" != "skipped") || \
                 ("$WINDOWS_RESULT" != "success" && "$WINDOWS_RESULT" != "skipped") || \

@@ -185,13 +185,14 @@ class AndroidTvBuildTest(unittest.TestCase):
             with self.subTest(output=output), self.assertRaises(ValueError):
                 MODULE.signer_fingerprints(output)
 
-    def verify_fixture(self, flavor="tv", fail_last=False, fingerprint=None):
+    def verify_fixture(self, flavor="tv", fail_last=False, fingerprint=None, abis=None):
         metadata = self.metadata(flavor)
         directory = Path(f"build/app/outputs/apk/{flavor}/release")
         directory.mkdir(parents=True)
         platform = "android-tv" if flavor == "tv" else "android"
+        selected = list(MODULE.ABI_CODES) if abis is None else abis
         abis = {}
-        for abi in MODULE.ABI_CODES:
+        for abi in selected:
             path = directory / f"VeneraNext-{metadata['base_version']}-{platform}{'' if abi == 'universal' else '-' + abi}.apk"
             write_apk(path, abi)
             abis[str(path)] = abi
@@ -205,7 +206,7 @@ class AndroidTvBuildTest(unittest.TestCase):
             return "Signer #1 certificate SHA-256 digest: " + (fingerprint or MODULE.SIGNER_SHA256)
 
         with patch.object(MODULE, "find_tool", side_effect=lambda name, _: name), patch.object(MODULE, "run_tool", side_effect=run_tool), patch("builtins.print"):
-            MODULE.verify_apks(metadata, Path("sdk"), "github-output")
+            MODULE.verify_apks(metadata, Path("sdk"), "github-output", selected)
         return metadata
 
     def test_verified_tv_artifacts_have_isolated_names_and_hash_manifest(self):
@@ -309,34 +310,72 @@ class AndroidTvBuildTest(unittest.TestCase):
                 finally:
                     os.chdir(original)
 
-    def test_regular_workflows_build_and_collect_both_flavors(self):
+    def test_release_collects_verified_android_artifacts_from_one_job(self):
         workflows = Path(__file__).resolve().parents[2] / "workflows"
         pubspec = (workflows.parent.parent / "pubspec.yaml").read_text(encoding="utf-8")
         self.assertNotIn("default-flavor:", pubspec, "Android flavors must not change Apple schemes")
         build = (workflows / "build.yml").read_text(encoding="utf-8")
-        self.assertIn("flavor: [mobile, tv]", build)
-        self.assertIn("flutter build apk --release --flavor mobile", build)
-        self.assertIn("flutter build apk --release --flavor tv", build)
-        self.assertNotIn("inputs.android_flavor", build)
-        self.assertNotIn("--build-number", build.split("Build_Windows:")[0])
-        self.assertIn("name: android-${{ matrix.flavor }}-manifest", build)
-        self.assertIn("inputs.build_android && !inputs.quality_checked", build)
+        android_job = build.split("\n  Build_Android:", 1)[1].split("\n  Build_Windows:", 1)[0]
+        self.assertNotIn("matrix:", android_job)
+        self.assertIn("build_android.py build", android_job)
+        self.assertIn("name: android_build", android_job)
         release = (workflows / "main.yml").read_text(encoding="utf-8")
-        self.assertIn("needs: [Release_Metadata, Quality]", release)
+        self.assertIn("android_flavors: both", release)
+        self.assertIn("android_architecture: all", release)
         self.assertIn("quality_checked: true", release)
-        for pattern in ("apk-*", "tv-apk-*", "android-*-manifest"):
-            self.assertIn("pattern: " + pattern, release)
+        self.assertIn("name: android_build", release)
         self.assertLess(release.index("android_tv_build.py verify-release"), release.index("gh release create"))
         smoke = (workflows / "pr_build.yml").read_text(encoding="utf-8")
-        self.assertIn("flavor: [mobile, tv]", smoke)
-        gate = smoke.split("\n  platform_gate:", 1)[1]
-        needs = re.search(r"needs:\s*\[([^]]+)\]", gate)
-        self.assertIsNotNone(needs)
-        self.assertTrue(
-            {"changes", "android", "windows", "desktop"}.issubset(
-                {job.strip() for job in needs.group(1).split(",")}
-            )
-        )
+        self.assertIn("for flavor in mobile tv; do", smoke)
+        self.assertIn("--target-platform android-arm64", smoke)
+        self.assertIn("ANDROID_BUILD_ABIS: arm64-v8a", smoke)
+
+    def test_arm64_development_apk_keeps_validation_without_relaxing_release_requirements(self):
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            try:
+                os.chdir(directory)
+                self.verify_fixture("mobile", abis=["arm64-v8a"])
+                catalog = json.loads(Path("build/android-mobile-manifest.json").read_text())
+                self.assertEqual([item["abi"] for item in catalog["apks"]], ["arm64-v8a"])
+                self.assertEqual(catalog["apks"][0]["signer_sha256"], [MODULE.SIGNER_SHA256])
+                shutil.copyfile("build/android-mobile-manifest.json", "android-mobile-manifest.json")
+                with self.assertRaisesRegex(ValueError, "Incomplete APK catalog"):
+                    MODULE.verify_release(Path("."), PUBSPEC, ENV)
+            finally:
+                os.chdir(original)
+
+    def test_shared_workspace_full_build_passes_the_existing_eight_apk_release_gate(self):
+        import build_android
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            try:
+                os.chdir(directory)
+                Path("pubspec.yaml").write_text(PUBSPEC)
+                records = {}
+                def compile(command, **kwargs):
+                    flavor = command[command.index("--flavor") + 1]
+                    metadata = self.metadata(flavor)
+                    destination = Path(f"build/app/outputs/apk/{flavor}/release")
+                    destination.mkdir(parents=True)
+                    for abi in MODULE.ABI_CODES:
+                        apk = destination / MODULE.apk_filename(metadata, abi)
+                        write_apk(apk, abi)
+                        records[str(apk)] = (metadata, abi)
+                def tool(name, *arguments):
+                    metadata, abi = records[arguments[-1]]
+                    return manifest(metadata, abi) if name == "apkanalyzer" else "Signer #1 certificate SHA-256 digest: " + MODULE.SIGNER_SHA256
+                with patch.object(build_android, "android", MODULE), \
+                        patch.object(build_android.subprocess, "run", side_effect=compile), \
+                        patch.object(MODULE, "find_tool", side_effect=lambda name, _: name), \
+                        patch.object(MODULE, "run_tool", side_effect=tool), patch("builtins.print"):
+                    build_android.build(build_android.build_plan("both", "all", ENV), ENV)
+                    artifacts = Path("build/android-artifacts")
+                    self.assertEqual(len(list(artifacts.glob("*.apk"))), 8)
+                    self.assertEqual(len(list(artifacts.glob("*-manifest.json"))), 2)
+                    MODULE.verify_release(artifacts, PUBSPEC, ENV)
+            finally:
+                os.chdir(original)
 
     @unittest.skipIf(os.name == "nt", "Linux CI executes Bash workflow gates.")
     def test_smoke_gate_requires_changed_platforms_and_rejects_failures(self):
@@ -349,11 +388,11 @@ class AndroidTvBuildTest(unittest.TestCase):
         passed = {
             "CHANGES_RESULT": "success", "ANDROID_RESULT": "success",
             "WINDOWS_RESULT": "success", "DESKTOP_RESULT": "success",
-            "PLATFORM_REQUIRED": "true", "DESKTOP_REQUIRED": "true",
+            "ANDROID_REQUIRED": "true", "WINDOWS_REQUIRED": "true", "DESKTOP_REQUIRED": "true",
         }
         skipped = {
             "ANDROID_RESULT": "skipped", "WINDOWS_RESULT": "skipped",
-            "DESKTOP_RESULT": "skipped", "PLATFORM_REQUIRED": "false",
+            "DESKTOP_RESULT": "skipped", "ANDROID_REQUIRED": "false", "WINDOWS_REQUIRED": "false",
             "DESKTOP_REQUIRED": "false",
         }
         cases = [
@@ -362,6 +401,9 @@ class AndroidTvBuildTest(unittest.TestCase):
             ("desktop failed", {"DESKTOP_RESULT": "failure"}, False),
             ("desktop cancelled", {"DESKTOP_RESULT": "cancelled"}, False),
             ("required Android skipped", {"ANDROID_RESULT": "skipped"}, False),
+            ("required Windows skipped", {"WINDOWS_RESULT": "skipped"}, False),
+            ("Android-only change", {"WINDOWS_REQUIRED": "false", "WINDOWS_RESULT": "skipped",
+                                     "DESKTOP_REQUIRED": "false", "DESKTOP_RESULT": "skipped"}, True),
             ("documentation skips builds", skipped, True),
             ("mobile only", {"DESKTOP_REQUIRED": "false", "DESKTOP_RESULT": "skipped"}, True),
             ("change detection failed", {**skipped, "CHANGES_RESULT": "failure"}, False),

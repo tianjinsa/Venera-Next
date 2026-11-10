@@ -4,6 +4,14 @@ run-name: 构建 ${{ github.ref_name }}
 on:
   workflow_call:
     inputs:
+      android_flavors:
+        description: 'Android flavors: mobile, tv or both'
+        type: string
+        default: both
+      android_architecture:
+        description: 'Android architectures: arm64 or all'
+        type: string
+        default: all
       skip_tests:
         description: '跳过测试，仍执行静态检查和构建产物校验'
         required: false
@@ -45,13 +53,23 @@ on:
         required: false
   workflow_dispatch:
     inputs:
+      android_flavors:
+        description: 'Android 安装包'
+        type: choice
+        options: [mobile, tv, both]
+        default: mobile
+      android_architecture:
+        description: 'Android 架构（all 包含三种架构和通用包）'
+        type: choice
+        options: [arm64, all]
+        default: arm64
       skip_tests:
         description: '跳过测试，仍执行静态检查和构建产物校验'
         required: false
         type: boolean
         default: false
       build_android:
-        description: '构建 Android 手机版和 TV 版'
+        description: '构建所选 Android 安装包'
         required: true
         type: boolean
         default: true
@@ -59,12 +77,12 @@ on:
         description: '构建 Windows'
         required: true
         type: boolean
-        default: true
+        default: false
       build_macos:
         description: '构建 macOS'
         required: true
         type: boolean
-        default: true
+        default: false
       build_ios:
         description: '构建 iOS'
         required: true
@@ -74,12 +92,12 @@ on:
         description: '构建 Linux x64'
         required: true
         type: boolean
-        default: true
+        default: false
       build_linux_arm64:
         description: '构建 Linux ARM64'
         required: true
         type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: build-${{ github.workflow }}-${{ github.repository }}-${{ github.ref }}
@@ -94,23 +112,21 @@ jobs:
     uses: ./.github/workflows/analyze.yml
     with:
       skip_tests: ${{ inputs.skip_tests }}
+      platforms: ${{ (inputs.build_macos || inputs.build_ios) && 'all' || 'android' }}
 
   Build_Android:
     needs: Manual_Quality
     if: ${{ !cancelled() && inputs.build_android && (needs.Manual_Quality.result == 'success' || needs.Manual_Quality.result == 'skipped') }}
-    strategy:
-      fail-fast: false
-      matrix:
-        flavor: [mobile, tv]
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      ANDROID_FLAVORS: ${{ inputs.android_flavors }}
+      ANDROID_ARCHITECTURE: ${{ inputs.android_architecture }}
     steps:
       - uses: actions/checkout@v7
-      - name: 生成并复核 Android 构建身份
-        id: profile
-        env:
-          ANDROID_FLAVOR: ${{ matrix.flavor }}
-        run: python3 .github/scripts/android_tv_build.py metadata --flavor "$ANDROID_FLAVOR" --github-output "$GITHUB_OUTPUT"
+      - name: 确认 Android 构建范围
+        id: plan
+        run: python3 .github/scripts/build_android.py plan
       - name: 准备临时 Android 签名文件
         shell: bash
         env:
@@ -133,8 +149,8 @@ jobs:
           fi
           printf 'ANDROID_KEYSTORE_FILE=%s\n' "$signing_dir/keystore.jks" >> "$GITHUB_ENV"
           printf 'ANDROID_KEY_PROPERTIES_FILE=%s\n' "$signing_dir/key.properties" >> "$GITHUB_ENV"
-      - name: 释放 Android 构建所需磁盘空间
-        run: rm -rf /opt/hostedtoolcache
+      - name: 按需准备 Android 磁盘空间
+        run: python3 .github/scripts/prepare_android_space.py
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -150,12 +166,12 @@ jobs:
             android/**/*.gradle*
             android/gradle/wrapper/gradle-wrapper.properties
             pubspec.lock
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: android-release-${{ steps.plan.outputs.architecture }}
+          paths: build/rhttp/build
       - name: 准备 Rust 工具链
-        run: |
-          python3 .github/scripts/prepare_rust_toolchain.py \
-            --target aarch64-linux-android \
-            --target armv7-linux-androideabi \
-            --target x86_64-linux-android
+        run: python3 .github/scripts/build_android.py toolchain
       - name: 配置 Gradle 插件仓库
         run: |
           mkdir -p ~/.gradle/init.d
@@ -171,59 +187,17 @@ jobs:
       - name: 检查 rust-toolchain.toml
         run: rustup show
       - run: flutter pub get --enforce-lockfile
-      - name: 构建隔离的 Android 安装包
-        env:
-          ANDROID_FLAVOR: ${{ steps.profile.outputs.flavor }}
-          TV_BUILD_LABEL: ${{ steps.profile.outputs.build_label }}
-          TV_REVISION: ${{ github.sha }}
-        run: |
-          if [[ "$ANDROID_FLAVOR" == "tv" ]]; then
-            flutter build apk --release --flavor tv \
-              --dart-define="TV_BUILD=$TV_BUILD_LABEL" \
-              --dart-define="TV_REVISION=$TV_REVISION"
-          else
-            flutter build apk --release --flavor mobile
-          fi
+      - name: 顺序构建并校验 Android 安装包
+        run: python3 .github/scripts/build_android.py build
       - name: 验证 Android 分享文件与回调归属
         if: ${{ !inputs.skip_tests }}
         working-directory: android
         run: ./gradlew :share_plus:testShareOwnership
-      - name: 检查 APK 渠道、电视入口、版本码、签名与 ABI
-        id: apks
-        run: python3 .github/scripts/android_tv_build.py verify --github-output "$GITHUB_OUTPUT"
-      - name: 上传 APK (armeabi-v7a)
+      - name: 上传 Android 安装包与校验清单
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.flavor == 'tv' && 'tv-apk-armeabi-v7a' || 'apk-armeabi-v7a' }}
-          path: ${{ steps.apks.outputs.apk_armeabi_v7a }}
-          if-no-files-found: error
-          retention-days: 7
-      - name: 上传 APK (arm64-v8a)
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.flavor == 'tv' && 'tv-apk-arm64-v8a' || 'apk-arm64-v8a' }}
-          path: ${{ steps.apks.outputs.apk_arm64_v8a }}
-          if-no-files-found: error
-          retention-days: 7
-      - name: 上传 APK (x86_64)
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.flavor == 'tv' && 'tv-apk-x86_64' || 'apk-x86_64' }}
-          path: ${{ steps.apks.outputs.apk_x86_64 }}
-          if-no-files-found: error
-          retention-days: 7
-      - name: 上传 APK (universal)
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.flavor == 'tv' && 'tv-apk-universal' || 'apk-universal' }}
-          path: ${{ steps.apks.outputs.apk_universal }}
-          if-no-files-found: error
-          retention-days: 7
-      - name: 上传 Android 构建来源与校验清单
-        uses: actions/upload-artifact@v7
-        with:
-          name: android-${{ matrix.flavor }}-manifest
-          path: ${{ steps.apks.outputs.manifest }}
+          name: android_build
+          path: build/android-artifacts/*
           if-no-files-found: error
           retention-days: 7
 
@@ -242,6 +216,10 @@ jobs:
       GIT_CONFIG_VALUE_0: 'true'
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: windows-release
+          paths: build/windows/x64/plugins/rhttp/cargokit_build
       - name: 安装 Inno Setup
         run: choco install innosetup --version=6.7.1 --no-progress -y
       - uses: subosito/flutter-action@v2
@@ -333,6 +311,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: macos-release
+          paths: build/macos/**/rhttp.build
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -386,6 +368,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: ios-release
+          paths: build/ios/**/rhttp.build
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -457,6 +443,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: linux-release-x64
+          paths: build/linux/x64/release/plugins/rhttp/cargokit_build
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
@@ -507,6 +497,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/rust-cache
+        with:
+          group: linux-release-arm64
+          paths: build/linux/arm64/release/plugins/rhttp/cargokit_build
       - uses: subosito/flutter-action@v2
         with:
           # Flutter does not publish Linux ARM64 SDK archives. Clone the pinned

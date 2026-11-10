@@ -54,20 +54,21 @@ Android TV 使用独立安装包，与手机版一起构建并在同一个 GitHu
 
 ## 构建与发布门禁
 
-在 GitHub Actions 手动运行「构建」，选择 `main` 并开启 Android，即构建两种 APK；不再选择 `android_flavor`。只构建 Android 的示例：
+在 GitHub Actions 手动运行「构建」，选择开发分支 `codex/agent-center-tab`。默认只生成手机版 ARM64；选择 `android_flavors=both` 和 `android_architecture=all` 可生成两种版本的完整安装包集合：
 
 ```powershell
-gh workflow run build.yml --ref main `
+gh workflow run build.yml --ref codex/agent-center-tab `
   -f build_android=true `
+  -f android_flavors=both -f android_architecture=all `
   -f build_windows=false -f build_macos=false -f build_ios=false `
   -f build_linux_x64=false -f build_linux_arm64=false
 ```
 
-手动 Android 构建先运行质量检查。完整构建／标签发布在上层复用相同质量检查，Android 矩阵包含 `mobile` 和 `tv`；开启其他平台时仍照常构建。PR 平台冒烟构建验证两种 Android Debug APK 和 Windows Debug，质量流程在普通全量测试外运行真实 TV flavor 的导航、输入、低内存及更新回归。
+手动 Android 构建先运行质量检查，未选择 Apple 平台时跳过 Apple runner。手机版和 TV 在同一任务内顺序构建，共用工具链、依赖与原生编译目录；两种 Dart 编译及各自的签名／来源校验仍分别执行。完整构建／标签构建固定双版本全部架构。PR 冒烟按受影响平台执行，Android 手机版／TV 共用 runner，仅编译 ARM64；涉及 Dart 代码时保留完整 Flutter 测试和 TV flavor 回归。
 
-每种 flavor 都检查全部 4 个签名 release APK：包名、基础版本、版本码、原命名空间下的 MainActivity、电视入口／横幅／横屏／非触屏要求、原生 ABI、内嵌版本和签名。该 flavor 任一 APK 失败就不上传其安装包。
+每种 flavor 校验所选架构的全部签名 release APK：包名、基础版本、版本码、原命名空间下的 MainActivity、电视入口／横幅／横屏／非触屏要求、原生 ABI、内嵌版本和签名。校验后立即暂存该版本，再开始下一个版本；任一 APK 失败会阻止任务上传。
 
-Actions 产物为 `apk-<ABI>`、`tv-apk-<ABI>`、`android-mobile-manifest` 和 `android-tv-manifest`，保留 7 天，需要登录 GitHub 下载。两个 manifest 记录完整提交、包名、版本码、签名指纹、大小和文件 SHA-256。标签发布同时下载两套 APK 和清单，核对 **8 个 APK 完整集合、当前发布来源、签名及摘要** 后才创建 Release；两个清单也作为 Release 资产保留。手动构建不会创建 Release。
+Actions 将所选 APK 和各 flavor 的 manifest 统一上传为 `android_build`，保留 7 天，需要登录 GitHub 下载。manifest 记录完整提交、包名、版本码、签名指纹、大小和文件 SHA-256。标签发布下载该产物，仍须核对 **8 个 APK 完整集合、当前发布来源、签名及摘要** 后才创建 Release；两个清单也作为 Release 资产保留。手动构建不会创建 Release。
 
 本地构建沿用[构建指南](../development/build.zh.md)的 Flutter 版本与签名配置：
 

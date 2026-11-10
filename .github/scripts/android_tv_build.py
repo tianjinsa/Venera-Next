@@ -181,15 +181,18 @@ def apk_record(apk, metadata, abi, fingerprints):
     }
 
 
-def verify_apks(metadata, sdk, github_output=None):
+def verify_apks(metadata, sdk, github_output=None, abis=None):
+    selected = list(ABI_CODES if abis is None else abis)
+    if not selected or len(selected) != len(set(selected)) or any(abi not in ABI_CODES for abi in selected):
+        raise ValueError("Invalid APK ABI selection")
     flavor = metadata["flavor"]
     directory = Path(f"build/app/outputs/apk/{flavor}/release")
     expected = {
         abi: directory / apk_filename(metadata, abi)
-        for abi in ABI_CODES
+        for abi in selected
     }
     if set(directory.glob("*.apk")) != set(expected.values()):
-        raise ValueError(f"Expected exactly four APK variants in {directory}")
+        raise ValueError(f"Unexpected APK variants in {directory}; expected {sorted(expected)}")
     analyzer = find_tool("apkanalyzer", sdk)
     signer = find_tool("apksigner", sdk)
     records = []
@@ -213,6 +216,7 @@ def verify_apks(metadata, sdk, github_output=None):
     outputs["manifest"] = catalog_path.as_posix()
     write_outputs(github_output, outputs)
     print(json.dumps(catalog, indent=2))
+    return outputs
 
 
 def verify_release(directory, pubspec, environ):

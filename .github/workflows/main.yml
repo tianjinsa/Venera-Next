@@ -47,6 +47,8 @@ jobs:
     with:
       skip_tests: ${{ inputs.skip_tests == true }}
       quality_checked: true
+      android_flavors: both
+      android_architecture: all
       build_android: true
       build_windows: true
       build_macos: true
@@ -106,19 +108,8 @@ jobs:
           path: outputs
       - uses: actions/download-artifact@v8
         with:
-          pattern: apk-*
+          name: android_build
           path: outputs
-          merge-multiple: true
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: tv-apk-*
-          path: outputs
-          merge-multiple: true
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: android-*-manifest
-          path: outputs
-          merge-multiple: true
       - name: 核验手机版与 TV 版完整性、签名及构建来源
         run: python3 .github/scripts/android_tv_build.py verify-release --directory ../outputs
       - uses: actions/download-artifact@v8

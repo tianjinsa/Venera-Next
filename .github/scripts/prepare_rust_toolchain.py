@@ -3,24 +3,21 @@ import subprocess
 
 
 def prepare_toolchain(version: str, targets: list[str]) -> None:
-    subprocess.run(
-        ["rustup", "toolchain", "uninstall", version],
-        check=False,
+    available = subprocess.run(
+        ["rustup", "run", version, "cargo", "--version"],
+        capture_output=True, text=True,
     )
-
-    command = [
-        "rustup",
-        "toolchain",
-        "install",
-        version,
-        "--profile",
-        "minimal",
-        "--component",
-        "cargo",
-    ]
-    for target in targets:
-        command.extend(["--target", target])
-    subprocess.run(command, check=True)
+    if available.returncode != 0:
+        subprocess.run(
+            ["rustup", "toolchain", "install", version, "--profile", "minimal", "--component", "cargo"],
+            check=True,
+        )
+    installed = set(subprocess.check_output(
+        ["rustup", "target", "list", "--installed", "--toolchain", version], text=True,
+    ).split())
+    missing = sorted(set(targets) - installed)
+    if missing:
+        subprocess.run(["rustup", "target", "add", "--toolchain", version, *missing], check=True)
     subprocess.run(
         ["rustup", "run", version, "cargo", "--version"],
         check=True,

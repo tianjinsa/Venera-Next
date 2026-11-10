@@ -13,6 +13,24 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Cargokit otherwise adds emulator ABIs even to an explicit ARM64 Debug build.
+// Apply the CI selection after plugins have registered their Cargo tasks.
+gradle.projectsEvaluated {
+    def selectedAbis = System.getenv("ANDROID_BUILD_ABIS")
+    if (selectedAbis) {
+        def platformsByAbi = ["armeabi-v7a": "android-arm", "arm64-v8a": "android-arm64", "x86_64": "android-x64"]
+        def selectedPlatforms = selectedAbis.split(",").collect { platformsByAbi[it] }
+        if (selectedPlatforms.any { it == null }) {
+            throw new GradleException("Unsupported ANDROID_BUILD_ABIS selection")
+        }
+        subprojects { subproject ->
+            subproject.tasks.matching { it.name.startsWith("cargokitCargoBuild") }.configureEach { cargoTask ->
+                cargoTask.targetPlatforms = selectedPlatforms
+            }
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

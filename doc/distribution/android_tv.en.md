@@ -54,20 +54,21 @@ Signing keys are not distributed with the source. Future certificate rotation re
 
 ## Builds and Release Gates
 
-Manually run the build workflow on `main` with Android enabled to build both flavors. There is no longer an `android_flavor` selector. Android-only example:
+Manually run the build workflow on `codex/agent-center-tab`. It defaults to mobile ARM64. Select `android_flavors=both` and `android_architecture=all` for both flavors and the complete APK set:
 
 ```powershell
-gh workflow run build.yml --ref main `
+gh workflow run build.yml --ref codex/agent-center-tab `
   -f build_android=true `
+  -f android_flavors=both -f android_architecture=all `
   -f build_windows=false -f build_macos=false -f build_ios=false `
   -f build_linux_x64=false -f build_linux_arm64=false
 ```
 
-Manual Android builds run quality checks first. Full builds and tag releases reuse those checks upstream. The Android matrix contains `mobile` and `tv`; other enabled platforms still build normally. PR smoke builds compile both Android Debug flavors and Windows Debug. In addition to the full ordinary test suite, quality checks run the actual TV flavor's navigation, input, low-memory, and update regressions.
+Manual Android builds run quality checks first, skipping Apple runners when no Apple platform is selected. Mobile and TV build sequentially in one job, sharing toolchains, dependencies and native outputs; Dart compilation and signature/provenance validation remain separate. Full builds and tags force both flavors and all architectures. PR smoke builds follow affected platforms; both Android Debug flavors share one ARM64 runner. Dart changes retain the full Flutter suite and TV regressions.
 
-Each flavor verifies all four signed release APKs: package, base version, versionCode, MainActivity namespace, TV launcher/banner/landscape/touchscreen declarations, native ABIs, bundled version, and signing certificate. A failed APK prevents uploads for that flavor.
+Each flavor verifies every selected release APK: package, base version, versionCode, MainActivity namespace, TV launcher/banner/landscape/touchscreen declarations, native ABIs, bundled version, and signing certificate. Verified outputs are staged before starting the next flavor. A failed APK prevents the job from uploading artifacts.
 
-Actions artifacts are `apk-<ABI>`, `tv-apk-<ABI>`, `android-mobile-manifest`, and `android-tv-manifest`, retained for 7 days and requiring GitHub login. The manifests record commit, package, version codes, signing fingerprints, file sizes, and SHA-256 hashes. Tag publication downloads both sets, verifies the **complete eight-APK set, current release provenance, signing identity, and hashes**, then creates the Release. Both manifests are also published as release assets. Manual builds never create a Release.
+Actions uploads selected APKs and per-flavor manifests in one `android_build` artifact, retained for 7 days and requiring GitHub login. Manifests record commit, package, version codes, signing fingerprints, file sizes, and SHA-256 hashes. Tag publication downloads this artifact and still verifies the **complete eight-APK set, current release provenance, signing identity, and hashes** before creating the Release. Both manifests are also published as release assets. Manual builds never create a Release.
 
 For local builds, use the pinned Flutter and signing configuration in the [build guide](../development/build.en.md):
 

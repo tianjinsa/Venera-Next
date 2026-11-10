@@ -33,6 +33,10 @@ keystorePropertiesFile.withInputStream { stream ->
 }
 // CI keeps signing files outside the checkout and overrides the local storeFile.
 def keystoreFilePath = System.getenv("ANDROID_KEYSTORE_FILE") ?: keystoreProperties['storeFile']
+def buildAbis = (System.getenv("ANDROID_BUILD_ABIS") ?: "armeabi-v7a,arm64-v8a,x86_64").split(",").toList()
+if (buildAbis.isEmpty() || buildAbis.any { !project.ext.abiCodes.containsKey(it) }) {
+    throw new GradleException("Unsupported ANDROID_BUILD_ABIS selection")
+}
 
 android {
     namespace = "com.github.cyrilpeng.veneranext"
@@ -48,9 +52,9 @@ android {
     splits{
         abi {
             reset()
-            include 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+            include(*buildAbis)
             enable true
-            universalApk true
+            universalApk(buildAbis.size() > 1)
         }
     }
 
@@ -105,13 +109,13 @@ android {
             minifyEnabled true
             shrinkResources true
             ndk {
-                abiFilters "armeabi-v7a", "arm64-v8a", "x86_64"
+                abiFilters(*buildAbis)
             }
             signingConfig signingConfigs.release
         }
         debug {
             ndk {
-                abiFilters "armeabi-v7a", "arm64-v8a", "x86_64"
+                abiFilters(*buildAbis)
             }
             signingConfig signingConfigs.debug
         }
