@@ -3,6 +3,10 @@ run-name: 构建 ${{ github.ref_name }}
 
 on:
   workflow_call:
+    outputs:
+      android_signer_sha256:
+        description: Public certificate fingerprint read from the configured signing keystore
+        value: ${{ jobs.Build_Android.outputs.signer_sha256 }}
     inputs:
       skip_tests:
         description: '跳过测试，仍执行静态检查和构建产物校验'
@@ -101,6 +105,8 @@ jobs:
     if: ${{ !cancelled() && inputs.build_android && (needs.Manual_Quality.result == 'success' || needs.Manual_Quality.result == 'skipped') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
+    outputs:
+      signer_sha256: ${{ steps.signing.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v7
       - name: 确认 Android 构建范围
@@ -150,6 +156,13 @@ jobs:
         with:
           group: android-release-${{ steps.plan.outputs.architecture }}
           paths: build/rhttp/build
+      - name: 确认配置的 Android 签名身份
+        id: signing
+        shell: bash
+        run: |
+          signer_sha256="$(java .github/scripts/AndroidSigningIdentity.java)"
+          printf 'ANDROID_EXPECTED_SIGNER_SHA256=%s\n' "$signer_sha256" >> "$GITHUB_ENV"
+          printf 'sha256=%s\n' "$signer_sha256" >> "$GITHUB_OUTPUT"
       - name: 准备 Rust 工具链
         run: python3 .github/scripts/build_android.py toolchain
       - name: 配置 Gradle 插件仓库

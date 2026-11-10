@@ -18,7 +18,20 @@ ANDROID = "{http://schemas.android.com/apk/res/android}"
 ABI_CODES = {"armeabi-v7a": 1, "arm64-v8a": 2, "x86_64": 3, "universal": 0}
 # Also enforced in Gradle so local builds use the same upgrade-safe sequence.
 TV_BUILD_OFFSET = 200000
+# Historical upstream default for local verification. CI supplies its configured keystore identity.
 SIGNER_SHA256 = "3d990535d15d2ecb8f65f599db7725e1d83e10a5e801ddcdae262cc78983dc10"
+
+
+def expected_signer(environ):
+    fingerprint = environ.get("ANDROID_EXPECTED_SIGNER_SHA256")
+    if fingerprint is None:
+        if environ.get("GITHUB_ACTIONS") == "true":
+            raise ValueError("CI requires the signing identity from the configured keystore")
+        return SIGNER_SHA256
+    fingerprint = fingerprint.strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+        raise ValueError("Invalid expected Android signing certificate SHA-256")
+    return fingerprint
 
 
 def build_metadata(flavor, pubspec, environ):
@@ -181,7 +194,7 @@ def apk_record(apk, metadata, abi, fingerprints):
     }
 
 
-def verify_apks(metadata, sdk, github_output=None, abis=None):
+def verify_apks(metadata, sdk, github_output=None, abis=None, expected_signer_sha256=SIGNER_SHA256):
     selected = list(ABI_CODES if abis is None else abis)
     if not selected or len(selected) != len(set(selected)) or any(abi not in ABI_CODES for abi in selected):
         raise ValueError("Invalid APK ABI selection")
@@ -201,8 +214,8 @@ def verify_apks(metadata, sdk, github_output=None, abis=None):
         validate_contents(apk, metadata, abi)
         certificate = run_tool(signer, "verify", "--verbose", "--print-certs", str(apk))
         fingerprints = signer_fingerprints(certificate)
-        if fingerprints != [SIGNER_SHA256]:
-            raise ValueError("APK signing certificate differs from published mobile/TV builds")
+        if fingerprints != [expected_signer_sha256]:
+            raise ValueError("APK signing certificate differs from the configured keystore identity")
         records.append((abi, apk, fingerprints))
 
     # Expose outputs only after every variant has passed the checks above.
@@ -220,6 +233,7 @@ def verify_apks(metadata, sdk, github_output=None, abis=None):
 
 
 def verify_release(directory, pubspec, environ):
+    signer = expected_signer(environ)
     expected = set()
     for flavor in ("mobile", "tv"):
         metadata = build_metadata(flavor, pubspec, environ)
@@ -240,11 +254,11 @@ def verify_release(directory, pubspec, environ):
             abi = record["abi"]
             apk = directory / apk_filename(metadata, abi)
             expected.add(apk)
-            if record != apk_record(apk, metadata, abi, [SIGNER_SHA256]):
+            if record != apk_record(apk, metadata, abi, [signer]):
                 raise ValueError(f"Release APK does not match verified catalog: {apk}")
     if set(directory.glob("*.apk")) != expected:
         raise ValueError("Release must contain exactly four mobile and four TV APKs")
-    print("Verified all eight mobile/TV APKs, release provenance and signing continuity")
+    print("Verified all eight mobile/TV APKs, release provenance and configured signing identity")
 
 
 def main():
@@ -276,7 +290,8 @@ def main():
             })
             print(json.dumps(metadata, indent=2))
         elif arguments.command == "verify":
-            verify_apks(json.loads(arguments.metadata.read_text(encoding="utf-8")), arguments.sdk, arguments.github_output)
+            verify_apks(json.loads(arguments.metadata.read_text(encoding="utf-8")), arguments.sdk,
+                        arguments.github_output, expected_signer_sha256=expected_signer(os.environ))
         else:
             verify_release(arguments.directory, arguments.pubspec.read_text(encoding="utf-8-sig"), os.environ)
     except (ValueError, ET.ParseError, OSError, subprocess.CalledProcessError) as error:

@@ -24,6 +24,7 @@ def build_plan(environ):
 
 
 def build(plan, environ):
+    signer = android.expected_signer(environ)
     pubspec = Path("pubspec.yaml").read_text(encoding="utf-8-sig")
     artifacts = Path("build/android-artifacts")
     if artifacts.exists():
@@ -41,7 +42,8 @@ def build(plan, environ):
                         f"--dart-define=TV_REVISION={metadata['revision']}"]
         subprocess.run(command, env=env, check=True)
         sdk = Path(environ.get("ANDROID_HOME", environ.get("ANDROID_SDK_ROOT", "")))
-        verified = android.verify_apks(metadata, sdk, abis=plan["apks"])
+        verified = android.verify_apks(metadata, sdk, abis=plan["apks"],
+                                       expected_signer_sha256=signer)
         # Stage each verified flavor before Flutter starts the next build.
         for name in verified.values():
             source = Path(name)

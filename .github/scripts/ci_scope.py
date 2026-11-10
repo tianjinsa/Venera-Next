@@ -33,7 +33,7 @@ def classify(paths, platforms="all"):
             flags["python"] = True
             if Path(path).name in ("prepare_rust_toolchain.py", "check_native_codec_bundle.py"):
                 flags.update(dict.fromkeys(FLAGS, True))
-            elif Path(path).name in ("build_android.py", "android_tv_build.py", "prepare_android_space.py"):
+            elif Path(path).name in ("build_android.py", "android_tv_build.py", "prepare_android_space.py", "AndroidSigningIdentity.java"):
                 flags["android"] = True
             elif Path(path).name == "prepare_apple_build.py":
                 flags["macos"] = flags["ios"] = flags["rhttp_ios"] = True

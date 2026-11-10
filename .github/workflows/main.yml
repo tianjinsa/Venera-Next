@@ -109,6 +109,8 @@ jobs:
           name: android_build
           path: outputs
       - name: 核验手机版与 TV 版完整性、签名及构建来源
+        env:
+          ANDROID_EXPECTED_SIGNER_SHA256: ${{ needs.Build.outputs.android_signer_sha256 }}
         run: python3 .github/scripts/android_tv_build.py verify-release --directory ../outputs
       - uses: actions/download-artifact@v8
         with:

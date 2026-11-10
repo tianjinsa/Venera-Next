@@ -118,10 +118,11 @@ class AndroidBuildTests(unittest.TestCase):
                     shutil.rmtree('build/app')
                 Path('build/app').mkdir(parents=True)
                 Path(f'build/app/{flavor}.apk').write_bytes(flavor.encode())
-            def verify(metadata, sdk, *, abis):
+            def verify(metadata, sdk, *, abis, expected_signer_sha256):
                 flavor = metadata['flavor']
                 order.append(('verify', flavor))
                 self.assertEqual(abis, ['armeabi-v7a', 'arm64-v8a', 'x86_64', 'universal'])
+                self.assertEqual(expected_signer_sha256, build_android.android.SIGNER_SHA256)
                 manifest = Path(f'build/android-{flavor}-manifest.json')
                 manifest.write_text(json.dumps(metadata))
                 return {'apk_arm64_v8a': f'build/app/{flavor}.apk', 'manifest': str(manifest)}

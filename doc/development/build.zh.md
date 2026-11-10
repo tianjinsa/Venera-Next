@@ -181,6 +181,8 @@ keyPassword=<ANDROID_KEY_PASSWORD>
 
 工作流仅在 Android 构建步骤中读取 Secrets，将证书和属性文件写入 `$RUNNER_TEMP/android-signing/`，目录权限为 `700`、文件权限为 `600`。Gradle 通过 `ANDROID_KEYSTORE_FILE` 和 `ANDROID_KEY_PROPERTIES_FILE` 读取临时文件，CI 中以临时证书的绝对路径覆盖 `storeFile`；无需在仓库中放置 `android/app/keystore.jks`。缺少 Secrets 或 Base64 无效时直接失败；无论构建成功或失败都会执行清理步骤，签名文件不作为产物上传。本地构建未设置这些环境变量时，仍读取 `android/key.properties` 及其中的 `storeFile`。
 
+JDK 在编译前读取配置 keystore 中指定别名的公开证书，使用与 Gradle 完全相同的 Java Properties 转义规则解析属性。预期 SHA-256 经 `ANDROID_EXPECTED_SIGNER_SHA256` 传给 APK 校验，并通过复用工作流输出传给发布门禁；每个 APK 和 manifest 必须匹配这份独立身份，CI 不允许缺失或格式无效的指纹。keystore 密码或别名有误会在耗时编译前失败。fork 可使用自己的证书，但与上游证书不同的 APK 不能直接覆盖上游安装包；后续升级应沿用同一 keystore。
+
 发布后的 AltStore 更新会复用固定分支 `automation/update-altstore` 并创建 PR。仓库需要配置可向当前仓库推送分支并创建 PR 的 `ALTSTORE_PR_TOKEN`；未单独配置时会复用 `WINGET_PKGS_TOKEN`。令牌缺失或 PR 创建失败会使任务明确失败，不再产生只有分支、没有 PR 的成功记录。
 
 Issue 分类与格式检查默认运行，不需要 AI API：`.github/scripts/issue_policy.py` 校验新表单、按类型要求诊断并维护分类／补充信息标签。新建、编辑、重新打开及评论变化会复查，同一提示评论更新；机器人事件、PR、已关闭和旧格式报告跳过。首次需要时自动创建分类标签，保留已有同名标签的颜色和说明。用户采集步骤见[Issue 提交说明](../user/issue_reporting.zh.md)。

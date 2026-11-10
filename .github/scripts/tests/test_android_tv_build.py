@@ -188,10 +188,10 @@ class AndroidTvBuildTest(unittest.TestCase):
             with self.subTest(output=output), self.assertRaises(ValueError):
                 MODULE.signer_fingerprints(output)
 
-    def verify_fixture(self, flavor="tv", fail_last=False, fingerprint=None, abis=None):
+    def verify_fixture(self, flavor="tv", fail_last=False, fingerprint=None, abis=None, trusted_signer=None):
         metadata = self.metadata(flavor)
         directory = Path(f"build/app/outputs/apk/{flavor}/release")
-        directory.mkdir(parents=True)
+        directory.mkdir(parents=True, exist_ok=True)
         platform = "android-tv" if flavor == "tv" else "android"
         selected = list(MODULE.ABI_CODES) if abis is None else abis
         abis = {}
@@ -209,8 +209,38 @@ class AndroidTvBuildTest(unittest.TestCase):
             return "Signer #1 certificate SHA-256 digest: " + (fingerprint or MODULE.SIGNER_SHA256)
 
         with patch.object(MODULE, "find_tool", side_effect=lambda name, _: name), patch.object(MODULE, "run_tool", side_effect=run_tool), patch("builtins.print"):
-            MODULE.verify_apks(metadata, Path("sdk"), "github-output", selected)
+            MODULE.verify_apks(metadata, Path("sdk"), "github-output", selected,
+                               trusted_signer or MODULE.SIGNER_SHA256)
         return metadata
+
+    def test_ci_requires_a_valid_independent_signing_identity(self):
+        self.assertEqual(MODULE.expected_signer({}), MODULE.SIGNER_SHA256)
+        for value in (None, "", "abcd", "g" * 64):
+            environment = {"GITHUB_ACTIONS": "true"}
+            if value is not None:
+                environment["ANDROID_EXPECTED_SIGNER_SHA256"] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                MODULE.expected_signer(environment)
+        self.assertEqual(MODULE.expected_signer({"ANDROID_EXPECTED_SIGNER_SHA256": "B" * 64}), "b" * 64)
+
+    def test_repository_certificate_must_match_apks_and_release_catalogs(self):
+        import contextlib
+        signer = "b" * 64
+        environment = dict(ENV, GITHUB_ACTIONS="true", ANDROID_EXPECTED_SIGNER_SHA256=signer)
+        with tempfile.TemporaryDirectory() as directory, contextlib.chdir(directory):
+            for flavor in ("mobile", "tv"):
+                self.verify_fixture(flavor, fingerprint=signer, trusted_signer=signer)
+                for apk in Path(f"build/app/outputs/apk/{flavor}/release").glob("*.apk"):
+                    shutil.copyfile(apk, apk.name)
+                shutil.copyfile(f"build/android-{flavor}-manifest.json", f"android-{flavor}-manifest.json")
+            with patch("builtins.print"):
+                MODULE.verify_release(Path("."), PUBSPEC, environment)
+            # A manifest cannot declare its own trusted signer.
+            with self.assertRaises(ValueError):
+                MODULE.verify_release(Path("."), PUBSPEC,
+                                      dict(environment, ANDROID_EXPECTED_SIGNER_SHA256="c" * 64))
+            with self.assertRaises(ValueError):
+                self.verify_fixture("mobile", fingerprint=signer, trusted_signer="c" * 64)
 
     def test_verified_tv_artifacts_have_isolated_names_and_hash_manifest(self):
         with tempfile.TemporaryDirectory() as directory:

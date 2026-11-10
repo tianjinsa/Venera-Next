@@ -44,13 +44,15 @@ Mobile keeps `base build * 10 + ABI ID`. TV uses `(200000 + base build) * 10 + A
 
 The last delivered Alpha, `alpha.19.2` at `a4ba52463380`, had a maximum versionCode of `1000193`. The `v1.18.2` base build `243` produces TV codes `2002430` through `2002433`, all higher than those test APKs. Increase the build in `release.json` for future versions. Rebuilding the same version does not increment its code; changing to a lower ABI ID at the same version may be rejected, so keep the installed ABI where possible.
 
-The `pubspec.yaml` version seen by source scripts remains unchanged. About additionally displays TV build and revision information. Both flavors retain the published signing identity; verification requires this public certificate SHA-256:
+The `pubspec.yaml` version seen by source scripts remains unchanged. About additionally displays TV build and revision information. Historical upstream releases use this public certificate SHA-256, which remains the local default for verifying those artifacts:
 
 ```text
 3d990535d15d2ecb8f65f599db7725e1d83e10a5e801ddcdae262cc78983dc10
 ```
 
-Signing keys are not distributed with the source. Future certificate rotation requires an explicit upgrade-compatibility plan, not simply weakening verification.
+CI reads the expected certificate fingerprint from the keystore and alias configured by `ANDROID_KEYSTORE` and `ANDROID_KEY_PROPERTIES`, then checks every mobile/TV APK against it. The build workflow passes that public fingerprint to release verification independently of the manifests. CI fails if the expected identity is missing; no third Secret is needed.
+
+Signing keys are not distributed with the source. Fork APKs signed with a different certificate cannot directly replace upstream-signed installations. Keep the same keystore for subsequent upgrades; certificate rotation requires an explicit upgrade-compatibility plan.
 
 ## Builds and Release Gates
 
