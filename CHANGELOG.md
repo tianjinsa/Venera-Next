@@ -37,6 +37,7 @@
 
 ### 文档与分发
 
+- 新增二次开发分支的[功能、修复与构建登记表](doc/agent/branch-change-register.md)，登记行为约束、实现/测试入口、来源提交和上游合并冲突点；根代理规则要求合并时逐项保留并记录等价替代。另整理[源仓库 main 的 Issue 候选与证据边界](doc/agent/upstream-issue-candidates.md)，区分原有缺陷、交互建议及迁移功能。
 - 深入优化桌面与 iOS 构建：Windows 保留编译中间文件，直接流式生成 ZIP 并缓存 Inno Setup；macOS／iOS 共用一次环境准备、按需安装 Rust targets 并缓存 CocoaPods 下载；Linux x64／ARM64 共用架构矩阵，增加 C/C++ 缓存、缺失依赖检测及可复用的打包／冒烟容器。预编译 Arch 打包不再安装编译器或 GTK/WebKit，发行包使用较快的兼容压缩配置，上传时避免二次压缩；同平台旧构建仍自动取消，不同平台构建互不取消。
 - 修复 Android ARM64 单架构构建的 Gradle ABI 冲突：关闭通用包时清空 Flutter 预置的 NDK ABI 过滤，避免与 APK 拆分互斥；全架构构建继续过滤通用包中的原生库。
 - 简化 Android 构建：删除手动和复用工作流的 flavor／架构选择，勾选 Android 就固定生成手机与 TV 的全部 8 个 APK 和两份清单，避免单架构与 Flutter 通用包查找方式不一致。PR 的 ARM64 冒烟构建补齐 `--split-per-abi`。原生 Rust 缓存分离恢复与保存，失败时使用独立键保存编译进度，成功后才写入完整缓存。
