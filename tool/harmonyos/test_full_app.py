@@ -1,11 +1,13 @@
 import hashlib
 import json
+import os
 import struct
 import subprocess
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from contextlib import ExitStack
 from unittest.mock import patch
 
 from ci_full_app import ASSET_PREFIX, METADATA_ASSET, audit_full_hap, export_install_guides
@@ -29,6 +31,53 @@ def elf():
 
 
 class FullAppTests(unittest.TestCase):
+    def test_skipping_host_tests_preserves_analysis_hap_build_audit_and_provenance(self):
+        for skip_tests in (False, True):
+            with self.subTest(skip_tests=skip_tests), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                base = root / 'build/harmonyos'
+                project = base / 'full-app'
+                (project / 'assets').mkdir(parents=True)
+                haps = project / 'build/ohos/hap'
+                haps.mkdir(parents=True)
+                (haps / 'entry-unsigned.hap').write_bytes(b'synthetic HAP')
+                metadata = {'hap_version_name': '1.18.3', 'version_code': 249,
+                            'version_name': '1.18.3', 'bundled_assets': {},
+                            'release': {'guide_delivery': 'repository'}}
+                (project / 'assets/harmonyos-app-build.json').write_text(json.dumps(metadata))
+                for name in ('pubspec.yaml', 'CHANGELOG.md'):
+                    (project / name).write_text('fixture')
+                for name in ('native/native-build.json', 'full-native/extra-native-build.json'):
+                    path = base / name
+                    path.parent.mkdir(parents=True)
+                    path.write_text(json.dumps({'sdk_profile': 'harmony-ci', 'sdk_api': 26}))
+                with ExitStack() as stack:
+                    for name, value in {'ROOT': root, 'BASE': base, 'CI': base / 'ci',
+                                        'DEPS': base / 'deps', 'PROJECT': project}.items():
+                        stack.enter_context(patch.object(ci_full_app, name, value))
+                    stack.enter_context(patch.object(ci_full_app.subprocess, 'check_output', return_value='a' * 40))
+                    stack.enter_context(patch.object(ci_full_app, 'check_real_source'))
+                    stack.enter_context(patch.dict(os.environ, {'LD_LIBRARY_PATH': 'existing-libraries'}))
+                    commands = stack.enter_context(patch.object(ci_full_app, 'run_logged'))
+                    audit = stack.enter_context(patch.object(ci_full_app, 'audit_full_hap', return_value={}))
+                    stack.enter_context(patch('builtins.print'))
+                    if skip_tests:
+                        ci_full_app.build(root / 'sdk', skip_tests=True)
+                    else:
+                        ci_full_app.build(root / 'sdk')
+                    self.assertEqual(os.environ['LD_LIBRARY_PATH'], 'existing-libraries')
+                    audit.assert_called_once()
+                stages = [call.args[1] for call in commands.call_args_list]
+                self.assertIn('full-app-analyze', stages)
+                self.assertIn('full-app-build', stages)
+                for stage in ('full-app-host-prepare', 'full-app-host-build', 'full-app-test'):
+                    self.assertEqual(stage in stages, not skip_tests)
+                report = json.loads((base / 'ci/full-app-build.json').read_text())
+                exported = json.loads((base / 'ci/release-artifacts/harmonyos-manifest.json').read_text())
+                self.assertEqual(report['status'], 'packaging_pass')
+                self.assertEqual(exported['tests_skipped'], skip_tests)
+                self.assertFalse(exported['runtime_verified'])
+
     def test_repository_guides_are_not_exported_but_legacy_snapshots_remain_available(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

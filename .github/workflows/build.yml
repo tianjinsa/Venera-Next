@@ -4,6 +4,11 @@ run-name: 构建 ${{ github.ref_name }}
 on:
   workflow_call:
     inputs:
+      skip_tests:
+        description: '跳过测试，仍执行静态检查和构建产物校验'
+        required: false
+        type: boolean
+        default: false
       quality_checked:
         description: '调用方已经通过同一质量检查，仅供复用工作流使用'
         required: false
@@ -40,6 +45,11 @@ on:
         required: false
   workflow_dispatch:
     inputs:
+      skip_tests:
+        description: '跳过测试，仍执行静态检查和构建产物校验'
+        required: false
+        type: boolean
+        default: false
       build_android:
         description: '构建 Android 手机版和 TV 版'
         required: true
@@ -82,6 +92,8 @@ jobs:
   Manual_Quality:
     if: ${{ inputs.build_android && !inputs.quality_checked }}
     uses: ./.github/workflows/analyze.yml
+    with:
+      skip_tests: ${{ inputs.skip_tests }}
 
   Build_Android:
     needs: Manual_Quality
@@ -99,6 +111,28 @@ jobs:
         env:
           ANDROID_FLAVOR: ${{ matrix.flavor }}
         run: python3 .github/scripts/android_tv_build.py metadata --flavor "$ANDROID_FLAVOR" --github-output "$GITHUB_OUTPUT"
+      - name: 准备临时 Android 签名文件
+        shell: bash
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEY_PROPERTIES: ${{ secrets.ANDROID_KEY_PROPERTIES }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [[ -z "${ANDROID_KEYSTORE:-}" || -z "${ANDROID_KEY_PROPERTIES:-}" ]]; then
+            echo 'Android 签名需要配置 ANDROID_KEYSTORE 和 ANDROID_KEY_PROPERTIES Secrets。' >&2
+            exit 1
+          fi
+          signing_dir="${RUNNER_TEMP:?}/android-signing"
+          mkdir -p "$signing_dir"
+          printf '%s' "$ANDROID_KEYSTORE" | base64 --decode > "$signing_dir/keystore.jks"
+          printf '%s' "$ANDROID_KEY_PROPERTIES" > "$signing_dir/key.properties"
+          if [[ ! -s "$signing_dir/keystore.jks" || ! -s "$signing_dir/key.properties" ]]; then
+            echo 'Android 签名文件不能为空。' >&2
+            exit 1
+          fi
+          printf 'ANDROID_KEYSTORE_FILE=%s\n' "$signing_dir/keystore.jks" >> "$GITHUB_ENV"
+          printf 'ANDROID_KEY_PROPERTIES_FILE=%s\n' "$signing_dir/key.properties" >> "$GITHUB_ENV"
       - name: 释放 Android 构建所需磁盘空间
         run: rm -rf /opt/hostedtoolcache
       - uses: subosito/flutter-action@v2
@@ -107,13 +141,6 @@ jobs:
           flutter-version-file: pubspec.yaml
           architecture: x64
           cache: true
-      - name: 解码并安装 Android 证书
-        env:
-          STORE_FILE: ${{ secrets.ANDROID_KEYSTORE }}
-          PROPERTY_FILE: ${{ secrets.ANDROID_KEY_PROPERTIES }}
-        run: |
-          echo "$STORE_FILE" | base64 --decode > android/keystore.jks
-          echo "$PROPERTY_FILE" > android/key.properties
       - uses: actions/setup-java@v6
         with:
           distribution: 'oracle'
@@ -158,6 +185,7 @@ jobs:
             flutter build apk --release --flavor mobile
           fi
       - name: 验证 Android 分享文件与回调归属
+        if: ${{ !inputs.skip_tests }}
         working-directory: android
         run: ./gradlew :share_plus:testShareOwnership
       - name: 检查 APK 渠道、电视入口、版本码、签名与 ABI
@@ -199,6 +227,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: 清理临时 Android 签名文件
+        if: ${{ always() }}
+        shell: bash
+        run: rm -rf -- "${RUNNER_TEMP:?}/android-signing"
+
   Build_Windows:
     if: ${{ inputs.build_windows }}
     runs-on: windows-2025
@@ -222,6 +255,7 @@ jobs:
           flutter pub get --enforce-lockfile
           python windows/build.py
       - name: 验证 Windows 分享请求与 COM 归属
+        if: ${{ !inputs.skip_tests }}
         shell: pwsh
         run: |
           cmake -S packages/share_plus/windows/tests -B build/share-plus-tests -A x64
@@ -261,6 +295,7 @@ jobs:
           }
           $artifacts | Sort-Object Name | ForEach-Object { "$($_.Name) $($_.Length) bytes" }
       - name: 编译并运行 Windows 原生启动测试
+        if: ${{ !inputs.skip_tests }}
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
@@ -268,6 +303,7 @@ jobs:
           cmake --build build/windows/startup_tests --config Release
           ctest --test-dir build/windows/startup_tests -C Release --output-on-failure
       - name: 验证 Windows 安装、无头命令与实际启动
+        if: ${{ !inputs.skip_tests }}
         shell: pwsh
         timeout-minutes: 12
         run: |
@@ -275,7 +311,7 @@ jobs:
           if ($installers.Count -ne 1) { throw '静默安装测试需要恰好一个安装包。' }
           ./.github/scripts/test_windows_startup.ps1 -Installer $installers[0].FullName
       - name: 上传 Windows 启动诊断
-        if: ${{ always() }}
+        if: ${{ always() && !inputs.skip_tests }}
         uses: actions/upload-artifact@v7
         with:
           name: windows-release-startup-logs
@@ -438,6 +474,7 @@ jobs:
       - name: 构建 RPM 和 AppImage
         run: python3 .github/scripts/build_linux_packages.py --arch x64
       - name: 在无 GTK 和 WebKit 的容器中验证 AppImage
+        if: ${{ !inputs.skip_tests }}
         run: bash .github/scripts/test_appimage.sh x64
       - uses: actions/upload-artifact@v7
         with:
@@ -490,6 +527,7 @@ jobs:
       - name: 构建 RPM 和 AppImage
         run: python3 .github/scripts/build_linux_packages.py --arch arm64
       - name: 在无 GTK 和 WebKit 的容器中验证 AppImage
+        if: ${{ !inputs.skip_tests }}
         run: bash .github/scripts/test_appimage.sh arm64
       - uses: actions/upload-artifact@v7
         with:

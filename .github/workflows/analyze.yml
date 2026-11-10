@@ -1,6 +1,12 @@
 name: "代码分析"
 on:
   workflow_call:
+    inputs:
+      skip_tests:
+        description: '跳过测试，仍执行静态检查'
+        required: false
+        type: boolean
+        default: false
   pull_request:
   push:
     branches:
@@ -16,6 +22,7 @@ permissions:
 jobs:
   apple-directory-access:
     name: Apple 目录授权与跨会话恢复
+    if: ${{ !inputs.skip_tests }}
     runs-on: macos-15
     timeout-minutes: 10
     steps:
@@ -24,6 +31,7 @@ jobs:
 
   rhttp-native:
     name: Rhttp 原生回调生命周期
+    if: ${{ !inputs.skip_tests }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -76,13 +84,17 @@ jobs:
       - run: python3 .github/scripts/check_structure_imports.py
       - run: python3 .github/scripts/check_architecture_dependencies.py
       - run: python3 -m unittest discover -s .github/scripts/tests -p "test_*.py"
+        if: ${{ !inputs.skip_tests }}
       - run: flutter pub get --enforce-lockfile
       - name: 准备并验证独立代码审查工具
         working-directory: tool/code_audit
         run: |
           dart pub get --enforce-lockfile
-          dart run bin/self_check.dart
           dart analyze --fatal-infos
+      - name: 运行独立代码审查工具自检
+        if: ${{ !inputs.skip_tests }}
+        working-directory: tool/code_audit
+        run: dart run bin/self_check.dart
       - name: 验证 Git 与本地依赖来源、许可证及补丁记录
         run: dart tool/check_git_dependencies.dart
       - name: 检查本次修改的 Dart 格式
@@ -105,6 +117,7 @@ jobs:
 
   flutter-tests:
     name: Flutter 测试与覆盖率
+    if: ${{ !inputs.skip_tests }}
     needs: rhttp-native
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -181,6 +194,7 @@ jobs:
 
   android-saf-provider:
     name: Android 文档存储真实 Provider 回归
+    if: ${{ !inputs.skip_tests }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

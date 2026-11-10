@@ -147,10 +147,23 @@ python .github/scripts/release_version.py --check --tag v1.2.3
 
 `代码分析` 工作流会运行版本与结构检查、Python 脚本测试、修改文件的 Dart 格式检查、`flutter analyze`、完整 Dart 测试及覆盖率汇总。`依赖安全审查` 会检查 PR 新增或升级的依赖，`PR 平台冒烟构建` 会按改动范围验证 Android 和 Windows 编译。`完整构建` 在开始多平台构建前会复用同一质量工作流；手动平台构建和 tag 发布则共同复用 `.github/workflows/build.yml`，避免两套构建定义产生差异。
 
+手动运行 `构建`、`完整构建` 或 `HarmonyOS Release HAP` 时，可勾选 `skip_tests` 跳过测试，默认不勾选。该选项会传递至复用工作流，跳过 Python、Dart、Swift、Rust 测试、Android Provider 回归、Windows 原生／启动测试、Linux AppImage 冒烟测试及鸿蒙主机测试；静态分析、版本／依赖检查、编译和产物完整性／签名校验仍然执行。PR、主分支 CI 和 tag 自动发布默认继续运行测试。
+
 Android release 工作流需要以下仓库 Secrets：
 
 - `ANDROID_KEYSTORE`：keystore 文件的 Base64 内容
 - `ANDROID_KEY_PROPERTIES`：`key.properties` 文本内容
+
+`ANDROID_KEY_PROPERTIES` 可以直接使用以下格式，无需修改 `storeFile`：
+
+```properties
+storeFile=keystore.jks
+storePassword=<ANDROID_KEYSTORE_PASSWORD>
+keyAlias=<ANDROID_KEY_ALIAS>
+keyPassword=<ANDROID_KEY_PASSWORD>
+```
+
+工作流仅在 Android 构建步骤中读取 Secrets，将证书和属性文件写入 `$RUNNER_TEMP/android-signing/`，目录权限为 `700`、文件权限为 `600`。Gradle 通过 `ANDROID_KEYSTORE_FILE` 和 `ANDROID_KEY_PROPERTIES_FILE` 读取临时文件，CI 中以临时证书的绝对路径覆盖 `storeFile`；无需在仓库中放置 `android/app/keystore.jks`。缺少 Secrets 或 Base64 无效时直接失败；无论构建成功或失败都会执行清理步骤，签名文件不作为产物上传。本地构建未设置这些环境变量时，仍读取 `android/key.properties` 及其中的 `storeFile`。
 
 发布后的 AltStore 更新会复用固定分支 `automation/update-altstore` 并创建 PR。仓库需要配置可向当前仓库推送分支并创建 PR 的 `ALTSTORE_PR_TOKEN`；未单独配置时会复用 `WINGET_PKGS_TOKEN`。令牌缺失或 PR 创建失败会使任务明确失败，不再产生只有分支、没有 PR 的成功记录。
 

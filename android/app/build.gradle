@@ -25,9 +25,14 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
-def keystorePropertiesFile = rootProject.file("key.properties")
+def keystorePropertiesPath = System.getenv("ANDROID_KEY_PROPERTIES_FILE")
+def keystorePropertiesFile = keystorePropertiesPath ? file(keystorePropertiesPath) : rootProject.file("key.properties")
 def keystoreProperties = new Properties()
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+keystorePropertiesFile.withInputStream { stream ->
+    keystoreProperties.load(stream)
+}
+// CI keeps signing files outside the checkout and overrides the local storeFile.
+def keystoreFilePath = System.getenv("ANDROID_KEYSTORE_FILE") ?: keystoreProperties['storeFile']
 
 android {
     namespace = "com.github.cyrilpeng.veneranext"
@@ -59,7 +64,7 @@ android {
 
     signingConfigs {
         debug {
-            storeFile file(keystoreProperties['storeFile'])
+            storeFile file(keystoreFilePath)
             storePassword keystoreProperties['storePassword']
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
@@ -67,7 +72,7 @@ android {
         release {
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
-            storeFile file(keystoreProperties['storeFile'])
+            storeFile file(keystoreFilePath)
             storePassword keystoreProperties['storePassword']
         }
     }

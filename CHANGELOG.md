@@ -27,6 +27,7 @@
 
 ### 文档与分发
 
+- GitHub Actions 手动构建增加默认关闭的 `skip_tests` 选项，覆盖普通平台与鸿蒙测试，并保留静态检查、编译和产物校验。Android 签名从仓库 Secrets 在 runner 临时目录生成，使用受限权限并在任务结束时清理，兼容 `storeFile=keystore.jks`，无需将证书放入源码目录。
 - 中英文 README 统一章节编号和可点击目录，截图归入项目介绍；下载安装依次排列 Android 手机／平板、Android TV、Windows、鸿蒙、Linux、iOS、macOS，并保留旧标题锚点。
 - 后续鸿蒙发布将安装指南保存在仓库的 `doc/distribution/`，README 使用相对链接，Release 正文自动链接对应版本标签下的中英文指南。HAP、manifest 与 SHA-256 文件继续作为必需附件严格校验；历史未声明新指南策略的提交仍按原五附件格式验证，已发布资产保留。
 - 更新收藏目录使用文档，区分 v1.18.3 已发布的返回／路径导航和本次待发布的管理入口。

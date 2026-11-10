@@ -147,11 +147,12 @@ def check_real_source(metadata):
         raise ValueError("Actual OHOS WebView plugin registration is missing")
 
 
-def build(flutter_sdk):
+def build(flutter_sdk, skip_tests=False):
     CI.mkdir(parents=True, exist_ok=True)
     source_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     report = {"status": "building", "purpose": "full_reader_experiment", "commit": source_commit,
-              "signed": False, "reader_integrated": True, "runtime_verified": False}
+              "signed": False, "reader_integrated": True, "runtime_verified": False,
+              "tests_skipped": skip_tests}
     try:
         run_logged([sys.executable, ROOT / "tool/harmonyos/prepare_full_app.py", "project", "--flutter-sdk", flutter_sdk], "full-app-prepare")
         metadata = json.loads((PROJECT / "assets/harmonyos-app-build.json").read_text(encoding="utf-8"))
@@ -162,21 +163,22 @@ def build(flutter_sdk):
                 raise ValueError("Cloud reader HAP requires fresh API 26 libraries")
         flutter = flutter_sdk / "bin/flutter"
         run_logged([flutter, "analyze", "--no-pub", "--fatal-infos", "--fatal-warnings"], "full-app-analyze", PROJECT)
-        host = require_within(BASE / "full-host", BASE)
-        host_sources = {"flutter_qjs": BASE / "deps/flutter_qjs", "zip_flutter": DEPS / "zip_flutter",
-                        "venera_native": ROOT / "packages/venera_native"}
-        run_logged(["cmake", "-S", ROOT / ".github/scripts/native_test_libraries", "-B", host, "-G", "Ninja",
-                    "-DCMAKE_BUILD_TYPE=Release", *[f"-D{name.upper()}_ROOT={path}" for name, path in host_sources.items()]], "full-app-host-prepare")
-        run_logged(["cmake", "--build", host, "--parallel", "2"], "full-app-host-build")
-        previous_path = os.environ.get("LD_LIBRARY_PATH", "")
-        os.environ["LD_LIBRARY_PATH"] = str(host / "lib") + (":" + previous_path if previous_path else "")
-        try:
-            run_logged([flutter, "test", "--no-pub", "--concurrency", "2", "--reporter", "expanded", *TESTS], "full-app-test", PROJECT)
-        finally:
-            if previous_path:
-                os.environ["LD_LIBRARY_PATH"] = previous_path
-            else:
-                os.environ.pop("LD_LIBRARY_PATH", None)
+        if not skip_tests:
+            host = require_within(BASE / "full-host", BASE)
+            host_sources = {"flutter_qjs": BASE / "deps/flutter_qjs", "zip_flutter": DEPS / "zip_flutter",
+                            "venera_native": ROOT / "packages/venera_native"}
+            run_logged(["cmake", "-S", ROOT / ".github/scripts/native_test_libraries", "-B", host, "-G", "Ninja",
+                        "-DCMAKE_BUILD_TYPE=Release", *[f"-D{name.upper()}_ROOT={path}" for name, path in host_sources.items()]], "full-app-host-prepare")
+            run_logged(["cmake", "--build", host, "--parallel", "2"], "full-app-host-build")
+            previous_path = os.environ.get("LD_LIBRARY_PATH", "")
+            os.environ["LD_LIBRARY_PATH"] = str(host / "lib") + (":" + previous_path if previous_path else "")
+            try:
+                run_logged([flutter, "test", "--no-pub", "--concurrency", "2", "--reporter", "expanded", *TESTS], "full-app-test", PROJECT)
+            finally:
+                if previous_path:
+                    os.environ["LD_LIBRARY_PATH"] = previous_path
+                else:
+                    os.environ.pop("LD_LIBRARY_PATH", None)
         run_logged([flutter, "build", "hap", "--release", "--no-codesign", "--target-platform", "ohos-arm64", "--no-pub", "--target", "lib/main.dart",
                     "--build-name", metadata["hap_version_name"], "--build-number", str(metadata["version_code"])], "full-app-build", PROJECT)
         check_real_source(metadata)
@@ -220,8 +222,9 @@ def export_install_guides(artifacts, release):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--flutter-sdk", type=Path, required=True)
+    parser.add_argument("--skip-tests", action="store_true", help="Skip host tests; keep analysis and HAP audits")
     args = parser.parse_args()
-    build(args.flutter_sdk.resolve())
+    build(args.flutter_sdk.resolve(), skip_tests=args.skip_tests)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,13 @@ name: 完整构建
 run-name: 完整构建 ${{ github.ref_name }}
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: '跳过测试，仍执行静态检查和构建产物校验'
+        required: false
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*'
@@ -32,11 +38,14 @@ jobs:
   Quality:
     needs: Release_Metadata
     uses: ./.github/workflows/analyze.yml
+    with:
+      skip_tests: ${{ inputs.skip_tests == true }}
 
   Build:
     needs: [Release_Metadata, Quality]
     uses: ./.github/workflows/build.yml
     with:
+      skip_tests: ${{ inputs.skip_tests == true }}
       quality_checked: true
       build_android: true
       build_windows: true
@@ -49,6 +58,8 @@ jobs:
   HarmonyOS:
     needs: [Release_Metadata, Quality]
     uses: ./.github/workflows/harmonyos-release.yml
+    with:
+      skip_tests: ${{ inputs.skip_tests == true }}
 
   Release:
     runs-on: ubuntu-24.04

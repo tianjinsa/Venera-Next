@@ -147,10 +147,23 @@ python .github/scripts/release_version.py --check --tag v1.2.3
 
 The `代码分析` workflow runs version and structure checks, Python script tests, formatting checks for changed Dart files, `flutter analyze`, the full Dart test suite, and coverage reporting. `依赖安全审查` checks dependencies added or upgraded by a pull request, while `PR 平台冒烟构建` verifies Android and Windows compilation when the changed files can affect platform builds. Before starting multi-platform builds, `完整构建` reuses the same quality workflow. Manual platform builds and tag releases both reuse `.github/workflows/build.yml` so their build definitions cannot drift apart.
 
+Manual runs of `构建`, `完整构建`, and `HarmonyOS Release HAP` offer a `skip_tests` checkbox, disabled by default. Reusable workflows receive the same option. It skips Python, Dart, Swift and Rust tests, Android Provider regressions, Windows native/startup tests, Linux AppImage smoke tests, and HarmonyOS host tests. Static analysis, version/dependency checks, compilation, and artifact integrity/signature checks still run. PRs, main-branch CI, and automatic tag releases continue to run tests by default.
+
 Android release workflows require these repository Secrets:
 
 - `ANDROID_KEYSTORE`: Base64 content of the keystore file
 - `ANDROID_KEY_PROPERTIES`: text content of `key.properties`
+
+`ANDROID_KEY_PROPERTIES` can use this format directly, without changing `storeFile`:
+
+```properties
+storeFile=keystore.jks
+storePassword=<ANDROID_KEYSTORE_PASSWORD>
+keyAlias=<ANDROID_KEY_ALIAS>
+keyPassword=<ANDROID_KEY_PASSWORD>
+```
+
+Only the Android signing preparation step reads these Secrets. It writes the keystore and properties to `$RUNNER_TEMP/android-signing/`, with directory mode `700` and file mode `600`. Gradle reads these temporary files through `ANDROID_KEYSTORE_FILE` and `ANDROID_KEY_PROPERTIES_FILE`; the absolute temporary keystore path overrides `storeFile` in CI. No `android/app/keystore.jks` is needed in the repository. Missing Secrets or invalid Base64 fail the job; cleanup runs on success or failure, and signing files are never uploaded as artifacts. Local builds without these environment variables still read `android/key.properties` and its `storeFile` value.
 
 After a stable release, the AltStore workflow reuses the fixed `automation/update-altstore` branch and creates a pull request. Configure `ALTSTORE_PR_TOKEN` with permission to push a branch and create pull requests in this repository; when it is not configured, the workflow falls back to `WINGET_PKGS_TOKEN`. A missing token or failed PR creation now fails the job instead of reporting success with only an orphan branch.
 

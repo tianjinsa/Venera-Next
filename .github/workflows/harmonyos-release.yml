@@ -3,7 +3,19 @@ run-name: "HarmonyOS release verification / ${{ github.ref_name }}"
 
 on:
   workflow_call:
+    inputs:
+      skip_tests:
+        description: '跳过测试，仍执行静态检查和构建产物校验'
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: '跳过测试，仍执行静态检查和构建产物校验'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -71,6 +83,7 @@ jobs:
           node-version: '22.23.4'
 
       - name: Test the pinned platform tools
+        if: ${{ !inputs.skip_tests }}
         run: |
           python3 -m unittest discover -s tool/harmonyos -p 'test_*.py' -v
           node --test tool/harmonyos/test_directory_bridge.mjs
@@ -146,7 +159,12 @@ jobs:
             2>&1 | tee build/harmonyos/ci/logs/full-native-build.txt
 
       - name: Analyze test build and audit the real reader HAP
-        run: python3 tool/harmonyos/ci_full_app.py --flutter-sdk "$FLUTTER_OH_SDK"
+        env:
+          SKIP_TESTS: ${{ inputs.skip_tests }}
+        run: |
+          options=()
+          if [[ "$SKIP_TESTS" == true ]]; then options+=(--skip-tests); fi
+          python3 tool/harmonyos/ci_full_app.py --flutter-sdk "$FLUTTER_OH_SDK" "${options[@]}"
 
       - name: Independently verify the required release assets and repository guides
         working-directory: release
