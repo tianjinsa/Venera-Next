@@ -1,0 +1,24 @@
+# Development headers and the runtime closure bundled into AppImage.
+clang
+cmake
+ccache
+ninja-build
+pkg-config
+libgtk-3-dev
+libwebkit2gtk-4.1-dev
+libsqlite3-dev
+libgdk-pixbuf2.0-bin
+librsvg2-common
+glib-networking
+gstreamer1.0-plugins-base
+gstreamer1.0-plugins-good
+gsettings-desktop-schemas
+shared-mime-info
+adwaita-icon-theme
+fontconfig-config
+bubblewrap
+xdg-dbus-proxy
+rpm
+squashfs-tools
+desktop-file-utils
+file

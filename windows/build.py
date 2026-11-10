@@ -1,9 +1,11 @@
 import argparse
 from pathlib import Path
 import hashlib
+import os
 import re
 import shutil
 import subprocess
+import zipfile
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,7 +68,9 @@ def remove_build_directory(path):
 
 def clean_windows_runner_build(arch="x64"):
     runner, _, _ = architecture_paths(arch)
-    remove_build_directory(runner)
+    # Remove installed files, including DLLs from removed plugins, while keeping
+    # CMake/MSBuild intermediate files available for incremental compilation.
+    remove_build_directory(runner / "Release")
 
 
 def create_portable_zip(version, arch="x64"):
@@ -77,24 +81,22 @@ def create_portable_zip(version, arch="x64"):
 
     zip_path = WINDOWS_BUILD_DIR / f"VeneraNext-{version}-{suffix}.zip"
     package_dir = WINDOWS_BUILD_DIR / f"VeneraNext-{version}-{suffix}"
-    if zip_path.exists():
-        zip_path.unlink()
     if package_dir.exists():
         remove_build_directory(package_dir)
-
+    temporary = zip_path.with_suffix(".zip.tmp")
     try:
-        shutil.copytree(release_dir, package_dir)
-        shutil.make_archive(
-            str(zip_path.with_suffix("")),
-            "zip",
-            WINDOWS_BUILD_DIR,
-            package_dir.name,
-        )
-        require_non_empty_file(zip_path)
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
+            archive.write(release_dir, package_dir.name)
+            for directory, folders, files in os.walk(release_dir, followlinks=True):
+                folders.sort()
+                for name in [*folders, *sorted(files)]:
+                    path = Path(directory) / name
+                    archive.write(path, (Path(package_dir.name) / path.relative_to(release_dir)).as_posix())
+        require_non_empty_file(temporary)
+        temporary.replace(zip_path)
         return zip_path
     finally:
-        if package_dir.exists():
-            remove_build_directory(package_dir)
+        temporary.unlink(missing_ok=True)
 
 
 def validate_icon_resources():
@@ -151,7 +153,7 @@ def main(arch="x64"):
     version = read_version()
     validate_icon_resources()
     clean_windows_runner_build(arch)
-    command = ["flutter", "build", "windows"]
+    command = ["flutter", "build", "windows", "--release", "--no-pub"]
     if arch == "arm64":
         command += ["--target-platform", "windows-arm64"]
     run(command)

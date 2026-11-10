@@ -4,14 +4,6 @@ run-name: 构建 ${{ github.ref_name }}
 on:
   workflow_call:
     inputs:
-      android_flavors:
-        description: 'Android flavors: mobile, tv or both'
-        type: string
-        default: both
-      android_architecture:
-        description: 'Android architectures: arm64 or all'
-        type: string
-        default: all
       skip_tests:
         description: '跳过测试，仍执行静态检查和构建产物校验'
         required: false
@@ -53,23 +45,13 @@ on:
         required: false
   workflow_dispatch:
     inputs:
-      android_flavors:
-        description: 'Android 安装包'
-        type: choice
-        options: [mobile, tv, both]
-        default: mobile
-      android_architecture:
-        description: 'Android 架构（all 包含三种架构和通用包）'
-        type: choice
-        options: [arm64, all]
-        default: arm64
       skip_tests:
         description: '跳过测试，仍执行静态检查和构建产物校验'
         required: false
         type: boolean
         default: false
       build_android:
-        description: '构建所选 Android 安装包'
+        description: '构建 Android 手机和 TV 全架构安装包'
         required: true
         type: boolean
         default: true
@@ -100,7 +82,7 @@ on:
         default: false
 
 concurrency:
-  group: build-${{ github.workflow }}-${{ github.repository }}-${{ github.ref }}
+  group: build-${{ github.workflow }}-${{ github.repository }}-${{ github.ref }}-${{ inputs.build_android }}-${{ inputs.build_windows }}-${{ inputs.build_macos }}-${{ inputs.build_ios }}-${{ inputs.build_linux_x64 }}-${{ inputs.build_linux_arm64 }}
   cancel-in-progress: true
 
 permissions:
@@ -119,9 +101,6 @@ jobs:
     if: ${{ !cancelled() && inputs.build_android && (needs.Manual_Quality.result == 'success' || needs.Manual_Quality.result == 'skipped') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
-    env:
-      ANDROID_FLAVORS: ${{ inputs.android_flavors }}
-      ANDROID_ARCHITECTURE: ${{ inputs.android_architecture }}
     steps:
       - uses: actions/checkout@v7
       - name: 确认 Android 构建范围
@@ -167,6 +146,7 @@ jobs:
             android/gradle/wrapper/gradle-wrapper.properties
             pubspec.lock
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
           group: android-release-${{ steps.plan.outputs.architecture }}
           paths: build/rhttp/build
@@ -196,6 +176,7 @@ jobs:
       - name: 上传 Android 安装包与校验清单
         uses: actions/upload-artifact@v7
         with:
+          compression-level: 0
           name: android_build
           path: build/android-artifacts/*
           if-no-files-found: error
@@ -205,6 +186,14 @@ jobs:
         if: ${{ always() }}
         shell: bash
         run: rm -rf -- "${RUNNER_TEMP:?}/android-signing"
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
+        with:
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}
 
   Build_Windows:
     if: ${{ inputs.build_windows }}
@@ -217,11 +206,26 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
           group: windows-release
           paths: build/windows/x64/plugins/rhttp/cargokit_build
+      - name: 恢复 Inno Setup 编译器
+        id: inno
+        uses: actions/cache@v5
+        with:
+          path: C:\Program Files (x86)\Inno Setup 6
+          key: windows-innosetup-6.7.1-v1
       - name: 安装 Inno Setup
+        if: steps.inno.outputs.cache-hit != 'true'
         run: choco install innosetup --version=6.7.1 --no-progress -y
+      - name: 配置并验证 Inno Setup
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path -LiteralPath $compiler)) { throw '缺少 Inno Setup 编译器。' }
+          if ((Get-Item $compiler).VersionInfo.FileVersion -notlike '6.7.1*') { throw 'Inno Setup 版本不匹配。' }
+          Split-Path $compiler | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -298,35 +302,58 @@ jobs:
           retention-days: 7
       - uses: actions/upload-artifact@v7
         with:
+          compression-level: 0
           name: windows_build
           path: |
             build/windows/VeneraNext-*-windows.zip
             build/windows/VeneraNext-*-windows-installer.exe
           if-no-files-found: error
           retention-days: 7
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
+        with:
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}
 
-  Build_MacOS:
-    if: ${{ inputs.build_macos }}
+  Build_Apple:
+    if: ${{ inputs.build_macos || inputs.build_ios }}
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 90
+    env:
+      BUILD_MACOS: ${{ inputs.build_macos }}
+      BUILD_IOS: ${{ inputs.build_ios }}
+      COCOAPODS_DISABLE_STATS: 'true'
+      COCOAPODS_SKIP_UPDATE_MESSAGE: 'true'
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
-          group: macos-release
-          paths: build/macos/**/rhttp.build
+          group: apple-release-xcode16.4-${{ inputs.build_macos }}-${{ inputs.build_ios }}
+          paths: |
+            build/macos/**/rhttp.build
+            build/ios/**/rhttp.build
+      - name: 恢复 CocoaPods 下载缓存
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods/repos
+          key: apple-pods-${{ runner.arch }}-${{ hashFiles('pubspec.lock', 'ios/Podfile*', 'macos/Podfile*', 'packages/**/*.podspec') }}
+          restore-keys: |
+            apple-pods-${{ runner.arch }}-
       - uses: subosito/flutter-action@v2
         with:
-          channel: "stable"
+          channel: stable
           flutter-version-file: pubspec.yaml
-          architecture: x64
+          architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
           cache: true
       - run: sudo xcode-select --switch /Applications/Xcode_16.4.app
-      - name: 准备 Rust 工具链
-        run: |
-          python3 .github/scripts/prepare_rust_toolchain.py \
-            --target aarch64-apple-darwin \
-            --target x86_64-apple-darwin
+      - name: 准备所选 Apple 平台的 Rust 工具链
+        run: python3 .github/scripts/prepare_apple_build.py
       - name: 串行化 Rustup 安装操作
         run: |
           install "$(command -v rustup)" "$RUNNER_TEMP/rustup"
@@ -338,64 +365,35 @@ jobs:
           echo "RUSTUP_LOCK_FILE=$RUNNER_TEMP/venera-rustup.lock" >> "$GITHUB_ENV"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
       - run: flutter pub get --enforce-lockfile
-      - name: 检查 rust-toolchain.toml
-        run: rustup show
       - name: 构建 Flutter macOS 应用
-        run: flutter build macos --release
+        run: flutter build macos --release --no-pub
+        if: ${{ inputs.build_macos }}
       - name: 创建 DMG
         run: |
           mkdir -p dist
           mkdir -p dist/dmg_contents
-          cp -R build/macos/Build/Products/Release/VeneraNext.app dist/dmg_contents/
+          if ! cp -cR build/macos/Build/Products/Release/VeneraNext.app dist/dmg_contents/; then
+            rm -rf dist/dmg_contents/VeneraNext.app
+            cp -R build/macos/Build/Products/Release/VeneraNext.app dist/dmg_contents/
+          fi
           ln -s /Applications dist/dmg_contents/Applications
-          hdiutil create -volname "VeneraNext" -srcfolder dist/dmg_contents -ov -format UDZO "dist/VeneraNext.dmg"
+          hdiutil create -volname "VeneraNext" -srcfolder dist/dmg_contents -ov -format UDZO -imagekey zlib-level=1 "dist/VeneraNext.dmg"
+        if: ${{ inputs.build_macos }}
       - name: 将版本号写入文件名
         run: |
           APP_VERSION=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '\r\n')
           mkdir -p result
           mv dist/VeneraNext.dmg "result/VeneraNext-$APP_VERSION.dmg"
+        if: ${{ inputs.build_macos }}
       - name: 上传 DMG
         uses: actions/upload-artifact@v7
         with:
+          compression-level: 0
           name: macos_build
-          path: result/
+          path: result/*.dmg
           if-no-files-found: error
           retention-days: 7
-
-  Build_IOS:
-    if: ${{ inputs.build_ios }}
-    runs-on: macos-15
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/rust-cache
-        with:
-          group: ios-release
-          paths: build/ios/**/rhttp.build
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version-file: pubspec.yaml
-          architecture: x64
-          cache: true
-      - run: sudo xcode-select --switch /Applications/Xcode_16.4.app
-      - name: 准备 Rust 工具链
-        run: |
-          python3 .github/scripts/prepare_rust_toolchain.py \
-            --target aarch64-apple-darwin \
-            --target x86_64-apple-darwin \
-            --target aarch64-apple-ios
-      - name: 串行化 Rustup 安装操作
-        run: |
-          install "$(command -v rustup)" "$RUNNER_TEMP/rustup"
-          mkdir -p "$HOME/.cargo/bin"
-          rm -f "$HOME/.cargo/bin/rustup"
-          install .github/scripts/serialized_rustup.py "$HOME/.cargo/bin/rustup"
-          chmod +x "$HOME/.cargo/bin/rustup"
-          echo "RUSTUP_REAL_BINARY=$RUNNER_TEMP/rustup" >> "$GITHUB_ENV"
-          echo "RUSTUP_LOCK_FILE=$RUNNER_TEMP/venera-rustup.lock" >> "$GITHUB_ENV"
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-      - run: flutter pub get --enforce-lockfile
+        if: ${{ inputs.build_macos }}
       - name: 构建 iOS 应用
         run: |
           APP_VERSION=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '\r\n')
@@ -406,8 +404,9 @@ jobs:
           fi
           IOS_VERSION="${IOS_VERSION%%-*}"
           echo "正在根据 ${APP_VERSION} 构建 iOS 包版本 ${IOS_VERSION}+${IOS_BUILD}"
-          flutter build ios --release --no-codesign \
+          flutter build ios --release --no-codesign --no-pub \
             --build-name "$IOS_VERSION" --build-number "$IOS_BUILD"
+        if: ${{ inputs.build_ios }}
       - name: 校验 iOS 原生版本与应用更新渠道
         run: |
           APP_VERSION=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '\r\n')
@@ -419,121 +418,170 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_BUNDLE/Info.plist")" = "$IOS_BUILD"
           BUNDLED_VERSION=$(sed -n 's/^version:[[:space:]]*//p' "$APP_BUNDLE/Frameworks/App.framework/flutter_assets/pubspec.yaml" | tr -d '\r\n')
           test "$BUNDLED_VERSION" = "$APP_VERSION"
+        if: ${{ inputs.build_ios }}
       - name: 创建 IPA
         run: |
           mkdir -p build/ios/iphoneos/Payload
           mv build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload
           cd build/ios/iphoneos/
-          zip -r VeneraNext-ios.ipa Payload
+          zip -r -1 VeneraNext-ios.ipa Payload
+        if: ${{ inputs.build_ios }}
       - name: 将版本号写入文件名
         run: |
           APP_VERSION=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '\r\n')
           mkdir -p result
           mv build/ios/iphoneos/VeneraNext-ios.ipa "result/VeneraNext-ios-$APP_VERSION.ipa"
+        if: ${{ inputs.build_ios }}
       - uses: actions/upload-artifact@v7
         with:
+          compression-level: 0
           name: ios_build
-          path: result/
+          path: result/*.ipa
           if-no-files-found: error
           retention-days: 7
+        if: ${{ inputs.build_ios }}
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
+        with:
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}
 
-  Build_Linux_x64:
-    if: ${{ inputs.build_linux_x64 }}
-    runs-on: ubuntu-22.04
+  Build_Linux:
+    if: ${{ inputs.build_linux_x64 || inputs.build_linux_arm64 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(inputs.build_linux_x64 && inputs.build_linux_arm64 && '["x64","arm64"]' || inputs.build_linux_x64 && '["x64"]' || '["arm64"]') }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
     timeout-minutes: 45
+    env:
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 500M
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
-          group: linux-release-x64
-          paths: build/linux/x64/release/plugins/rhttp/cargokit_build
+          group: linux-release-${{ matrix.arch }}
+          paths: build/linux/${{ matrix.arch }}/release/plugins/rhttp/cargokit_build
+      - name: 配置原生编译缓存
+        run: |
+          echo "CCACHE_DIR=$RUNNER_TEMP/native-ccache" >> "$GITHUB_ENV"
+          echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+      - uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/native-ccache
+          key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('.github/scripts/linux-build-packages.txt', 'pubspec.lock', 'linux/CMakeLists.txt') }}-${{ github.sha }}
+          restore-keys: |
+            ccache-linux-${{ matrix.arch }}-${{ hashFiles('.github/scripts/linux-build-packages.txt', 'pubspec.lock', 'linux/CMakeLists.txt') }}-
       - uses: subosito/flutter-action@v2
+        if: matrix.arch == 'x64'
         with:
-          channel: 'stable'
+          channel: stable
           flutter-version-file: pubspec.yaml
           architecture: x64
+          cache: true
+      - uses: subosito/flutter-action@v2
+        if: matrix.arch == 'arm64'
+        with:
+          # Bootstrap the pinned Flutter revision on ARM64, where official SDK archives are absent.
+          channel: master
+          flutter-version-file: pubspec.yaml
           cache: true
       - name: 准备 Rust 工具链
         run: python3 .github/scripts/prepare_rust_toolchain.py
       - run: flutter pub get --enforce-lockfile
-      - name: 安装 Linux 构建依赖
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ninja-build libgtk-3-dev webkit2gtk-4.1 libwebkit2gtk-4.1-dev libgdk-pixbuf2.0-bin librsvg2-common glib-networking gstreamer1.0-plugins-base gstreamer1.0-plugins-good gsettings-desktop-schemas shared-mime-info adwaita-icon-theme fontconfig-config bubblewrap xdg-dbus-proxy rpm squashfs-tools desktop-file-utils file
-      - run: python3 debian/build.py x64
-      - name: 构建 RPM 和 AppImage
-        run: python3 .github/scripts/build_linux_packages.py --arch x64
+      - name: 安装缺失的 Linux 构建依赖
+        run: python3 .github/scripts/prepare_linux_build.py
+      - name: 恢复 AppImage 打包工具
+        uses: actions/cache@v5
+        with:
+          path: build/linux/${{ matrix.arch }}/packages/tools
+          key: appimage-tools-${{ matrix.arch }}-${{ hashFiles('.github/scripts/build_linux_packages.py') }}
+      - uses: docker/setup-buildx-action@v3
+        if: ${{ matrix.arch == 'x64' || !inputs.skip_tests }}
+      - name: 准备可复用的 Arch 打包容器
+        if: matrix.arch == 'x64'
+        uses: docker/build-push-action@v6
+        with:
+          context: .github/scripts
+          file: .github/scripts/arch-builder.Dockerfile
+          load: true
+          tags: venera-arch-builder:ci
+          cache-from: type=gha,scope=arch-package-x64
+          cache-to: type=gha,scope=arch-package-x64,mode=max
+      - name: 准备可复用的 AppImage 验证容器
+        if: ${{ !inputs.skip_tests }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .github/scripts
+          file: .github/scripts/appimage-smoke.Dockerfile
+          load: true
+          tags: venera-appimage-smoke:ci
+          cache-from: type=gha,scope=appimage-smoke-${{ matrix.arch }}
+          cache-to: type=gha,scope=appimage-smoke-${{ matrix.arch }},mode=max
+      - name: 修补 ARM64 字体
+        if: matrix.arch == 'arm64'
+        run: dart run patch/font.dart
+      - name: 编译一次并生成 DEB
+        env:
+          LINUX_ARCH: ${{ matrix.arch }}
+        run: python3 debian/build.py "$LINUX_ARCH"
+      - name: 从同一应用目录构建 RPM 和 AppImage
+        env:
+          LINUX_ARCH: ${{ matrix.arch }}
+        run: python3 .github/scripts/build_linux_packages.py --arch "$LINUX_ARCH"
       - name: 在无 GTK 和 WebKit 的容器中验证 AppImage
         if: ${{ !inputs.skip_tests }}
-        run: bash .github/scripts/test_appimage.sh x64
-      - uses: actions/upload-artifact@v7
-        with:
-          name: linux_extra_x64
-          path: |
-            build/linux/x64/packages/*.rpm
-            build/linux/x64/packages/*.AppImage
-          if-no-files-found: error
-          retention-days: 7
+        env:
+          LINUX_ARCH: ${{ matrix.arch }}
+          APPIMAGE_SMOKE_IMAGE: venera-appimage-smoke:ci
+        run: bash .github/scripts/test_appimage.sh "$LINUX_ARCH"
       - name: 构建 Arch 软件包
-        run: python3 .github/scripts/build_arch_package.py
-      - name: 移除 Arch 调试包
-        run: rm -f build/linux/arch/*-debug-*.pkg.tar.zst
-      - uses: actions/upload-artifact@v7
+        if: matrix.arch == 'x64'
+        run: python3 .github/scripts/build_arch_package.py --docker-image venera-arch-builder:ci
+      - name: 上传 Linux 额外安装包
+        uses: actions/upload-artifact@v7
         with:
-          name: deb_build
-          path: build/linux/x64/release/debian
+          compression-level: 0
+          name: linux_extra_${{ matrix.arch }}
+          path: |
+            build/linux/${{ matrix.arch }}/packages/*.rpm
+            build/linux/${{ matrix.arch }}/packages/*.AppImage
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/upload-artifact@v7
+      - name: 上传 DEB
+        uses: actions/upload-artifact@v7
         with:
+          compression-level: 0
+          name: ${{ matrix.arch == 'x64' && 'deb_build' || 'deb_arm64_build' }}
+          path: build/linux/${{ matrix.arch }}/release/debian
+          if-no-files-found: error
+          retention-days: 7
+      - name: 上传 Arch 软件包
+        if: matrix.arch == 'x64'
+        uses: actions/upload-artifact@v7
+        with:
+          compression-level: 0
           name: arch_build
           path: build/linux/arch/*.pkg.tar.zst
           if-no-files-found: error
           retention-days: 7
-
-  Build_Linux_ARM64:
-    if: ${{ inputs.build_linux_arm64 }}
-    runs-on: ubuntu-22.04-arm
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/rust-cache
-        with:
-          group: linux-release-arm64
-          paths: build/linux/arm64/release/plugins/rhttp/cargokit_build
-      - uses: subosito/flutter-action@v2
-        with:
-          # Flutter does not publish Linux ARM64 SDK archives. Clone the pinned
-          # version from Git and let Flutter bootstrap artifacts for this host.
-          channel: 'master'
-          flutter-version-file: pubspec.yaml
-          cache: true
-      - name: 准备 Rust 工具链
-        run: python3 .github/scripts/prepare_rust_toolchain.py
-      - run: flutter pub get --enforce-lockfile
-      - name: 安装 Linux 构建依赖
+      - name: 汇总原生编译缓存命中情况
+        if: always()
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ninja-build libgtk-3-dev webkit2gtk-4.1 libwebkit2gtk-4.1-dev libgdk-pixbuf2.0-bin librsvg2-common glib-networking gstreamer1.0-plugins-base gstreamer1.0-plugins-good gsettings-desktop-schemas shared-mime-info adwaita-icon-theme fontconfig-config bubblewrap xdg-dbus-proxy rpm squashfs-tools desktop-file-utils file
-      - name: 修补字体
-        run: dart run patch/font.dart
-      - run: python3 debian/build.py arm64
-      - name: 构建 RPM 和 AppImage
-        run: python3 .github/scripts/build_linux_packages.py --arch arm64
-      - name: 在无 GTK 和 WebKit 的容器中验证 AppImage
-        if: ${{ !inputs.skip_tests }}
-        run: bash .github/scripts/test_appimage.sh arm64
-      - uses: actions/upload-artifact@v7
+          if command -v ccache >/dev/null; then ccache --show-stats; fi
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
         with:
-          name: linux_extra_arm64
-          path: |
-            build/linux/arm64/packages/*.rpm
-            build/linux/arm64/packages/*.AppImage
-          if-no-files-found: error
-          retention-days: 7
-      - uses: actions/upload-artifact@v7
-        with:
-          name: deb_arm64_build
-          path: build/linux/arm64/release/debian
-          if-no-files-found: error
-          retention-days: 7
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}

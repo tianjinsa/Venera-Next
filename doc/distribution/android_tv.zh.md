@@ -54,12 +54,11 @@ Android TV 使用独立安装包，与手机版一起构建并在同一个 GitHu
 
 ## 构建与发布门禁
 
-在 GitHub Actions 手动运行「构建」，选择开发分支 `codex/agent-center-tab`。默认只生成手机版 ARM64；选择 `android_flavors=both` 和 `android_architecture=all` 可生成两种版本的完整安装包集合：
+在 GitHub Actions 手动运行「构建」，选择开发分支 `codex/agent-center-tab`。勾选 Android 就会生成手机和 TV 的全部架构及通用包，共 8 个 APK 和两份 manifest，不再提供 Android 版本／架构选择：
 
 ```powershell
 gh workflow run build.yml --ref codex/agent-center-tab `
   -f build_android=true `
-  -f android_flavors=both -f android_architecture=all `
   -f build_windows=false -f build_macos=false -f build_ios=false `
   -f build_linux_x64=false -f build_linux_arm64=false
 ```
@@ -68,7 +67,7 @@ gh workflow run build.yml --ref codex/agent-center-tab `
 
 每种 flavor 校验所选架构的全部签名 release APK：包名、基础版本、版本码、原命名空间下的 MainActivity、电视入口／横幅／横屏／非触屏要求、原生 ABI、内嵌版本和签名。校验后立即暂存该版本，再开始下一个版本；任一 APK 失败会阻止任务上传。
 
-Actions 将所选 APK 和各 flavor 的 manifest 统一上传为 `android_build`，保留 7 天，需要登录 GitHub 下载。manifest 记录完整提交、包名、版本码、签名指纹、大小和文件 SHA-256。标签发布下载该产物，仍须核对 **8 个 APK 完整集合、当前发布来源、签名及摘要** 后才创建 Release；两个清单也作为 Release 资产保留。手动构建不会创建 Release。
+Actions 将全部 8 个 APK 和各 flavor 的 manifest 统一上传为 `android_build`，保留 7 天，需要登录 GitHub 下载。manifest 记录完整提交、包名、版本码、签名指纹、大小和文件 SHA-256。标签发布下载该产物，仍须核对 **8 个 APK 完整集合、当前发布来源、签名及摘要** 后才创建 Release；两个清单也作为 Release 资产保留。手动构建不会创建 Release。
 
 本地构建沿用[构建指南](../development/build.zh.md)的 Flutter 版本与签名配置：
 

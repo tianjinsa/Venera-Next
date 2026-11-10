@@ -54,12 +54,11 @@ Signing keys are not distributed with the source. Future certificate rotation re
 
 ## Builds and Release Gates
 
-Manually run the build workflow on `codex/agent-center-tab`. It defaults to mobile ARM64. Select `android_flavors=both` and `android_architecture=all` for both flavors and the complete APK set:
+Manually run the build workflow on `codex/agent-center-tab`. Selecting Android produces mobile and TV for every architecture and universal: eight APKs and two manifests. Android flavor/architecture inputs have been removed:
 
 ```powershell
 gh workflow run build.yml --ref codex/agent-center-tab `
   -f build_android=true `
-  -f android_flavors=both -f android_architecture=all `
   -f build_windows=false -f build_macos=false -f build_ios=false `
   -f build_linux_x64=false -f build_linux_arm64=false
 ```
@@ -68,7 +67,7 @@ Manual Android builds run quality checks first, skipping Apple runners when no A
 
 Each flavor verifies every selected release APK: package, base version, versionCode, MainActivity namespace, TV launcher/banner/landscape/touchscreen declarations, native ABIs, bundled version, and signing certificate. Verified outputs are staged before starting the next flavor. A failed APK prevents the job from uploading artifacts.
 
-Actions uploads selected APKs and per-flavor manifests in one `android_build` artifact, retained for 7 days and requiring GitHub login. Manifests record commit, package, version codes, signing fingerprints, file sizes, and SHA-256 hashes. Tag publication downloads this artifact and still verifies the **complete eight-APK set, current release provenance, signing identity, and hashes** before creating the Release. Both manifests are also published as release assets. Manual builds never create a Release.
+Actions uploads all eight APKs and per-flavor manifests in one `android_build` artifact, retained for 7 days and requiring GitHub login. Manifests record commit, package, version codes, signing fingerprints, file sizes, and SHA-256 hashes. Tag publication downloads this artifact and still verifies the **complete eight-APK set, current release provenance, signing identity, and hashes** before creating the Release. Both manifests are also published as release assets. Manual builds never create a Release.
 
 For local builds, use the pinned Flutter and signing configuration in the [build guide](../development/build.en.md):
 

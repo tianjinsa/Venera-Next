@@ -42,6 +42,45 @@ class WindowsBuildTest(unittest.TestCase):
                 build.main('arm64')
             package.assert_not_called()
 
+    def test_cleanup_removes_stale_installed_files_but_keeps_compilation_objects(self):
+        runner, _, _ = build.architecture_paths('x64')
+        (runner / 'Release').mkdir(parents=True)
+        (runner / 'Release/removed-plugin.dll').write_bytes(b'stale')
+        objects = runner / 'VeneraNext.dir/Release'
+        objects.mkdir(parents=True)
+        (objects / 'main.obj').write_bytes(b'compiled')
+        build.clean_windows_runner_build('x64')
+        self.assertFalse((runner / 'Release').exists())
+        self.assertEqual((objects / 'main.obj').read_bytes(), b'compiled')
+
+    def test_zip_failure_preserves_the_previous_complete_archive(self):
+        runner, _, _ = build.architecture_paths('x64')
+        release = runner / 'Release'
+        release.mkdir(parents=True)
+        (release / 'VeneraNext.exe').write_bytes(b'application')
+        old = build.WINDOWS_BUILD_DIR / 'VeneraNext-1.2.3-windows.zip'
+        old.write_bytes(b'previous complete archive')
+        with patch.object(build.zipfile.ZipFile, 'write', side_effect=OSError('disk full')):
+            with self.assertRaises(OSError):
+                build.create_portable_zip('1.2.3')
+        self.assertEqual(old.read_bytes(), b'previous complete archive')
+        self.assertFalse(old.with_suffix('.zip.tmp').exists())
+
+    def test_portable_zip_preserves_the_contents_of_linked_asset_directories(self):
+        runner, _, _ = build.architecture_paths('x64')
+        release = runner / 'Release'
+        release.mkdir(parents=True)
+        assets = self.root / 'generated-assets'
+        assets.mkdir()
+        (assets / 'asset.dat').write_bytes(b'asset')
+        try:
+            (release / 'assets').symlink_to(assets, target_is_directory=True)
+        except OSError:
+            self.skipTest('Directory symlinks are unavailable')
+        archive = build.create_portable_zip('1.2.3')
+        with zipfile.ZipFile(archive) as package:
+            self.assertEqual(package.read('VeneraNext-1.2.3-windows/assets/asset.dat'), b'asset')
+
     def test_installer_failure_restores_exact_template_bytes(self):
         for arch in ('x64', 'arm64'):
             _, _, template = build.architecture_paths(arch)

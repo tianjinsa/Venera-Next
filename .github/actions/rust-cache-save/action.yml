@@ -1,0 +1,23 @@
+name: Save resumable Rust compilation
+description: Keep failed-build progress under a separate key so a later success can publish the complete cache.
+inputs:
+  key:
+    description: Primary cache key from the restore action
+    required: true
+  paths:
+    description: Cargo target directories from the restore action
+    required: true
+  status:
+    description: Job status before this optional save step
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache/save@v5
+      with:
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
+          ${{ inputs.paths }}
+        key: ${{ inputs.status == 'success' && inputs.key || format('{0}-partial-{1}-{2}', inputs.key, github.run_id, github.run_attempt) }}

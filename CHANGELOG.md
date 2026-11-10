@@ -27,8 +27,10 @@
 
 ### 文档与分发
 
+- 深入优化桌面与 iOS 构建：Windows 保留编译中间文件，直接流式生成 ZIP 并缓存 Inno Setup；macOS／iOS 共用一次环境准备、按需安装 Rust targets 并缓存 CocoaPods 下载；Linux x64／ARM64 共用架构矩阵，增加 C/C++ 缓存、缺失依赖检测及可复用的打包／冒烟容器。预编译 Arch 打包不再安装编译器或 GTK/WebKit，发行包使用较快的兼容压缩配置，上传时避免二次压缩；同平台旧构建仍自动取消，不同平台构建互不取消。
 - 修复 Android ARM64 单架构构建的 Gradle ABI 冲突：关闭通用包时清空 Flutter 预置的 NDK ABI 过滤，避免与 APK 拆分互斥；全架构构建继续过滤通用包中的原生库。
-- 构建工作流按累计 runner 用时优化：Android 手机／TV 在同一任务顺序构建，复用原生编译与依赖缓存；开发构建默认手机版 ARM64，可选择 flavor、架构和其他平台。PR 按改动范围选择重型测试与平台冒烟，Android 单平台不启动 Apple 检查；完整发布仍校验双版本全部 8 个 APK。Rust 保留已安装工具链并缓存实际编译目录，磁盘清理由整目录删除改为低空间时按需执行。
+- 简化 Android 构建：删除手动和复用工作流的 flavor／架构选择，勾选 Android 就固定生成手机与 TV 的全部 8 个 APK 和两份清单，避免单架构与 Flutter 通用包查找方式不一致。PR 的 ARM64 冒烟构建补齐 `--split-per-abi`。原生 Rust 缓存分离恢复与保存，失败时使用独立键保存编译进度，成功后才写入完整缓存。
+- 构建工作流按累计 runner 用时优化：Android 手机／TV 在同一任务顺序构建，复用原生编译与依赖缓存；开发构建只需选择平台，Android 固定构建手机和 TV 的全部架构。PR 按改动范围选择重型测试与平台冒烟，Android 单平台不启动 Apple 检查；完整发布仍校验双版本全部 8 个 APK。Rust 保留已安装工具链并缓存实际编译目录，磁盘清理由整目录删除改为低空间时按需执行。
 - GitHub Actions 手动构建增加默认关闭的 `skip_tests` 选项，覆盖普通平台与鸿蒙测试，并保留静态检查、编译和产物校验。Android 签名从仓库 Secrets 在 runner 临时目录生成，使用受限权限并在任务结束时清理，兼容 `storeFile=keystore.jks`，无需将证书放入源码目录。
 - 中英文 README 统一章节编号和可点击目录，截图归入项目介绍；下载安装依次排列 Android 手机／平板、Android TV、Windows、鸿蒙、Linux、iOS、macOS，并保留旧标题锚点。
 - 后续鸿蒙发布将安装指南保存在仓库的 `doc/distribution/`，README 使用相对链接，Release 正文自动链接对应版本标签下的中英文指南。HAP、manifest 与 SHA-256 文件继续作为必需附件严格校验；历史未声明新指南策略的提交仍按原五附件格式验证，已发布资产保留。

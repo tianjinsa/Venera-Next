@@ -16,15 +16,11 @@ TARGETS = {"armeabi-v7a": ("android-arm", "armv7-linux-androideabi"),
            "x86_64": ("android-x64", "x86_64-linux-android")}
 
 
-def build_plan(flavors, architecture, environ):
-    if flavors not in ("mobile", "tv", "both") or architecture not in ("arm64", "all"):
-        raise ValueError("Unknown Android flavor or architecture selection")
-    if environ.get("GITHUB_REF_TYPE") == "tag" or environ.get("GITHUB_REF", "").startswith("refs/tags/"):
-        flavors, architecture = "both", "all"
-    native_abis = list(TARGETS) if architecture == "all" else ["arm64-v8a"]
-    return {"flavors": ["mobile", "tv"] if flavors == "both" else [flavors],
-            "architecture": architecture, "native_abis": native_abis,
-            "apks": [*native_abis, "universal"] if architecture == "all" else native_abis}
+def build_plan(environ):
+    # Android selection always means both products and the complete release set.
+    native_abis = list(TARGETS)
+    return {"flavors": ["mobile", "tv"], "architecture": "all",
+            "native_abis": native_abis, "apks": [*native_abis, "universal"]}
 
 
 def build(plan, environ):
@@ -56,8 +52,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("plan", "toolchain", "build"))
     args = parser.parse_args()
-    plan = build_plan(os.environ.get("ANDROID_FLAVORS", "both"),
-                      os.environ.get("ANDROID_ARCHITECTURE", "all"), os.environ)
+    plan = build_plan(os.environ)
     if args.command == "plan":
         android.write_outputs(os.environ.get("GITHUB_OUTPUT"), {"architecture": plan["architecture"]})
         print(json.dumps(plan, indent=2))

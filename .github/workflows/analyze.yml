@@ -69,6 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
           group: linux-test
           paths: packages/rhttp/rust/target
@@ -86,6 +87,14 @@ jobs:
           path: packages/rhttp/rust/target/debug/librhttp.so
           if-no-files-found: error
           retention-days: 1
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
+        with:
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}
 
   rhttp-ios:
     needs: changes
@@ -96,6 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
           group: ios-check
           paths: packages/rhttp/rust/target
@@ -108,6 +118,14 @@ jobs:
         run: |
           export SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
           cargo check --locked --manifest-path packages/rhttp/rust/Cargo.toml --target aarch64-apple-ios --lib
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
+        with:
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}
 
   analyze:
     needs: changes

@@ -23,6 +23,8 @@ class ArchPackageTest(unittest.TestCase):
             (bundle / "venera-next").write_bytes(b"executable")
             (bundle / "lib/libflutter_linux_gtk.so").write_bytes(b"runtime")
             (bundle / "data/icudtl.dat").write_bytes(b"data")
+            (bundle / "icon.png").write_bytes(b"old icon")
+            (bundle / "app.desktop").write_text("old launcher")
             with patch.multiple(
                 arch,
                 BUNDLE_DIR=bundle,
@@ -40,6 +42,8 @@ class ArchPackageTest(unittest.TestCase):
                 desktop = archive.extractfile("app/app.desktop").read().decode()
                 self.assertIn("Exec=/usr/bin/venera-next_pkg/venera-next", desktop)
                 self.assertIn("app/icon.png", archive.getnames())
+                self.assertEqual(archive.getnames().count("app/icon.png"), 1)
+                self.assertEqual(archive.getnames().count("app/app.desktop"), 1)
             pkgbuild = (root / "arch/PKGBUILD").read_text(encoding="utf-8")
             self.assertIn("depends=('gtk3' 'webkit2gtk-4.1')", pkgbuild)
             self.assertIn("pkgname=venera-next", pkgbuild)

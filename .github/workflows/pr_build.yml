@@ -42,6 +42,7 @@ jobs:
       - name: 按需准备 Android 磁盘空间
         run: python3 .github/scripts/prepare_android_space.py
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
           group: android-debug-arm64
           paths: build/rhttp/build
@@ -85,10 +86,18 @@ jobs:
       - name: 顺序编译和验证 Android 手机版与 TV 版
         run: |
           for flavor in mobile tv; do
-            flutter build apk --debug --no-pub --flavor "$flavor" --target-platform android-arm64
+            flutter build apk --debug --no-pub --flavor "$flavor" --target-platform android-arm64 --split-per-abi
             python3 .github/scripts/check_native_codec_bundle.py --platform android --root "build/app/outputs/apk/$flavor/debug"
             python3 .github/scripts/check_saf_bundle.py --root "build/app/outputs/apk/$flavor/debug"
           done
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
+        with:
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}
 
   windows:
     name: Windows 冒烟构建
@@ -103,6 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
           group: windows-debug
           paths: build/windows/x64/plugins/rhttp/cargokit_build
@@ -171,6 +181,14 @@ jobs:
           path: build/windows/startup-smoke/**/*.log
           if-no-files-found: ignore
           retention-days: 7
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
+        with:
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}
 
   desktop:
     name: ${{ matrix.platform }} 原生构建
@@ -184,6 +202,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/rust-cache
+        id: rust_cache
         with:
           group: ${{ matrix.target }}-debug
           paths: |
@@ -240,6 +259,14 @@ jobs:
           BUNDLE_PLATFORM: ${{ matrix.target }}
           BUNDLE_ROOT: ${{ matrix.target == 'linux' && 'build/linux/x64/debug/bundle' || matrix.target == 'macos' && 'build/macos/Build/Products/Debug' || 'build/ios/iphonesimulator' }}
         run: python3 .github/scripts/check_native_codec_bundle.py --platform "$BUNDLE_PLATFORM" --root "$BUNDLE_ROOT"
+      - name: 保存可恢复的 Rust 编译缓存
+        if: ${{ always() && steps.rust_cache.outputs.cache-hit != 'true' && steps.rust_cache.outputs.key != '' }}
+        continue-on-error: true
+        uses: ./.github/actions/rust-cache-save
+        with:
+          key: ${{ steps.rust_cache.outputs.key }}
+          paths: ${{ steps.rust_cache.outputs.paths }}
+          status: ${{ job.status }}
 
   platform_gate:
     name: 平台冒烟构建门禁

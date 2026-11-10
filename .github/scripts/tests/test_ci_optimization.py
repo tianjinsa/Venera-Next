@@ -89,30 +89,29 @@ class ScopeTests(unittest.TestCase):
 
 
 class AndroidBuildTests(unittest.TestCase):
-    def test_development_selection_and_tag_release_plan(self):
-        plan = build_android.build_plan('tv', 'arm64', {})
-        self.assertEqual(plan['flavors'], ['tv'])
-        self.assertEqual(plan['apks'], ['arm64-v8a'])
-        for event in ({'GITHUB_REF_TYPE': 'tag'}, {'GITHUB_REF': 'refs/tags/v1.18.3'}):
-            plan = build_android.build_plan('mobile', 'arm64', event)
+    def test_android_selection_always_builds_the_complete_release_set(self):
+        for environment in ({}, {'GITHUB_REF_TYPE': 'tag'},
+                            {'ANDROID_FLAVORS': 'mobile', 'ANDROID_ARCHITECTURE': 'arm64'}):
+            plan = build_android.build_plan(environment)
             self.assertEqual(plan['flavors'], ['mobile', 'tv'])
+            self.assertEqual(plan['architecture'], 'all')
+            self.assertEqual(plan['native_abis'], list(build_android.TARGETS))
             self.assertEqual(len(plan['apks']), 4)
-        with self.assertRaises(ValueError):
-            build_android.build_plan('other', 'all', {})
 
     def test_flavors_share_workspace_but_preserve_verified_outputs_before_next_build(self):
         with tempfile.TemporaryDirectory() as temporary, contextlib.chdir(temporary):
             Path('pubspec.yaml').write_text('version: 1.18.3+249\n')
             environment = {'GITHUB_SHA': 'a' * 40, 'GITHUB_REF': 'refs/heads/development'}
-            plan = build_android.build_plan('both', 'arm64', environment)
+            plan = build_android.build_plan(environment)
             order = []
             def compile(command, *, env, check):
                 flavor = command[command.index('--flavor') + 1]
                 order.append(('compile', flavor))
-                self.assertEqual(env['ANDROID_BUILD_ABIS'], 'arm64-v8a')
+                self.assertEqual(env['ANDROID_BUILD_ABIS'], 'armeabi-v7a,arm64-v8a,x86_64')
                 self.assertIn('--no-pub', command)
                 self.assertNotIn('clean', command)
-                self.assertEqual(command[command.index('--target-platform') + 1], 'android-arm64')
+                self.assertEqual(command[command.index('--target-platform') + 1], 'android-arm,android-arm64,android-x64')
+                self.assertNotIn('--split-per-abi', command)
                 if flavor == 'tv':
                     self.assertIn('--dart-define=TV_REVISION=' + 'a' * 40, command)
                     # Flutter may overwrite its shared output directory.
@@ -122,7 +121,7 @@ class AndroidBuildTests(unittest.TestCase):
             def verify(metadata, sdk, *, abis):
                 flavor = metadata['flavor']
                 order.append(('verify', flavor))
-                self.assertEqual(abis, ['arm64-v8a'])
+                self.assertEqual(abis, ['armeabi-v7a', 'arm64-v8a', 'x86_64', 'universal'])
                 manifest = Path(f'build/android-{flavor}-manifest.json')
                 manifest.write_text(json.dumps(metadata))
                 return {'apk_arm64_v8a': f'build/app/{flavor}.apk', 'manifest': str(manifest)}
@@ -142,7 +141,7 @@ class AndroidBuildTests(unittest.TestCase):
             Path('build/android-artifacts/old.apk').write_bytes(b'old')
             with patch.object(build_android.subprocess, 'run', side_effect=subprocess.CalledProcessError(1, 'flutter')) as command:
                 with self.assertRaises(subprocess.CalledProcessError):
-                    build_android.build(build_android.build_plan('both', 'all', {}), {'GITHUB_SHA': 'a' * 40})
+                    build_android.build(build_android.build_plan({}), {'GITHUB_SHA': 'a' * 40})
                 self.assertEqual(command.call_count, 1)
             self.assertEqual(list(Path('build/android-artifacts').iterdir()), [])
 

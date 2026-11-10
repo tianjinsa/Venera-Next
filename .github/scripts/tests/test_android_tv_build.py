@@ -5,11 +5,14 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import textwrap
 import unittest
 from unittest.mock import patch
 import zipfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -320,8 +323,8 @@ class AndroidTvBuildTest(unittest.TestCase):
         self.assertIn("build_android.py build", android_job)
         self.assertIn("name: android_build", android_job)
         release = (workflows / "main.yml").read_text(encoding="utf-8")
-        self.assertIn("android_flavors: both", release)
-        self.assertIn("android_architecture: all", release)
+        self.assertNotIn("android_flavors", build + release)
+        self.assertNotIn("android_architecture", build + release)
         self.assertIn("quality_checked: true", release)
         self.assertIn("name: android_build", release)
         self.assertLess(release.index("android_tv_build.py verify-release"), release.index("gh release create"))
@@ -354,6 +357,7 @@ class AndroidTvBuildTest(unittest.TestCase):
                 Path("pubspec.yaml").write_text(PUBSPEC)
                 records = {}
                 def compile(command, **kwargs):
+                    self.assertNotIn("--split-per-abi", command)
                     flavor = command[command.index("--flavor") + 1]
                     metadata = self.metadata(flavor)
                     destination = Path(f"build/app/outputs/apk/{flavor}/release")
@@ -369,7 +373,7 @@ class AndroidTvBuildTest(unittest.TestCase):
                         patch.object(build_android.subprocess, "run", side_effect=compile), \
                         patch.object(MODULE, "find_tool", side_effect=lambda name, _: name), \
                         patch.object(MODULE, "run_tool", side_effect=tool), patch("builtins.print"):
-                    build_android.build(build_android.build_plan("both", "all", ENV), ENV)
+                    build_android.build(build_android.build_plan(ENV), ENV)
                     artifacts = Path("build/android-artifacts")
                     self.assertEqual(len(list(artifacts.glob("*.apk"))), 8)
                     self.assertEqual(len(list(artifacts.glob("*-manifest.json"))), 2)

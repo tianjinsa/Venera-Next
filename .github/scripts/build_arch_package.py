@@ -1,4 +1,5 @@
 import argparse
+import io
 import re
 import shutil
 import subprocess
@@ -130,6 +131,7 @@ pkgdesc="{description}"
 arch=('x86_64')
 source=("app.tar.gz")
 md5sums=('SKIP')
+options=('!strip' '!debug')
 url="{url}"
 depends=({depends_value})
 
@@ -148,21 +150,7 @@ package() {{
 
 
 def _dockerfile(package_name: str, version: str, build: str, depends: list[str]) -> str:
-    depends_value = " ".join(depends)
-    return f"""FROM archlinux:latest
-
-RUN pacman -Syu --noconfirm base-devel
-
-RUN pacman -Syu --noconfirm {depends_value} sudo
-
-RUN useradd -m user
-
-RUN passwd -d user
-
-WORKDIR /home/user
-
-CMD cp -r /build/* /home/user/ && sudo -u user makepkg -s --noconfirm && rm -f app.tar.gz PKGBUILD Dockerfile && cp -r ./* /build/
-""".strip()
+    return (ROOT / ".github/scripts/arch-builder.Dockerfile").read_text(encoding="utf-8")
 
 
 def _run(command: list[str], cwd: Path) -> None:
@@ -187,18 +175,17 @@ def _make_app_archive(package_name: str, icon_path: str, desktop_content: str) -
     if not icon.exists():
         raise ArchBuildError(f"Icon file {icon} does not exist")
 
-    if APP_DIR.exists():
-        shutil.rmtree(APP_DIR)
-    shutil.copytree(BUNDLE_DIR, APP_DIR)
-    shutil.copyfile(icon, APP_DIR / "icon.png")
-    (APP_DIR / "app.desktop").write_text(desktop_content, encoding="utf-8")
-
     archive = BUILD_LINUX_DIR / "app.tar.gz"
     if archive.exists():
         archive.unlink()
-    with tarfile.open(archive, "w:gz") as tar:
-        tar.add(APP_DIR, arcname="app")
-    shutil.rmtree(APP_DIR)
+    with tarfile.open(archive, "w:gz", compresslevel=1, dereference=True) as tar:
+        tar.add(BUNDLE_DIR, arcname="app",
+                filter=lambda item: None if item.name in ("app/icon.png", "app/app.desktop") else item)
+        tar.add(icon, arcname="app/icon.png")
+        data = desktop_content.encode("utf-8")
+        entry = tarfile.TarInfo("app/app.desktop")
+        entry.mode, entry.size = 0o644, len(data)
+        tar.addfile(entry, io.BytesIO(data))
 
     if ARCH_DIR.exists():
         shutil.rmtree(ARCH_DIR)
@@ -208,6 +195,9 @@ def _make_app_archive(package_name: str, icon_path: str, desktop_content: str) -
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--docker-image", help="Use an already loaded packaging image instead of building one",
+    )
     parser.add_argument(
         "--prepare-only",
         action="store_true",
@@ -250,9 +240,13 @@ def main() -> None:
     if _is_arch_linux():
         _run(["makepkg", "-s", "--noconfirm"], ARCH_DIR)
     else:
-        _run(["docker", "build", "-t", "archpkg-builder", "."], ARCH_DIR)
+        image = args.docker_image or "archpkg-builder"
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/:-]*", image):
+            raise ArchBuildError("Invalid packaging image name")
+        if not args.docker_image:
+            _run(["docker", "build", "-t", image, "."], ARCH_DIR)
         mount = f"type=bind,source={ARCH_DIR.resolve()},target=/build"
-        _run(["docker", "run", "--rm", "--mount", mount, "archpkg-builder"], ARCH_DIR)
+        _run(["docker", "run", "--rm", "--mount", mount, image], ARCH_DIR)
 
     print(f"build/linux/arch/{package_name}-{version}-{build}-x86_64.pkg.tar.zst")
 

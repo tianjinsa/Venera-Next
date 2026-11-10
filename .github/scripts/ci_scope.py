@@ -35,6 +35,12 @@ def classify(paths, platforms="all"):
                 flags.update(dict.fromkeys(FLAGS, True))
             elif Path(path).name in ("build_android.py", "android_tv_build.py", "prepare_android_space.py"):
                 flags["android"] = True
+            elif Path(path).name == "prepare_apple_build.py":
+                flags["macos"] = flags["ios"] = flags["rhttp_ios"] = True
+            elif (Path(path).name in ("prepare_linux_build.py", "linux-build-packages.txt", "test_appimage.sh",
+                                     "smoke_appimage.sh", "appimage-smoke.Dockerfile", "arch-builder.Dockerfile")
+                  or Path(path).name.startswith(("appimage_", "build_linux_", "build_arch_"))):
+                flags["linux"] = True
         elif path.startswith(("lib/", "assets/", "test/")):
             flags["analyze"] = flags["flutter"] = True
             if not path.startswith("test/"):

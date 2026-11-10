@@ -80,7 +80,7 @@ class IosReleaseMetadataTests(unittest.TestCase):
                         self.assertEqual(
                             captured.read_text(encoding="utf-8").splitlines(),
                             [
-                                "build", "ios", "--release", "--no-codesign",
+                                "build", "ios", "--release", "--no-codesign", "--no-pub",
                                 "--build-name", native_version, "--build-number", build,
                             ],
                         )

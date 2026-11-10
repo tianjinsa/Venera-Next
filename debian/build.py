@@ -52,7 +52,7 @@ def package_bundle(bundle, output, arch, version):
         stage_package(bundle, stage, arch, version)
         temporary_package = Path(temp) / package.name
         subprocess.run(
-            ["dpkg-deb", "--root-owner-group", "--build", str(stage), str(temporary_package)],
+            ["dpkg-deb", "--root-owner-group", "-Zxz", "-z1", "--build", str(stage), str(temporary_package)],
             check=True,
         )
         # Do not replace an existing artifact until dpkg-deb succeeds.

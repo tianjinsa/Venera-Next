@@ -101,7 +101,7 @@ flutter build apk --release --flavor mobile
 flutter build apk --release --flavor tv
 ```
 
-Artifacts are written to `build/app/outputs/apk/mobile/release/` and `build/app/outputs/apk/tv/release/`. Explicitly pass `--flavor mobile` or `--flavor tv` for Android. Do not set a global `default-flavor`, which would interfere with the existing iOS/macOS Xcode schemes. Manual GitHub Actions builds can select mobile, TV or both; full releases still build both. See [Android TV Distribution](../distribution/android_tv.en.md) for its separate package, version-code offset, updates, and release checks.
+Artifacts are written to `build/app/outputs/apk/mobile/release/` and `build/app/outputs/apk/tv/release/`. Explicitly pass `--flavor mobile` or `--flavor tv` for Android. Do not set a global `default-flavor`, which would interfere with the existing iOS/macOS Xcode schemes. Selecting Android in GitHub Actions always builds mobile and TV for every architecture; flavor/architecture inputs have been removed. See [Android TV Distribution](../distribution/android_tv.en.md) for its separate package, version-code offset, updates, and release checks.
 
 Signing files and passwords are sensitive and must not be committed.
 
@@ -125,6 +125,18 @@ flutter build ios --release --no-codesign
 
 For Windows installer, portable package, and winget manifest maintenance, see [Windows Distribution](../distribution/windows.en.md).
 
+### Desktop and iOS CI Runtime
+
+Windows clears stale installed files in `runner/Release` while retaining CMake/MSBuild intermediates. `windows/build.py` uses `--no-pub`, so first resolve the lockfile as above. It writes the portable ZIP directly from Release, avoiding a full staging copy. CI caches the pinned Inno Setup installation and checks the restored compiler version.
+
+macOS and iOS build sequentially in one Apple job when selected, sharing Flutter/Xcode/Rust preparation and CocoaPods download caches. The Flutter SDK matches the runner architecture; macOS release remains universal. An iOS-only build installs only the iOS Rust target. DMG staging uses APFS clones with a normal-copy fallback. DMG and IPA uploads remain separate, and iOS native/bundled-version validation remains enabled.
+
+Linux uses a matrix containing only selected x64/ARM64 runners. APT installs missing dependencies and reuses tools already provided by the image. C/C++ uses architecture-specific ccache; Rust caches remain separate. DEB, RPM, AppImage and Arch packages reuse one compiled Flutter bundle. Restored AppImage tools still pass SHA-256 checks. The Arch image needs fakeroot without compilers or application runtime packages; GTK/WebKit remain declared package dependencies. BuildKit caches packaging and AppImage smoke-test images. ARM64 skips Docker when tests are skipped.
+
+Distribution compression favors speed: low-level Deflate for Windows ZIP/IPA, LZMA2 fast for Inno, low-level zlib for DMG, xz level 1 for DEB, and zstd level 3 for RPM/Arch/AppImage. Packages may be slightly larger; installation layout, architectures and signature/provenance requirements remain intact. Uploads avoid recompressing compressed packages. Repeated builds cancel older runs for the same branch and platform selection, while different selections coexist. Initial cache creation has a cost; measure savings using subsequent cumulative runner time and cache-hit statistics.
+
+Rust compilation progress is also saved after a failure under a separate `partial` key. Retries prefer progress from matching inputs, and only successful jobs publish the complete cache key. Cache-save failures do not change the build result.
+
 ## GitHub Actions and Release Versions
 
 Repository workflows handle continuous integration, manual builds, tag releases, and distribution metadata. The release version is maintained centrally in `release.json`:
@@ -147,7 +159,7 @@ python .github/scripts/release_version.py --check --tag v1.2.3
 
 `代码分析` starts with lightweight version, structure and architecture checks, then selects tests from the complete PR diff or all commits in a push. Documentation and distribution metadata skip Flutter, emulator and Apple runners. Dart changes retain the full Flutter suite and coverage; native platform checks follow affected paths. Unknown inputs, unavailable diffs, manual builds and tags conservatively use the full scope. Dependency review still checks PR dependencies. PR smoke builds select affected platforms; Android mobile and TV share one runner and compile ARM64 only. Full builds reuse the same quality workflow before multi-platform compilation.
 
-Development uses `codex/agent-center-tab`. Manual `构建` defaults to mobile ARM64 only; other platforms must be selected. `android_flavors` accepts `mobile`, `tv`, or `both`; `android_architecture` accepts `arm64` or `all` (ARM32, ARM64, x86_64, and universal APKs). Android flavors build sequentially, sharing Flutter, Gradle and native Rust outputs. Each flavor is independently verified and staged immediately, then uploaded in one `android_build` artifact. Android-only quality checks skip Apple runners. Full builds and all tag builds force both flavors and every architecture; release gates still require all eight APKs and both manifests.
+Development uses `codex/agent-center-tab`. Manual `构建` selects platforms only. Selecting Android always produces mobile and TV APKs for ARM32, ARM64, x86_64 and universal: eight APKs and two manifests, with no Android flavor/architecture inputs. Both flavors build sequentially, sharing Flutter, Gradle and native Rust outputs. Each flavor is independently verified and staged immediately, then uploaded in one `android_build` artifact. Android-only quality checks skip Apple runners. Full and tag builds require the same complete Android artifact set.
 
 Rust caches include source downloads and actual Cargo target directories, separated by OS, host architecture, target/profile, lockfiles, toolchain, build configuration and Rust source. Source changes can restore dependency caches with the same configuration; Cargo decides what to rebuild. Toolchain preparation retains usable installations and adds only missing toolchains or targets. Gradle task caching is enabled. Android needs 20 GiB free; sufficient space skips cleanup. Only hosted GitHub runners with insufficient space remove unrelated tools on demand, preserving the full tool cache, Android SDK and Flutter.
 

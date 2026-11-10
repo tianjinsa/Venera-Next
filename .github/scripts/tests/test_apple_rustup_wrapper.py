@@ -26,7 +26,7 @@ def wrapper_steps():
 class AppleRustupWrapperTests(unittest.TestCase):
     def test_each_apple_job_creates_destination_before_installing(self):
         steps = wrapper_steps()
-        self.assertEqual(len(steps), 2)
+        self.assertEqual(len(steps), 1)
         for script in steps:
             with self.subTest(script=script):
                 mkdir = 'mkdir -p "$HOME/.cargo/bin"'
@@ -40,7 +40,7 @@ class AppleRustupWrapperTests(unittest.TestCase):
 
     def test_each_apple_job_prepends_wrapper_to_shell_path(self):
         steps = wrapper_steps()
-        self.assertEqual(len(steps), 2)
+        self.assertEqual(len(steps), 1)
         for script in steps:
             self.assertIn('echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"', script)
 

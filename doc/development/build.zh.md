@@ -101,7 +101,7 @@ flutter build apk --release --flavor mobile
 flutter build apk --release --flavor tv
 ```
 
-构建产物分别位于 `build/app/outputs/apk/mobile/release/` 和 `build/app/outputs/apk/tv/release/`。Android 必须明确指定 `--flavor mobile` 或 `--flavor tv`；不设置全局 `default-flavor`，避免影响 iOS/macOS 的原有 Xcode scheme。GitHub Actions 手动构建可选手机版、TV 或两者；完整发布仍构建两种。TV 的独立包名、版本码偏移、更新方式和发布校验见 [Android TV 分发说明](../distribution/android_tv.zh.md)。
+构建产物分别位于 `build/app/outputs/apk/mobile/release/` 和 `build/app/outputs/apk/tv/release/`。Android 必须明确指定 `--flavor mobile` 或 `--flavor tv`；不设置全局 `default-flavor`，避免影响 iOS/macOS 的原有 Xcode scheme。GitHub Actions 勾选 Android 后固定构建手机和 TV 的全部架构，不再提供 flavor／架构选项。TV 的独立包名、版本码偏移、更新方式和发布校验见 [Android TV 分发说明](../distribution/android_tv.zh.md)。
 
 签名文件和密码属于敏感信息，不应提交到仓库。
 
@@ -125,6 +125,18 @@ flutter build ios --release --no-codesign
 
 Windows 安装器、便携包和 winget manifest 的维护方法见 [Windows 分发](../distribution/windows.zh.md)。
 
+### 桌面与 iOS 的 CI 用时控制
+
+Windows 打包前只清理 `runner/Release` 中的旧安装文件，保留 CMake／MSBuild 编译中间文件。`windows/build.py` 使用 `--no-pub`，请先运行上面的锁文件依赖命令；便携 ZIP 从 Release 目录直接生成，不再复制完整应用。CI 缓存固定版本的 Inno Setup，并检查恢复后的编译器版本。
+
+macOS 与 iOS 在同一 Apple job 按选择顺序构建，共用一次 Flutter／Xcode／Rust 准备和 CocoaPods 下载缓存。Flutter SDK 使用 runner 的本机架构；macOS release 仍为通用二进制，iOS 单独构建时只安装 iOS Rust target。DMG 优先使用 APFS 克隆暂存应用，不支持时回退为普通复制；DMG、IPA 分别上传，iOS 原生版本和内嵌版本校验保留。
+
+Linux x64／ARM64 使用仅包含所选架构的矩阵。APT 只安装缺失依赖，并复用镜像中已有的 CMake／Clang 等工具；C/C++ 编译使用按架构隔离的 ccache，Rust 缓存继续独立保留。DEB、RPM、AppImage 和 Arch 包从一次 Flutter 编译的同一 bundle 生成。AppImage 工具恢复后仍校验 SHA-256；Arch 打包镜像只安装 fakeroot，不安装编译器或应用运行依赖，GTK/WebKit 仍写入包的依赖元数据。打包和 AppImage 冒烟容器使用 BuildKit 缓存；跳过测试时 ARM64 不启动 Docker。
+
+发行包优先使用较快的压缩配置：Windows ZIP／IPA 使用低级别 Deflate，Inno 使用 LZMA2 fast，DMG 使用低级别 zlib，DEB 使用 xz level 1，RPM／Arch／AppImage 使用 zstd level 3。包体可能略大，安装布局、CPU 架构和签名／来源要求不变；上传已经压缩的安装包时关闭二次压缩。同分支、同平台范围的重复构建会取消旧任务，不同平台范围互不取消。缓存首次建立需要额外时间，实际收益以后续运行的累计 runner 用时和缓存命中统计为准。
+
+Rust 编译缓存也会在失败后尝试保存，但使用独立的 `partial` 键。重试优先恢复相同输入的编译进度，成功后再写入完整缓存键；缓存服务异常不改变构建结果。
+
 ## GitHub Actions 与发布版本
 
 仓库工作流负责持续集成、手动构建、tag 发布和分发元数据维护。发布版本号统一维护在 `release.json`：
@@ -147,7 +159,7 @@ python .github/scripts/release_version.py --check --tag v1.2.3
 
 `代码分析` 先执行轻量版本／结构／架构检查，再根据完整 PR diff 或 push 的全部提交选择测试。纯文档和分发元数据不启动 Flutter、模拟器或 Apple runner；Dart 改动保留完整 Flutter 测试和覆盖率，平台原生检查按受影响目录执行。未知输入、无法读取 diff、手动构建及 tag 发布保守地使用完整范围。`依赖安全审查` 会检查 PR 新增或升级的依赖；`PR 平台冒烟构建` 按受影响平台编译，Android 手机／TV 共用一个 runner，冒烟只编译 ARM64。`完整构建` 在开始多平台构建前复用同一质量工作流。
 
-开发工作在 `codex/agent-center-tab` 分支进行。手动 `构建` 默认只启用 Android 手机版 ARM64，其他平台需勾选；可通过 `android_flavors` 选择 `mobile`、`tv`、`both`，通过 `android_architecture` 选择 `arm64` 或 `all`（ARM32、ARM64、x86_64 与通用包）。两种 Android 安装包顺序构建，共用 Flutter、Gradle 和原生 Rust 编译目录，每种通过独立签名／内容校验后立即暂存，统一上传为 `android_build`。Android 单平台质量检查不占用 Apple runner。`完整构建` 和所有 tag 构建固定为双版本、全部架构；发布门禁仍要求完整的 8 个 APK 和两份 manifest。
+开发工作在 `codex/agent-center-tab` 分支进行。手动 `构建` 通过平台开关控制范围；勾选 Android 就生成手机和 TV 的 ARM32、ARM64、x86_64 与通用包，共 8 个 APK 和两份 manifest，不再提供 Android 版本或架构选择。两种 Android 安装包顺序构建，共用 Flutter、Gradle 和原生 Rust 编译目录，每种通过独立签名／内容校验后立即暂存，统一上传为 `android_build`。Android 单平台质量检查不占用 Apple runner。完整构建／标签构建采用相同的全量 Android 产物要求。
 
 Rust 缓存覆盖下载源码及实际 Cargo 输出目录，按操作系统、主机架构、目标平台／profile、锁文件、工具链、构建配置和 Rust 源码区分；源码变化可恢复同配置的依赖缓存，由 Cargo 判定重新编译。准备脚本保留可用工具链，只安装缺失工具链或 targets。Gradle 启用任务缓存。Android runner 至少保留 20 GiB 空间；空间足够时不清理，只有 GitHub 托管 runner 空间不足时才按需删除无关工具，不删除整个 `/opt/hostedtoolcache`、Android SDK 或 Flutter。
 

@@ -7,10 +7,21 @@ inputs:
   paths:
     description: Actual Cargo target directories used by this job
     required: true
+outputs:
+  key:
+    description: Primary key for a complete successful build
+    value: ${{ steps.restore.outputs.cache-primary-key }}
+  cache-hit:
+    description: Whether a complete cache matched the primary key
+    value: ${{ steps.restore.outputs.cache-hit }}
+  paths:
+    description: Cargo target directories to save at the end of the job
+    value: ${{ inputs.paths }}
 runs:
   using: composite
   steps:
-    - uses: actions/cache@v5
+    - id: restore
+      uses: actions/cache/restore@v5
       with:
         path: |
           ~/.cargo/registry/index
@@ -19,4 +30,5 @@ runs:
           ${{ inputs.paths }}
         key: rust-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.group }}-${{ hashFiles('rust-toolchain.toml', 'packages/rhttp/rust/Cargo.lock', 'packages/rhttp/rust/Cargo.toml', 'packages/rhttp/rust/cargokit.yaml', 'packages/rhttp/cargokit/**', 'pubspec.yaml', 'pubspec.lock', 'android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/gradle.properties', 'packages/rhttp/android/**', 'packages/rhttp/**/*.podspec', 'packages/rhttp/**/CMakeLists.txt') }}-${{ hashFiles('packages/rhttp/rust/src/**', 'packages/rhttp/rust/build.rs') }}
         restore-keys: |
+          rust-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.group }}-${{ hashFiles('rust-toolchain.toml', 'packages/rhttp/rust/Cargo.lock', 'packages/rhttp/rust/Cargo.toml', 'packages/rhttp/rust/cargokit.yaml', 'packages/rhttp/cargokit/**', 'pubspec.yaml', 'pubspec.lock', 'android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/gradle.properties', 'packages/rhttp/android/**', 'packages/rhttp/**/*.podspec', 'packages/rhttp/**/CMakeLists.txt') }}-${{ hashFiles('packages/rhttp/rust/src/**', 'packages/rhttp/rust/build.rs') }}-partial-
           rust-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.group }}-${{ hashFiles('rust-toolchain.toml', 'packages/rhttp/rust/Cargo.lock', 'packages/rhttp/rust/Cargo.toml', 'packages/rhttp/rust/cargokit.yaml', 'packages/rhttp/cargokit/**', 'pubspec.yaml', 'pubspec.lock', 'android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/gradle.properties', 'packages/rhttp/android/**', 'packages/rhttp/**/*.podspec', 'packages/rhttp/**/CMakeLists.txt') }}-

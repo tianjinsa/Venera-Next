@@ -47,8 +47,6 @@ jobs:
     with:
       skip_tests: ${{ inputs.skip_tests == true }}
       quality_checked: true
-      android_flavors: both
-      android_architecture: all
       build_android: true
       build_windows: true
       build_macos: true

@@ -78,6 +78,7 @@ def rpm_spec(version, build, private_libs):
     return f"""%global __provides_exclude_from ^/opt/venera-next/.*$
 %global __requires_exclude ^({excluded})(\\(.*\\))?$
 %global _build_id_links none
+%global _binary_payload w3.zstdio
 %global __os_install_post %{{nil}}
 Name: venera-next
 Version: {version}
@@ -172,6 +173,7 @@ def build_appimage(bundle, out, arch, version, work):
     run(tool, "--appimage-extract", cwd=work, stdout=subprocess.DEVNULL)
     package = out / f"VeneraNext-{version}-{machine}.AppImage"
     run(work / "squashfs-root/AppRun", "--no-appstream", "--runtime-file", runtime,
+        "--comp", "zstd", "--mksquashfs-opt=-Xcompression-level", "--mksquashfs-opt=3",
         appdir, package, env={**os.environ, "ARCH": machine, "SOURCE_DATE_EPOCH": os.environ.get("SOURCE_DATE_EPOCH", "0")})
     if not package.exists() or package.stat().st_size == 0:
         raise RuntimeError("AppImage was not produced")

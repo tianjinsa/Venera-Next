@@ -3,6 +3,8 @@ from pathlib import Path
 import re
 import tempfile
 import unittest
+from unittest.mock import patch
+import hashlib
 
 SCRIPT = Path(__file__).resolve().parents[1] / "build_linux_packages.py"
 spec = importlib.util.spec_from_file_location("linux_packages", SCRIPT)
@@ -69,6 +71,16 @@ class LinuxPackagesTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "SHA256"):
                 packages.download_verified("https://example.invalid/tool", path, "0" * 64)
             self.assertFalse(path.exists())
+
+    def test_restored_packaging_tool_is_verified_and_reused_without_downloading(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "tool"
+            content = b"verified tool fixture"
+            path.write_bytes(content)
+            with patch.object(packages.urllib.request, "urlopen", side_effect=AssertionError("unnecessary download")):
+                packages.download_verified("https://example.invalid/tool", path, hashlib.sha256(content).hexdigest())
+            self.assertEqual(path.read_bytes(), content)
+            self.assertTrue(path.stat().st_mode & 0o111)
 
 
 if __name__ == "__main__":
