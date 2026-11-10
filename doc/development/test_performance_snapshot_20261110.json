@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-11-10",
+  "timezone": "Asia/Shanghai",
+  "status": "analysis_saved_optimization_deferred_by_user",
+  "repository": "tianjinsa/Venera-Next",
+  "branch": "codex/agent-center-tab",
+  "baseline_commit": "dee61e879eeb5d21d44bc3d24c54714c733c0d64",
+  "toolchain": {
+    "flutter": "3.41.4",
+    "flutter_commit": "ff37bef603469fb030f2b72995ab929ccfc227f0",
+    "dart": "3.11.1",
+    "test_core": "0.6.16"
+  },
+  "environment_snapshot": {
+    "visible_cpu_count": 5,
+    "affinity_cpu_count": 5,
+    "cpu_max": "400000 100000",
+    "cpu_quota_cores": 4,
+    "memory_max_bytes": 17179869184,
+    "inferred_default_test_processes": 2,
+    "default_concurrency_formula": "max(1, Platform.numberOfProcessors ~/ 2)"
+  },
+  "static_metrics": {
+    "method": "Regex call-site and source-line count over test/**/*_test.dart; loops are not expanded; text/comment matches can affect counts.",
+    "test_files": 599,
+    "source_lines": 195371,
+    "testWidgets_call_sites": 1333,
+    "plain_test_call_sites": 3303,
+    "files_with_resource_call_text": 266,
+    "resource_pattern": "createTemp(?:Sync)?\\s*\\(|sqlite3\\.open|Process\\.start|Isolate\\.run"
+  },
+  "directory_metrics": {
+    "test/features/reader": {
+      "files": 81,
+      "lines": 29135
+    },
+    "test/foundation": {
+      "files": 92,
+      "lines": 22992
+    },
+    "test/features/comic_source": {
+      "files": 48,
+      "lines": 18263
+    },
+    "test/features/local_comics": {
+      "files": 53,
+      "lines": 18208
+    },
+    "test/features/sync": {
+      "files": 44,
+      "lines": 18145
+    },
+    "test/features/favorites": {
+      "files": 34,
+      "lines": 16744
+    },
+    "test/agent": {
+      "files": 34,
+      "lines": 16357
+    }
+  },
+  "reader_exit_file": {
+    "lines": 5720,
+    "testWidgets_call_sites": 101,
+    "large_fixture_page_count": 1200
+  },
+  "reported_progress_spans": {
+    "method": "First to last expanded-report progress mentioning the file; includes scheduling and overlap; not per-test or phase duration.",
+    "reader_exit_integration_test.dart": {
+      "first_seconds": 973,
+      "last_seconds": 1306,
+      "span_seconds": 333
+    },
+    "auto_reading_viewport_test.dart": {
+      "first_seconds": 771,
+      "last_seconds": 874,
+      "span_seconds": 103
+    },
+    "app_data_import_crash_test.dart": {
+      "first_seconds": 1378,
+      "last_seconds": 1531,
+      "span_seconds": 153
+    }
+  },
+  "validation_runs": [
+    {
+      "kind": "original_ci",
+      "url": "https://github.com/tianjinsa/Venera-Next/actions/runs/42800686662/job/129779359031",
+      "failure_markers": 25,
+      "ten_minute_timeouts": 2
+    },
+    {
+      "kind": "initial_focused",
+      "passed": 33,
+      "status": "passed"
+    },
+    {
+      "kind": "full_coverage_observation",
+      "command": "flutter test --no-pub --coverage --reporter expanded",
+      "status": "interrupted_at_local_35_minute_observation_limit",
+      "elapsed_seconds": 2100,
+      "passed": 5984,
+      "skipped": 155,
+      "test_assertion_failures_before_followup_fix": 1,
+      "interruption_cleanup_errors": 2,
+      "tool_exit_code_after_sigint": 0,
+      "is_full_pass": false,
+      "source_note": "Product changes later committed as dee61e8; the final native-image test wait adjustment was made after this interrupted run."
+    },
+    {
+      "kind": "focused_and_uncertain_files_recovery",
+      "coverage": true,
+      "passed": 348,
+      "selected_agent_files": 27,
+      "reported_end_seconds": 129,
+      "status": "passed",
+      "overlaps_previous_runs": true
+    },
+    {
+      "kind": "tv_regression",
+      "passed": 89,
+      "reported_end_seconds": 26,
+      "status": "passed",
+      "flavor": "tv"
+    },
+    {
+      "kind": "python_scripts_prior_fix_validation",
+      "run": 293,
+      "skipped": 7,
+      "status": "passed_except_expected_skips"
+    }
+  ],
+  "limitations": [
+    "35-minute CI timeout is for the whole flutter-tests job; the local command observation limit is not a matched CI benchmark.",
+    "Expanded progress output coalesces concurrent events; absence of a path does not prove non-execution.",
+    "Do not sum overlapping pass counters into a unique full-suite pass count.",
+    "No measured coverage overhead percentage, j2/j4 A/B benchmark, phase profile, memory profile, or approved removable-test list."
+  ],
+  "pending_measurements": [
+    "phase_timings",
+    "matched_j2_j4_and_coverage_ab",
+    "per_suite_and_test_durations",
+    "peak_memory",
+    "duplicate_matrix_and_fixture_audit",
+    "ci_policy_and_sharding_decision"
+  ],
+  "source_fingerprints": {
+    ".github/workflows/analyze.yml": {
+      "sha256": "9a9dc11056b203aaf55ea88c9a664cb19f5d9b97e2abbbf81a1208d5635a9d01",
+      "bytes": 12014
+    },
+    ".github/scripts/ci_scope.py": {
+      "sha256": "7e4fecba8b74b5b668bd81306cd90d4830eacf9109f499894a7b010149124541",
+      "bytes": 6285
+    },
+    "pubspec.yaml": {
+      "sha256": "3ff14fac53ab5e48fd171837c8be1288fd8d161c9d07a2fdc118aec9afb59e3f",
+      "bytes": 3712
+    },
+    "pubspec.lock": {
+      "sha256": "abf5b1079c8e6ef45eae59bc8b0cf027bf35cc4843ef117f825c8d9603af8013",
+      "bytes": 37538
+    },
+    "test/features/reader/reader_exit_integration_test.dart": {
+      "sha256": "9cf8895f4f038900cf92e9145af421ec648b3b9fcb333000442276082afdd785",
+      "bytes": 206656
+    },
+    "test/features/reader/auto_reading_viewport_test.dart": {
+      "sha256": "3d103b21d6f874ab0529031a6922b38482b771e2678484b8daac7c731a03bb26",
+      "bytes": 19751
+    },
+    "test/features/reader/display_image_provider_test.dart": {
+      "sha256": "4a636f43ccb4fae043fd9761b45c4c037d1f3677fd7093cf91ffc904ab0b85aa",
+      "bytes": 19627
+    },
+    "test/features/sync/app_data_import_crash_test.dart": {
+      "sha256": "6edbdb8e696a546cead05be50ce4a30aaa2a63e0d46f78eacf9aaf0bdd47d647",
+      "bytes": 13322
+    },
+    "test/features/comic_widgets/reading_progress_test.dart": {
+      "sha256": "7176a678ebf9c3b3f3cb52be266068c97513cb61bb61a2bf1e5264713da6606c",
+      "bytes": 6281
+    },
+    "test/features/comic_widgets/detailed_reading_progress_test.dart": {
+      "sha256": "c19dcbfbab2b93b1d342c3c24f78ae306f427acb2dcc80af015d7dda932022bf",
+      "bytes": 10766
+    }
+  },
+  "raw_artifact_directory": "/workspace/work/venera-fixes",
+  "raw_artifact_retention": "temporary_environment_not_guaranteed",
+  "raw_artifact_fingerprints": {
+    "flutter-full-final.log": {
+      "sha256": "49f00b9e74120550fab38486b9ecfa491e7521004b6c840362852e952f0e9d45",
+      "bytes": 1651431
+    },
+    "full-budget.json": {
+      "sha256": "7cb3b71dedf23de8e4cf2c3872549a699a574fcae8dddeae9e2ddaa278f43fad",
+      "bytes": 90
+    },
+    "targeted-after-2.log": {
+      "sha256": "2dc41b0abbcefee3d6de760d64c714dc62c7e2ac1f78e68add6e950d05a8556e",
+      "bytes": 5449
+    },
+    "recovery-final.log": {
+      "sha256": "10fe388f58e150825a324942e9abf5c9a80dc3a3a7016b70a2ff2050e2866d66",
+      "bytes": 52519
+    },
+    "tv-final.log": {
+      "sha256": "63892f57ccd758502308dbdd8d928f2f426284ba99b658aebbe720b01a518f50",
+      "bytes": 14457
+    },
+    "remaining-agent-files.txt": {
+      "sha256": "bfb3ccb35d68a790cef91a77095772c711912dac783f3e940010fe7298819099",
+      "bytes": 1106
+    }
+  }
+}
