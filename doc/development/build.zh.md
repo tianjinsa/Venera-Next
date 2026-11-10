@@ -127,7 +127,7 @@ Windows 安装器、便携包和 winget manifest 的维护方法见 [Windows 分
 
 ### 桌面与 iOS 的 CI 用时控制
 
-Windows 打包前只清理 `runner/Release` 中的旧安装文件，保留 CMake／MSBuild 编译中间文件。`windows/build.py` 使用 `--no-pub`，请先运行上面的锁文件依赖命令；便携 ZIP 从 Release 目录直接生成，不再复制完整应用。CI 缓存固定版本的 Inno Setup，并检查恢复后的编译器版本。
+Windows 打包前只清理 `runner/Release` 中的旧安装文件，保留 CMake／MSBuild 编译中间文件。`windows/build.py` 使用 `--no-pub`，请先运行上面的锁文件依赖命令；便携 ZIP 从 Release 目录直接生成，不再复制完整应用。CI 缓存固定版本的 Inno Setup，并检查恢复后的编译器是否存在。ISCC 启动器的文件版本固定为 `0.0.0.0`，不用于判定编译引擎版本。
 
 macOS 与 iOS 在同一 Apple job 按选择顺序构建，共用一次 Flutter／Xcode／Rust 准备和 CocoaPods 下载缓存。Flutter SDK 使用 runner 的本机架构；macOS release 仍为通用二进制，iOS 单独构建时只安装 iOS Rust target。DMG 优先使用 APFS 克隆暂存应用，不支持时回退为普通复制；DMG、IPA 分别上传，iOS 原生版本和内嵌版本校验保留。
 

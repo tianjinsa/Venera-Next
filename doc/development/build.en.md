@@ -127,7 +127,7 @@ For Windows installer, portable package, and winget manifest maintenance, see [W
 
 ### Desktop and iOS CI Runtime
 
-Windows clears stale installed files in `runner/Release` while retaining CMake/MSBuild intermediates. `windows/build.py` uses `--no-pub`, so first resolve the lockfile as above. It writes the portable ZIP directly from Release, avoiding a full staging copy. CI caches the pinned Inno Setup installation and checks the restored compiler version.
+Windows clears stale installed files in `runner/Release` while retaining CMake/MSBuild intermediates. `windows/build.py` uses `--no-pub`, so first resolve the lockfile as above. It writes the portable ZIP directly from Release, avoiding a full staging copy. CI caches the pinned Inno Setup installation and checks that the restored compiler exists. The ISCC launcher's file version is fixed at `0.0.0.0` and does not identify the compiler engine version.
 
 macOS and iOS build sequentially in one Apple job when selected, sharing Flutter/Xcode/Rust preparation and CocoaPods download caches. The Flutter SDK matches the runner architecture; macOS release remains universal. An iOS-only build installs only the iOS Rust target. DMG staging uses APFS clones with a normal-copy fallback. DMG and IPA uploads remain separate, and iOS native/bundled-version validation remains enabled.
 
