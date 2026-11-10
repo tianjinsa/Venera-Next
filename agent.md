@@ -2,10 +2,12 @@
 
 ## 开发分支
 
+- 云端启动或恢复先使用[启动 Skill](.agents/skills/venera-cloud-startup/SKILL.md)，修改、验证和上游整合使用[分支维护 Skill](.agents/skills/venera-agent-branch-maintenance/SKILL.md)。两份 Skill 位于标准 `.agents/skills/` 目录，并由根 `AGENTS.md` 直接引用。
 - 二次开发和迁移工作均在 `codex/agent-center-tab` 分支进行。
+- 第一次编辑、提交及推送前检查实际仓库根目录、完整分支名与工作树；不能因为环境默认 checkout、目录名或历史对话而假定分支正确，不在 `work` 或其他自动生成分支开发。
 - `main` 保留用于 GitHub fork 自动同步，不向 `main` 提交或合并开发改动。
 - 修改 Agent、二次开发修复、构建工作流或合并上游前，阅读 [分支功能与修复登记表](doc/agent/branch-change-register.md) 和 [迁移与功能维护清单](doc/agent/migration.md)。完成后同步行为、实现位置、验证入口及实际验证结果。
-- 合并上游时逐项核对登记表 A01–A16、O01–O10、R00–R12、C01–C06，不能因上游未包含某功能、文件无冲突或重构而静默移除本分支行为与回归测试。上游已有等价实现时，登记替代提交并验证后可统一实现；文件搬迁同步维护入口。
+- 合并上游时逐项核对登记表 A01–A16、O01–O10、R00–R12、C01–C06、M01–M02，不能因上游未包含某功能、文件无冲突或重构而静默移除本分支行为与回归测试。上游已有等价实现时，登记替代提交并验证后可统一实现；文件搬迁同步维护入口。
 - 沿用 Venera Next 的功能目录、数据操作队列和类型化设置；不得用 Prime 的整文件覆盖替换 Next 的有效实现。
 
 ## 提交身份

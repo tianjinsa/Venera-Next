@@ -11,7 +11,7 @@
 - Prime 参考：`2e287566c6fad11b0085bbdf4a528e507021ec61`，只迁移行为，沿用 Next 架构、类型化设置、存储与退出队列。
 - Agent 初次迁移：`89338dd`；构建维护：`00bdd61`、`49fbc67`、`1262aea`、`001a9cf`、`cefb7a3`、`af00d83`；本轮阅读/收藏/设置修复：`d28e4bd`。
 - 2026-11-10 核对的源仓库 `CyrilPeng/Venera-Next/main` 为 `218f1028108be376613e6130e096bb675c3d19e4`。它比本分支的 Next 基线多一个提交，**目前只审查，尚未合并**。
-- 下列 A、O、R、C 项均为「保留中」。原编号稳定，不因换文件或上游重构删除记录。上游等价实现可以替代本分支实现，但应登记替代提交和实际验证，状态改为「上游等价覆盖」。
+- 下列 A、O、R、C、M 项均为「保留中」。原编号稳定，不因换文件或上游重构删除记录。上游等价实现可以替代本分支实现，但应登记替代提交和实际验证，状态改为「上游等价覆盖」。
 - 路径均相对仓库根目录。表内测试是核对入口，不表示每个测试都只验证该条行为；具体已运行范围见文末。
 
 ## Agent 功能（A01–A16）
@@ -69,16 +69,16 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | R02 | 收藏点击详情和直接阅读使用列表所在导航上下文，传递正确 Hero ID，保持封面衔接；不因全量列表重算拖慢过场 | `lib/features/favorites/local_favorites_page.dart`；`test/features/favorites/local_favorites_refresh_test.dart` 的详情导航/Hero 回归；实际设备动画仍需复测 |
 | R03 | 大收藏进入/退出阅读依赖 R01/R02/R05/R12 的组合约束；不能恢复「等全部保存结束才返回」或无关通知重滤收藏 | 收藏页、`reader_page.dart`、`exit_guard.dart`；`test/features/favorites/local_favorites_refresh_test.dart`、`test/features/reader/reader_exit_integration_test.dart` |
 | R04 | 阅读器及阅读加载页从过场第一帧绘制主题表面背景，页面尚未加载完成也不透明露出上一页 | `lib/features/reader/reader_page.dart`、`loading.dart`；`test/features/reader/reader_exit_integration_test.dart`，并手工检查设备入场动画 |
-| R05 | 返回时先冻结进度并移交任务，立即返回详情；根覆盖层右下角显示动态保存图标；失败变红色感叹号且不自动消失，查看详情后才能手动关闭，新错误不随旧错误一起清除；应用最终退出仍等待真实任务完成 | `lib/components/background_save.dart`、`lib/features/reader/exit_guard.dart`、`reader_page.dart`；`test/components/background_save_test.dart`、`test/features/reader/reader_exit_integration_test.dart`、`platform_effects_test.dart` |
+| R05 | 返回时先冻结进度并移交任务，使用正常退场动画返回详情；后台收尾期间保留已挂载的阅读视图与解码画面，动画结束才随路由释放，不因控制器关闭提前清空；根覆盖层右下角显示动态保存图标；失败变红色感叹号且不自动消失，查看详情后才能手动关闭，新错误不随旧错误一起清除；应用最终退出仍等待真实任务完成 | `lib/components/background_save.dart`、`lib/features/reader/exit_guard.dart`、`reader_page.dart`、`images.dart`；`test/components/background_save_test.dart`、`test/features/reader/reader_exit_integration_test.dart` 的三种阅读模式退场/慢保存回归、`platform_effects_test.dart` |
 | R06 | 封面进度使用固定 24×24 小图标；完整进度通过 Tooltip/无障碍标签保留，不能恢复大块章节文字遮挡封面 | `lib/features/comic_widgets/comic_tile.dart`；`test/features/comic_widgets/reading_progress_test.dart`、`detailed_reading_progress_test.dart` |
 | R07 | 有保存的实际章节名时优先显示，包含总数/紧凑模式同样生效；格式为 `实际章节名 - P页数`，可选页总数；旧数据无名称时正常回退，无额外元数据请求 | `lib/features/history/history_model.dart`；`test/features/history/history_progress_description_test.dart`、`test/features/comic_widgets/detailed_reading_progress_test.dart` |
-| R08 | 被屏蔽项原因可查看封面；作者/关键词共用可点击原因区域，进入编辑后均可删除；异步分批计算，过期弹窗/规则不能覆盖新状态 | `lib/features/comic_widgets/keyword_hidden_notice.dart`、`lib/features/settings/keyword_blocking.dart`、`lib/features/settings/author_blocking.dart`；`test/features/settings/keyword_rules_widget_test.dart`、`keyword_display_persistence_test.dart` |
+| R08 | 被屏蔽项原因可查看封面；点击封面进入对应漫画详情，传递原 ID、来源、封面和标题，返回后保留原因列表；作者/关键词共用可点击文字原因区域，进入编辑后均可删除，封面点击不触发规则编辑；发现列表和收藏扫描结果行为一致；异步分批计算，过期弹窗/规则不能覆盖新状态 | `lib/features/comic_widgets/keyword_hidden_notice.dart`、`comic_tile.dart`、`lib/features/settings/keyword_blocking.dart`、`lib/features/settings/author_blocking.dart`；`test/features/settings/keyword_rules_widget_test.dart` 的封面导航/规则编辑分离回归、`keyword_display_persistence_test.dart` |
 | R09 | 关键词管理独立扫描本地收藏以检查误伤；扫描只读，不隐藏/删除收藏；原页面查询结束后再打开结果，窗口及 generation 门禁有效 | `lib/features/settings/keyword_blocking.dart`、`lib/features/comic_widgets/keyword_hidden_notice.dart`；`test/features/settings/keyword_rules_widget_test.dart` |
-| R10 | 线条增强、夜览和调光位于阅读设置前部，并在「调节画面」快捷菜单共同提供；共享组件遵守全局/设备/单漫画作用域；亮度预览只刷新遮罩，保存状态不反复改变菜单高度 | `lib/features/settings/reader_appearance.dart`、`lib/features/settings/reader_brightness.dart`、`lib/features/reader/scaffold.dart`、`settings_effects.dart`；`test/features/settings/reader_settings_persistence_test.dart`、`test/features/reader/brightness_test.dart`、`settings_effects_test.dart` |
+| R10 | 线条增强、夜览和调光位于阅读设置前部，并在「调节画面」快捷菜单共同提供；共享组件遵守全局/设备/单漫画作用域；亮度预览只刷新遮罩，结束后读取当前作用域的已提交值，不回退到旧外壳快照或等待翻页；面板已卸载的晚到保存同样更新遮罩；保存状态不反复改变菜单高度 | `lib/features/settings/reader_appearance.dart`、`lib/features/settings/reader_brightness.dart`、`lib/features/reader/scaffold.dart`、`settings_effects.dart`；`test/features/settings/reader_settings_persistence_test.dart`、`test/features/reader/brightness_test.dart`、`settings_effects_test.dart`、`reader_exit_integration_test.dart` 的快捷/侧栏三种作用域及面板卸载回归 |
 | R11 | 开关/选择器保存期间保留原 Element 和占位宽度；只按相关字段订阅，作用域变化才重建设置表单；持久化失败/重试、窗口退出等待仍有效 | `lib/features/settings/setting_components.dart`、`lib/features/settings/setting_field.dart`；`test/features/settings/setting_persistence_test.dart` 的原 Element/文字矩形断言、`reader_settings_persistence_test.dart`、`test/components/settings_save_host_test.dart` |
 | R12 | 瀑布流同章节同页滚动不反复通知外壳；画廊预取按内容/布局/页码合并并放到帧后，保留 PhotoView、缩放及已有图像生命周期 | `lib/features/reader/continuous_view.dart`、`gallery_view.dart`；`test/features/reader/continuous_owner_test.dart`、`gallery_page_continuity_test.dart`、`gallery_rotation_test.dart`、`reader_exit_integration_test.dart` |
 
-表内省略目录的阅读实现文件位于 `lib/features/reader/`。来源及上游归因详见[候选表](upstream-issue-candidates.md)，不得把 R02 的导航调整直接写成已证实的上游 Navigator 缺陷。
+表内省略目录的阅读实现文件位于 `lib/features/reader/`，`comic_tile.dart` 位于 `lib/features/comic_widgets/`。来源及上游归因详见[候选表](upstream-issue-candidates.md)，不得把 R02 的导航调整直接写成已证实的上游 Navigator 缺陷。
 
 ## 本分支构建与分发更新（C01–C06）
 
@@ -94,6 +94,13 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | C06 | Linux x64/ARM64 共用矩阵、C/C++ 缓存、依赖检测及可复用打包/冒烟容器；Arch 预编译打包不额外安装编译器/GTK/WebKit；兼容的快速压缩，上传避免重复压缩（`001a9cf`） | `.github/scripts/prepare_linux_build.py`、`build_linux_packages.py`、`build_arch_package.py`、相关 Dockerfile、`debian/build.py`；`test_linux_packages.py`、`test_arch_package.py`、`test_debian_package.py`、`test_desktop_ci.py` |
 
 表内省略目录的构建脚本位于 `.github/scripts/`，测试位于 `.github/scripts/tests/`，工作流位于 `.github/workflows/`。不因优化 runner 用时移除完整发布所需的全部平台、双 flavor、签名及产物门禁。
+
+## 分支维护与启动入口（M01–M02）
+
+| 编号 | 必须保留的维护行为 | 入口与验证 |
+| --- | --- | --- |
+| M01 | 维护方式以可发现 Skill 存入分支，由根 `AGENTS.md` / `agent.md` 直接引用；后续修改/合并完整核对登记表并同步真实验证，不以文档存在替代行为验证 | `.agents/skills/venera-agent-branch-maintenance/SKILL.md`；核对 frontmatter、相对链接、全部保留编号与根入口 |
+| M02 | 云环境启动/恢复先核验 `/workspace/Venera-Next` 与完整分支名 `codex/agent-center-tab`，错误分支干净时安全切换，存在修改时保留现场；首轮编辑/提交/推送均复核；复用工具链与代理身份；全量测试等待结束后才一次性读取摘要，不轮询日志 | `.agents/skills/venera-cloud-startup/SKILL.md`；核对启动命令、分支错误/脏工作树策略、身份与长测试等待约定；外部云环境配置由用户手动粘贴，仓库提交不代表配置已部署 |
 
 ## 上游合并时的明确冲突点
 
@@ -111,10 +118,10 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 ## 每次合并与功能变更的执行顺序
 
 1. 确认工作分支和工作树状态，记录当前开发 HEAD、上次整合的上游提交及本次目标提交。只 fetch/审查上游不会改变本表的整合状态。
-2. 阅读本文与迁移记录，按 A01–A16、O01–O10、R00–R12、C01–C06 逐项判断本次差异是否影响行为。保留 Next 原有的新功能、数据列及平台门禁。
+2. 阅读本文与迁移记录，按 A01–A16、O01–O10、R00–R12、C01–C06、M01–M02 逐项判断本次差异是否影响行为。保留 Next 原有的新功能、数据列及平台门禁。
 3. 逐段处理冲突。不要用整文件 `ours/theirs`、删除测试或恢复旧 Prime 文件来消除冲突。文件搬迁时同步实现与测试入口。
 4. 上游已经等价修复时可以合并实现，但先运行相关契约测试，再登记「上游等价覆盖：提交 + 行为 + 测试结果」。不静默删除本地修复或其记录。
-5. 执行 `CONTRIBUTING.md` 要求及受影响的定向检查。完整测试输出写日志，运行期间使用长等待，结束后查看摘要；不反复读取 6000 多项的过程日志。记录通过/跳过/失败及未做的平台验证，不能将「全量 + 修后定向通过」改写成「最终全量全绿」。
+5. 执行 `CONTRIBUTING.md` 要求及受影响的定向检查。完整测试输出写日志，直接等待进程结束后一次性查看摘要，不轮询 6000 多项的过程日志或进程状态。记录通过/跳过/失败/中止及未做的平台验证，不能将「全量 + 修后定向通过」改写成「最终全量全绿」。
 6. 同步本文、迁移记录及 `CHANGELOG.md`，再提交推送开发分支。常规维护不修改应用身份、版本或历史 Release，不把改动合入 `main`。
 
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
@@ -135,3 +142,10 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 - 登记全部 8 个开发提交的 Agent、性能/数据、阅读交互修复及构建更新，增加根 `agent.md` 的阅读和同步约束。
 - 审查源仓库 `218f102`，登记尚未整合的冲突点及 Issue 候选；未合并上游，未向源仓库提交 Issue。
 - 本次仅修改维护文档：Python 仓库脚本 293 项、7 项跳过，其余通过；结构/架构/版本、文档路径与编号完整性及 `git diff --check` 通过，未重跑全量 Flutter。上游核对的 5 项小范围探针及其证据边界见迁移记录和 Issue 候选。
+
+### 2026-11-10：阅读退场、封面导航、调光与 Skill 入口
+
+- 扩展 R05/R08/R10，保留退场的原阅读视图，原因封面独立进入详情，调光在预览和当前作用域保存值间正确衔接。
+- 新增 M01–M02，将维护/启动流程保存为可发现 Skill，由根规则直接引用；仅这两个 Skill 目录加入版本控制，其余本地 Agent 目录仍忽略。
+- 新增 12 项定向回归通过；严格 Flutter 分析、Python 293 项（跳过 7 项）、结构/架构/版本及 Skill 检查通过。用户因额度不足要求跳过测试，已停止未完成的全量测试并继续提交推送；不记为全量通过，不再启动测试。
+- 详细验证范围及中止原因见[迁移记录](migration.md#阅读退场原因封面导航与调光续修2026-11-10)。

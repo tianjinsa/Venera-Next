@@ -689,6 +689,100 @@ void main() {
     },
   );
 
+  for (final scanFavorites in [false, true]) {
+    testWidgets(
+      'reason covers open comic details and keep rule editing separate: favorites=$scanFavorites',
+      (tester) async {
+        _prepare();
+        appdata.settings['blockedAuthors'] = ['Excluded'];
+        final favorites = _ScanFavorites();
+        addTearDown(favorites.dispose);
+        final opened = <(String, String, String?, String?)>[];
+        var keywordEdits = 0;
+        var authorEdits = 0;
+        configureComicWidgets(
+          tileImageProviderResolver: (_) =>
+              const AssetImage('assets/app_icon.png'),
+          comicPageBuilder:
+              ({required id, required sourceKey, cover, title, heroID}) {
+                opened.add((id, sourceKey, cover, title));
+                return const Scaffold(body: Text('Comic details'));
+              },
+          keywordRuleEditor: (_, _) async => keywordEdits++,
+          authorRuleEditor: (_, _) async => authorEdits++,
+        );
+        addTearDown(configureComicWidgets);
+        await tester.pumpWidget(
+          FavoritesScope(
+            manager: favorites,
+            child: _host(
+              scanFavorites
+                  ? const KeywordBlockingSettings()
+                  : CustomScrollView(
+                      slivers: [
+                        SliverGridComics(
+                          comics: [
+                            _comic('alpha comic'),
+                            const Comic(
+                              'Other comic',
+                              '',
+                              'author',
+                              'Excluded',
+                              null,
+                              '',
+                              'webdav_library',
+                              null,
+                              null,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        );
+        await _tap(
+          tester,
+          find.text(
+            scanFavorites
+                ? 'Scan local favorites'
+                : 'Hidden by keyword filters: 2 comics',
+          ),
+        );
+        for (var index = 0; index < 2; index++) {
+          await _tap(
+            tester,
+            find.descendant(
+              of: find.byTooltip('Details').at(index),
+              matching: find.byType(InkWell),
+            ),
+          );
+          expect(find.text('Comic details'), findsOneWidget);
+          expect(opened.last, (
+            index == 0 ? (scanFavorites ? 'keyword' : 'alpha comic') : 'author',
+            scanFavorites ? 'local' : 'webdav_library',
+            '',
+            index == 0 ? 'alpha comic' : 'Other comic',
+          ));
+          expect(keywordEdits, 0);
+          expect(authorEdits, 0);
+          Navigator.of(tester.element(find.text('Comic details'))).pop();
+          await tester.pumpAndSettle();
+          expect(find.text('Keyword filter reasons'), findsOneWidget);
+        }
+        await _tap(tester, find.text('Keyword: alpha'));
+        await _tap(tester, find.text('Author: Excluded'));
+        expect(keywordEdits, 1);
+        expect(authorEdits, 1);
+        expect(opened, hasLength(2));
+        expect(appdata.settings['blockedWords'], ['alpha']);
+        expect(appdata.settings['blockedAuthors'], ['Excluded']);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
+
   testWidgets(
     'local favorite scan reviews matches without changing the library',
     (tester) async {

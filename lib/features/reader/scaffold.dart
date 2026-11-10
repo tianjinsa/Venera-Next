@@ -30,6 +30,9 @@ import 'package:venera_next/features/reader/platform_effects_controller.dart';
 import 'shell_data.dart';
 import 'progress_navigation.dart';
 import 'package:venera_next/foundation/context.dart';
+import 'package:venera_next/foundation/appdata.dart';
+import 'package:venera_next/foundation/reader_preferences.dart';
+import 'package:venera_next/foundation/reader_preference_store.dart';
 import 'package:venera_next/features/reader/image_export.dart';
 import 'package:venera_next/features/reader/image_export_binding.dart';
 import 'package:venera_next/foundation/image_work.dart';
@@ -100,6 +103,12 @@ class ReaderScaffold extends StatefulWidget {
 
 class ReaderScaffoldState extends State<ReaderScaffold> {
   var _brightnessPreview = ReaderBrightnessPreview();
+
+  ReaderPreferenceStore get _brightnessSettings => ReaderPreferenceStore(
+    settings: appdata.settings,
+    comicId: widget.data.comicId,
+    sourceKey: widget.data.sourceKey,
+  );
 
   bool _isOpen = false;
 
@@ -258,14 +267,21 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
           if (!isOnChapterCommentsPage)
             Positioned.fill(
               child: ListenableBuilder(
-                listenable: _brightnessPreview,
+                listenable: Listenable.merge([
+                  _brightnessPreview,
+                  appdata.settings,
+                ]),
                 builder: (context, _) => ReaderBrightnessOverlay(
                   enabled:
                       _brightnessPreview.enabled ??
-                      widget.data.preferences.readerBrightnessEnabled,
+                      _brightnessSettings.read(
+                        ReaderPreferences.readerBrightnessEnabled,
+                      ),
                   brightness:
                       _brightnessPreview.brightness ??
-                      widget.data.preferences.readerBrightness,
+                      _brightnessSettings.read(
+                        ReaderPreferences.readerBrightness,
+                      ),
                 ),
               ),
             ),
@@ -446,7 +462,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
       onRotate: widget.onRotate,
       brightnessEnabled:
           _brightnessPreview.enabled ??
-          widget.data.preferences.readerBrightnessEnabled,
+          _brightnessSettings.read(ReaderPreferences.readerBrightnessEnabled),
       onBrightness: () =>
           setState(() => _brightnessPanelOpen = !_brightnessPanelOpen),
       automaticReading: ReaderAutomaticReadingAction(

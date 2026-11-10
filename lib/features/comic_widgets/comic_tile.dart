@@ -147,7 +147,8 @@ Widget _buildComicPage({
   );
 }
 
-void _openComicPage({
+/// Open the configured detail page in the supplied navigation context.
+void openComicPage({
   BuildContext? context,
   required String id,
   required String sourceKey,
@@ -231,7 +232,7 @@ class ComicTile extends StatelessWidget {
       onTap!();
       return;
     }
-    _openComicPage(
+    openComicPage(
       id: comic.id,
       sourceKey: comic.sourceKey,
       cover: comic.cover,
@@ -267,7 +268,7 @@ class ComicTile extends StatelessWidget {
         icon: Icons.chrome_reader_mode_outlined,
         text: 'Details'.tl,
         onClick: () {
-          _openComicPage(
+          openComicPage(
             id: comic.id,
             sourceKey: comic.sourceKey,
             cover: comic.cover,
@@ -1223,7 +1224,7 @@ class SimpleComicTile extends StatelessWidget {
       onTap:
           onTap ??
           () {
-            _openComicPage(
+            openComicPage(
               context: context,
               id: comic.id,
               sourceKey: comic.sourceKey,

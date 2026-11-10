@@ -48,4 +48,8 @@ app.*.map.json
 .claude/
 .opencode/
 .codex/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/venera-agent-branch-maintenance/
+!.agents/skills/venera-cloud-startup/

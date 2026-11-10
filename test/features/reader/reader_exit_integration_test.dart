@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:photo_view/photo_view.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/components/window_frame.dart';
 import 'package:venera_next/components/window_selection_task.dart';
 import 'package:venera_next/app_runtime/application_host.dart';
@@ -59,9 +60,11 @@ import 'package:venera_next/features/reader/progress_bar.dart';
 import 'package:venera_next/features/reader/images_host.dart';
 import 'package:venera_next/features/reader/chapters.dart';
 import 'package:venera_next/features/reader/brightness.dart';
+import 'package:venera_next/features/settings/reader_brightness.dart';
 import 'package:venera_next/features/reader/settings_panel.dart';
 import 'package:venera_next/routing/settings.dart' show ReaderSettings;
 import 'package:venera_next/foundation/app.dart';
+import 'package:venera_next/foundation/app_page_route.dart';
 import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/cache_manager.dart';
@@ -105,6 +108,66 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('window_manager'), null);
   });
+
+  testWidgets(
+    'dimming keeps a queued value when its sidebar is removed before saving',
+    (tester) async {
+      final fixture = await _ReaderFixture.create(tester);
+      final release = Completer<void>();
+      Future<void>? exclusive;
+      try {
+        appdata.settings['readerBrightnessEnabled'] = true;
+        appdata.settings['readerBrightness'] = 50;
+        await fixture.mount(tester, pushed: false, withWindow: false);
+        final reader = fixture.readerKey.currentState!;
+        reader.scaffoldKey.currentState!.openSetting();
+        await tester.pumpAndSettle();
+        final sidebar = find.byType(ReaderSettingsPanel);
+        final context = tester.element(sidebar);
+        final route = ModalRoute.of(context)!;
+        exclusive = AppDataOperations.instance.run(() => release.future);
+        tester
+            .widget<ReaderBrightnessControl>(
+              find.descendant(
+                of: sidebar,
+                matching: find.byType(ReaderBrightnessControl),
+              ),
+            )
+            .onBrightnessChanged(75);
+        Navigator.of(context).removeRoute(route);
+        await tester.pumpAndSettle();
+        expect(sidebar, findsNothing);
+        expect(
+          tester
+              .widget<ReaderBrightnessOverlay>(
+                find.byType(ReaderBrightnessOverlay),
+              )
+              .brightness,
+          75,
+        );
+        release.complete();
+        await _pumpUntil(
+          tester,
+          () => reader.preferences.readerBrightness == 75,
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(
+          tester
+              .widget<ReaderBrightnessOverlay>(
+                find.byType(ReaderBrightnessOverlay),
+              )
+              .brightness,
+          75,
+        );
+        expect(reader.page, 1);
+        expect(tester.takeException(), isNull);
+      } finally {
+        if (!release.isCompleted) release.complete();
+        await exclusive;
+        await fixture.dispose(tester);
+      }
+    },
+  );
 
   for (final mode in [
     ReaderMode.galleryLeftToRight,
@@ -2453,6 +2516,148 @@ void main() {
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
   );
+
+  for (final sidebar in [false, true]) {
+    for (final scope in ['global', 'device', 'comic']) {
+      testWidgets(
+        'dimming stays at the saved value without turning pages: sidebar=$sidebar scope=$scope',
+        (tester) async {
+          final fixture = await _ReaderFixture.create(tester);
+          try {
+            appdata.settings['readerBrightnessEnabled'] = true;
+            appdata.settings['readerBrightness'] = 50;
+            appdata.settings['deviceId'] = 'brightness-device';
+            appdata.settings['deviceSpecificSettings'] = {
+              if (scope == 'device') 'brightness-device': {'enabled': true},
+            };
+            appdata.settings['comicSpecificSettings'] = {
+              if (scope == 'comic') 'book@local': {'enabled': true},
+            };
+            await fixture.mount(tester, pushed: false, withWindow: false);
+            final reader = fixture.readerKey.currentState!;
+            final viewport = find.byType(ReaderGalleryView);
+            final original = tester.element(viewport);
+            final frame = tester
+                .widget<RawImage>(_paintedImages(viewport).first)
+                .image;
+            final page = reader.page;
+            final shell = reader.scaffoldKey.currentState!;
+            if (sidebar) {
+              shell.openSetting();
+            } else {
+              shell.openOrClose();
+              await tester.pumpAndSettle();
+              await tester.tap(find.byTooltip('Adjust picture'));
+            }
+            await tester.pumpAndSettle();
+            final form = tester.state<SettingsSaveState>(
+              find.byType(ReaderBrightnessSetting).last,
+            );
+            ReaderBrightnessOverlay overlay() =>
+                tester.widget(find.byType(ReaderBrightnessOverlay));
+            for (final value in [25, 75]) {
+              tester
+                  .widget<ReaderBrightnessControl>(
+                    find.byType(ReaderBrightnessControl).last,
+                  )
+                  .onBrightnessChanged(value);
+              await tester.pump();
+              expect(overlay().brightness, value);
+              await _pumpUntil(tester, () => !form.savingSettings);
+              await tester.pump(const Duration(milliseconds: 100));
+              expect(overlay().brightness, value);
+              expect(reader.preferences.readerBrightness, value);
+              expect(tester.element(viewport), same(original));
+              expect(
+                tester.widget<RawImage>(_paintedImages(viewport).first).image,
+                same(frame),
+              );
+              expect(reader.page, page);
+            }
+            for (final enabled in [false, true]) {
+              tester
+                  .widget<ReaderBrightnessControl>(
+                    find.byType(ReaderBrightnessControl).last,
+                  )
+                  .onEnabledChanged(enabled);
+              await tester.pump();
+              expect(overlay().enabled, enabled);
+              await _pumpUntil(tester, () => !form.savingSettings);
+              await tester.pump(const Duration(milliseconds: 100));
+              expect(overlay().enabled, enabled);
+            }
+            if (scope != 'global') {
+              expect(appdata.settings['readerBrightness'], 50);
+            }
+            expect(tester.takeException(), isNull);
+          } finally {
+            await fixture.dispose(tester);
+          }
+        },
+      );
+    }
+  }
+
+  for (final mode in [
+    ReaderMode.galleryLeftToRight,
+    ReaderMode.continuousTopToBottom,
+    ReaderMode.waterfallTopToBottom,
+  ]) {
+    testWidgets(
+      'reader retains its painted page throughout the exit animation: ${mode.key}',
+      (tester) async {
+        final fixture = await _ReaderFixture.create(tester);
+        final saving = Completer<void>();
+        try {
+          appdata.settings['readerMode'] = mode.key;
+          await fixture.mount(
+            tester,
+            pushed: true,
+            withWindow: false,
+            useAppPageRoute: true,
+          );
+          final reader = fixture.readerKey.currentState!;
+          final route = ModalRoute.of(reader.context)! as PageRoute;
+          final viewport = find.byType(
+            mode.isGallery ? ReaderGalleryView : ReaderContinuousView,
+          );
+          final original = tester.element(viewport);
+          final image = tester
+              .widget<RawImage>(_paintedImages(viewport).first)
+              .image;
+          final position = tester.getTopLeft(viewport);
+          fixture.history.onProgress = (_) => saving.future;
+          reader.updateHistory();
+          await reader.requestExit();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 80));
+          expect(route.animation!.status, AnimationStatus.reverse);
+          expect(route.animation!.value, allOf(greaterThan(0), lessThan(1)));
+          expect(tester.element(viewport), same(original));
+          expect(
+            tester.widget<RawImage>(_paintedImages(viewport).first).image,
+            same(image),
+          );
+          expect(tester.getTopLeft(viewport).dx, greaterThan(position.dx));
+          expect(find.text('Saving...'), findsNothing);
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(fixture.readerKey.currentState, isNull);
+          expect(find.text('Library home'), findsOneWidget);
+          expect(find.byIcon(Icons.save_outlined), findsOneWidget);
+          expect(saving.isCompleted, isFalse);
+          saving.complete();
+          await _pumpUntil(
+            tester,
+            () => find.byIcon(Icons.save_outlined).evaluate().isEmpty,
+          );
+          expect(tester.takeException(), isNull);
+        } finally {
+          if (!saving.isCompleted) saving.complete();
+          await fixture.dispose(tester);
+        }
+      },
+    );
+  }
 
   testWidgets(
     'reader back returns while native effects finish in the background',
@@ -5012,6 +5217,7 @@ class _ReaderFixture {
     bool waitForImage = true,
     bool expectContent = true,
     bool withWindow = true,
+    bool useAppPageRoute = false,
     SelectionTaskRegistry? registry,
     ValueNotifier<SelectionTaskRegistry>? registries,
     WindowFinalizer? finalize,
@@ -5107,7 +5313,9 @@ class _ReaderFixture {
     if (pushed) {
       unawaited(
         appNavigation.rootNavigatorKey.currentState!.push<void>(
-          MaterialPageRoute(builder: (_) => reader()),
+          useAppPageRoute
+              ? AppPageRoute(builder: (_) => reader())
+              : MaterialPageRoute(builder: (_) => reader()),
         ),
       );
     }

@@ -40,6 +40,7 @@ class ReaderImages extends StatefulWidget {
 class _ReaderImagesState extends State<ReaderImages> {
   ReaderContentLoad? _attempt;
   VoidCallback? _unsubscribeResume;
+  Widget? _lastView;
 
   void _listenForResume() {
     final owner = widget.imageWork;
@@ -71,6 +72,7 @@ class _ReaderImagesState extends State<ReaderImages> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.controller, widget.controller) ||
         !identical(oldWidget.imageWork, widget.imageWork)) {
+      _lastView = null;
       _unsubscribeResume?.call();
       if (_attempt case final attempt?) {
         oldWidget.controller.cancelContentLoad(attempt);
@@ -118,7 +120,16 @@ class _ReaderImagesState extends State<ReaderImages> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.controller.isDisposed) return const SizedBox.expand();
+    // Background exit retires input and work before the route animates away.
+    // Keep the mounted view and its decoded frame until route disposal instead
+    // of clearing the outgoing page or rebuilding it against a closed owner.
+    if (widget.controller.isDisposed) {
+      return _lastView ?? const SizedBox.expand();
+    }
+    return _lastView = _buildView(context);
+  }
+
+  Widget _buildView(BuildContext context) {
     final content = widget.controller.content;
     if (_attempt?.waitingForImageWork == true) {
       return const Center(child: CircularProgressIndicator());

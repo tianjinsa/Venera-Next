@@ -153,14 +153,32 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 60,
-              height: 84,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: ColoredBox(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: ComicTile(comic: comic).buildImage(context),
+            Tooltip(
+              message: 'Details'.tl,
+              child: Semantics(
+                button: true,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => openComicPage(
+                    context: context,
+                    id: comic.id,
+                    sourceKey: comic.sourceKey,
+                    cover: comic.cover,
+                    title: comic.title,
+                  ),
+                  child: SizedBox(
+                    width: 60,
+                    height: 84,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: ColoredBox(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        child: ComicTile(comic: comic).buildImage(context),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
