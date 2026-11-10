@@ -30,9 +30,8 @@ import 'package:venera_next/features/reader/platform_effects_controller.dart';
 import 'shell_data.dart';
 import 'progress_navigation.dart';
 import 'package:venera_next/foundation/context.dart';
-import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/reader_preferences.dart';
-import 'package:venera_next/foundation/reader_preference_store.dart';
+import 'package:venera_next/foundation/reader_settings.dart';
 import 'package:venera_next/features/reader/image_export.dart';
 import 'package:venera_next/features/reader/image_export_binding.dart';
 import 'package:venera_next/foundation/image_work.dart';
@@ -43,7 +42,7 @@ import 'package:venera_next/features/reader/image_selection.dart';
 import 'package:venera_next/features/reader/image_picker.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/translations.dart';
-import 'package:venera_next/routing/settings.dart';
+import 'package:venera_next/routing/settings.dart' show ReaderBrightnessSetting;
 
 class ReaderScaffold extends StatefulWidget {
   const ReaderScaffold({
@@ -68,12 +67,18 @@ class ReaderScaffold extends StatefulWidget {
     required this.createChapterComments,
     required this.chapterNavigation,
     required this.child,
+    this.readBrightnessSettings,
+    this.brightnessChanges,
     this.onDiagnostics,
     this.onRemoteKey,
     this.onCancelRemoteKeys,
   });
 
   final ReaderShellData data;
+  // The application host supplies live values after persistence. Standalone
+  // shells keep using their explicit presentation input.
+  final ReaderSettings Function()? readBrightnessSettings;
+  final Listenable? brightnessChanges;
   final ReaderProgressRequest progress;
   final Future<void> Function() onExit;
   final VoidCallback? onFullscreen;
@@ -104,11 +109,8 @@ class ReaderScaffold extends StatefulWidget {
 class ReaderScaffoldState extends State<ReaderScaffold> {
   var _brightnessPreview = ReaderBrightnessPreview();
 
-  ReaderPreferenceStore get _brightnessSettings => ReaderPreferenceStore(
-    settings: appdata.settings,
-    comicId: widget.data.comicId,
-    sourceKey: widget.data.sourceKey,
-  );
+  ReaderSettings get _brightnessSettings =>
+      widget.readBrightnessSettings?.call() ?? widget.data.preferences;
 
   bool _isOpen = false;
 
@@ -269,7 +271,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
               child: ListenableBuilder(
                 listenable: Listenable.merge([
                   _brightnessPreview,
-                  appdata.settings,
+                  widget.brightnessChanges,
                 ]),
                 builder: (context, _) => ReaderBrightnessOverlay(
                   enabled:

@@ -72,6 +72,14 @@ Future<void> _frame() async {
   await pumpEventQueue();
 }
 
+Future<void> _frameUntil(bool Function() ready) async {
+  final elapsed = Stopwatch()..start();
+  while (!ready() && elapsed.elapsed < const Duration(seconds: 10)) {
+    await _frame();
+  }
+  expect(ready(), isTrue, reason: 'Native decoding did not deliver its frame');
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   var nextKey = 0;
@@ -187,8 +195,9 @@ void main() {
       expect(source.loads, 1);
       expect(frames, 0);
       release();
-      await pumpEventQueue();
-      await _frame();
+      // Native decoding can finish after the first scheduled frame when the
+      // coverage runner is busy. Wait for delivery, not an event-queue count.
+      await _frameUntil(() => frames == 2 || errors.isNotEmpty);
       expect(source.loads, 2);
       expect(frames, 2);
       expect(errors, isEmpty);

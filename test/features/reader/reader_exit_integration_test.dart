@@ -109,6 +109,44 @@ void main() {
         .setMockMethodCallHandler(const MethodChannel('window_manager'), null);
   });
 
+  testWidgets('fixture drains admitted writes before deleting its store', (
+    tester,
+  ) async {
+    final fixture = await _ReaderFixture.create(tester);
+    final release = Completer<void>();
+    final target = File('${fixture.directory.path}/pending-setting');
+    var storeAvailableAtWrite = false;
+    var persisted = false;
+    final writing = AppDataOperations.instance.access(() async {
+      await release.future;
+      storeAvailableAtWrite = fixture.directory.existsSync();
+      if (storeAvailableAtWrite) {
+        target.writeAsStringSync('saved');
+        persisted = true;
+      }
+    });
+    final timer = await tester.runAsync(
+      () async => Timer(const Duration(milliseconds: 250), release.complete),
+    );
+    try {
+      await fixture.dispose(tester);
+      expect(storeAvailableAtWrite, isTrue);
+      expect(persisted, isTrue);
+      expect(fixture.directory.existsSync(), isFalse);
+    } finally {
+      timer?.cancel();
+      if (!release.isCompleted) release.complete();
+      // Also drain the write when testing a broken fixture implementation.
+      var settled = false;
+      final drained = writing.whenComplete(() => settled = true);
+      await _pumpUntil(tester, () => settled);
+      await drained;
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+    }
+  });
+
   testWidgets(
     'dimming keeps a queued value when its sidebar is removed before saving',
     (tester) async {
@@ -4948,7 +4986,10 @@ Finder _paintedImages(Finder consumer) => find.descendant(
 );
 
 Future<void> _pumpUntil(WidgetTester tester, bool Function() finished) async {
-  for (var attempt = 0; attempt < 100 && !finished(); attempt++) {
+  // Filesystem/native completion needs a real-time budget under coverage;
+  // advancing fake time alone cannot finish it on a busy CI worker.
+  final elapsed = Stopwatch()..start();
+  while (!finished() && elapsed.elapsed < const Duration(seconds: 10)) {
     await tester.pump(const Duration(milliseconds: 20));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 5)),
@@ -5362,6 +5403,15 @@ class _ReaderFixture {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
+    // Settings saves can outlive removal. Drain their real data admission while
+    // this test's fake async Zone can still pump their continuations; otherwise
+    // the next test inherits a queue whose scheduling Zone has been retired.
+    var drained = false;
+    final draining = AppDataOperations.instance
+        .run(() {})
+        .then((_) => drained = true);
+    await _pumpUntil(tester, () => drained);
+    await draining;
     LocalManager.current?.dispose();
     history.close();
     images.dispose();

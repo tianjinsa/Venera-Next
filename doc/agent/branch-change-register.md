@@ -70,11 +70,11 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | R03 | 大收藏进入/退出阅读依赖 R01/R02/R05/R12 的组合约束；不能恢复「等全部保存结束才返回」或无关通知重滤收藏 | 收藏页、`reader_page.dart`、`exit_guard.dart`；`test/features/favorites/local_favorites_refresh_test.dart`、`test/features/reader/reader_exit_integration_test.dart` |
 | R04 | 阅读器及阅读加载页从过场第一帧绘制主题表面背景，页面尚未加载完成也不透明露出上一页 | `lib/features/reader/reader_page.dart`、`loading.dart`；`test/features/reader/reader_exit_integration_test.dart`，并手工检查设备入场动画 |
 | R05 | 返回时先冻结进度并移交任务，使用正常退场动画返回详情；后台收尾期间保留已挂载的阅读视图与解码画面，动画结束才随路由释放，不因控制器关闭提前清空；根覆盖层右下角显示动态保存图标；失败变红色感叹号且不自动消失，查看详情后才能手动关闭，新错误不随旧错误一起清除；应用最终退出仍等待真实任务完成 | `lib/components/background_save.dart`、`lib/features/reader/exit_guard.dart`、`reader_page.dart`、`images.dart`；`test/components/background_save_test.dart`、`test/features/reader/reader_exit_integration_test.dart` 的三种阅读模式退场/慢保存回归、`platform_effects_test.dart` |
-| R06 | 封面进度使用固定 24×24 小图标；完整进度通过 Tooltip/无障碍标签保留，不能恢复大块章节文字遮挡封面 | `lib/features/comic_widgets/comic_tile.dart`；`test/features/comic_widgets/reading_progress_test.dart`、`detailed_reading_progress_test.dart` |
+| R06 | 封面进度使用固定 24×24 小图标；当前页左上、总页数右下，各占独立行并按可用空间缩小，多位数及大字号不能重叠或溢出；缺总数居中、完成时显示勾，完整进度通过 Tooltip/无障碍标签保留 | `lib/features/comic_widgets/comic_tile.dart`；`test/features/comic_widgets/reading_progress_test.dart` 的 3/30、162/233、1001/1200 文字矩形与回退/完成回归、`detailed_reading_progress_test.dart` |
 | R07 | 有保存的实际章节名时优先显示，包含总数/紧凑模式同样生效；格式为 `实际章节名 - P页数`，可选页总数；旧数据无名称时正常回退，无额外元数据请求 | `lib/features/history/history_model.dart`；`test/features/history/history_progress_description_test.dart`、`test/features/comic_widgets/detailed_reading_progress_test.dart` |
 | R08 | 被屏蔽项原因可查看封面；点击封面进入对应漫画详情，传递原 ID、来源、封面和标题，返回后保留原因列表；作者/关键词共用可点击文字原因区域，进入编辑后均可删除，封面点击不触发规则编辑；发现列表和收藏扫描结果行为一致；异步分批计算，过期弹窗/规则不能覆盖新状态 | `lib/features/comic_widgets/keyword_hidden_notice.dart`、`comic_tile.dart`、`lib/features/settings/keyword_blocking.dart`、`lib/features/settings/author_blocking.dart`；`test/features/settings/keyword_rules_widget_test.dart` 的封面导航/规则编辑分离回归、`keyword_display_persistence_test.dart` |
 | R09 | 关键词管理独立扫描本地收藏以检查误伤；扫描只读，不隐藏/删除收藏；原页面查询结束后再打开结果，窗口及 generation 门禁有效 | `lib/features/settings/keyword_blocking.dart`、`lib/features/comic_widgets/keyword_hidden_notice.dart`；`test/features/settings/keyword_rules_widget_test.dart` |
-| R10 | 线条增强、夜览和调光位于阅读设置前部，并在「调节画面」快捷菜单共同提供；共享组件遵守全局/设备/单漫画作用域；亮度预览只刷新遮罩，结束后读取当前作用域的已提交值，不回退到旧外壳快照或等待翻页；面板已卸载的晚到保存同样更新遮罩；保存状态不反复改变菜单高度 | `lib/features/settings/reader_appearance.dart`、`lib/features/settings/reader_brightness.dart`、`lib/features/reader/scaffold.dart`、`settings_effects.dart`；`test/features/settings/reader_settings_persistence_test.dart`、`test/features/reader/brightness_test.dart`、`settings_effects_test.dart`、`reader_exit_integration_test.dart` 的快捷/侧栏三种作用域及面板卸载回归 |
+| R10 | 线条增强、夜览和调光位于阅读设置前部，并在「调节画面」快捷菜单共同提供；共享组件遵守全局/设备/单漫画作用域；亮度预览只刷新遮罩，结束后由真实宿主显式提供当前作用域的已提交值，独立外壳遵循传入快照；面板已卸载的晚到保存同样更新遮罩，不等待翻页；保存状态不反复改变菜单高度 | `lib/features/settings/reader_appearance.dart`、`lib/features/settings/reader_brightness.dart`、`lib/features/reader/scaffold.dart`、`shell_host.dart`、`settings_effects.dart`；`test/features/settings/reader_settings_persistence_test.dart`、`test/features/reader/brightness_test.dart`、`settings_effects_test.dart`、`shell_presentation_test.dart`、`reader_exit_integration_test.dart` 的快捷/侧栏三种作用域及面板卸载回归 |
 | R11 | 开关/选择器保存期间保留原 Element 和占位宽度；只按相关字段订阅，作用域变化才重建设置表单；持久化失败/重试、窗口退出等待仍有效 | `lib/features/settings/setting_components.dart`、`lib/features/settings/setting_field.dart`；`test/features/settings/setting_persistence_test.dart` 的原 Element/文字矩形断言、`reader_settings_persistence_test.dart`、`test/components/settings_save_host_test.dart` |
 | R12 | 瀑布流同章节同页滚动不反复通知外壳；画廊预取按内容/布局/页码合并并放到帧后，保留 PhotoView、缩放及已有图像生命周期 | `lib/features/reader/continuous_view.dart`、`gallery_view.dart`；`test/features/reader/continuous_owner_test.dart`、`gallery_page_continuity_test.dart`、`gallery_rotation_test.dart`、`reader_exit_integration_test.dart` |
 
@@ -127,6 +127,15 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
 
 ## 最近验证与维护记录
+
+### 2026-11-10：全量检测等待修复与封面页码布局
+
+- 基点 `7ba5a0e`，工作分支 `codex/agent-center-tab`。定向提取 CI run `42800686662` 的失败标记及堆栈，发现 14 项布局检测、6 项调光保存、3 项外壳显式亮度失败，以及后续两项各 10 分钟超时；没有逐行阅读全部日志。
+- 阅读测试夹具在删除临时库、恢复设置前排空真实数据准入队列，避免已接受写入保留旧测试的 fake async Zone；新增延迟写入回归。异步门禁以有界真实时间等待，兼容覆盖率和繁忙文件系统。保留原始会话归属及最终退出等待断言。
+- 全量覆盖率轮次另发现双监听图片测试的单帧等待竞争，`test/features/reader/display_image_provider_test.dart` 改为等待真实原生帧交付，继续验证两个消费者和退出准备/恢复，不修改图片提供器的产品逻辑。
+- 修复 R06 页码重叠，R10 保留实时调光并恢复独立外壳输入契约。参考 Prime `codex/agent-center-tab` 的角标布局意图，仅改相关 Next 实现。
+- 验证：首轮定向 33 项通过；全量覆盖率到 35 分钟预算中止，5984 项通过、155 项跳过，另有上述图片等待失败；修正后的失败项与剩余文件补跑 348 项通过，TV 89 项通过。严格分析、格式、结构/架构/版本、依赖与工具自检、Python 293 项（跳过 7 项）及差异检查通过。未做原生构建和真机验收，不记为最终单轮全量全绿。
+- 最终验证结果与范围见[迁移记录](migration.md#全量检测等待与封面页码布局修复2026-11-10)。
 
 ### 2026-11-10：修复提交 `d28e4bd`
 

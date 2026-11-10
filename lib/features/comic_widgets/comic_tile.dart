@@ -1030,84 +1030,6 @@ class _ComicDescription extends StatelessWidget {
   }
 }
 
-class _ReadingHistoryPainter extends CustomPainter {
-  final int page;
-  final int? maxPage;
-
-  const _ReadingHistoryPainter(this.page, this.maxPage);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (maxPage == null) {
-      // 在中央绘制page
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: "$page",
-          style: TextStyle(fontSize: size.width * 0.8, color: Colors.white),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(
-          (size.width - textPainter.width) / 2,
-          (size.height - textPainter.height) / 2,
-        ),
-      );
-    } else if (page == maxPage) {
-      // 在中央绘制勾
-      final paint = Paint()
-        ..color = Colors.white
-        ..strokeWidth = 2
-        ..style = PaintingStyle.stroke;
-      canvas.drawLine(
-        Offset(size.width * 0.2, size.height * 0.5),
-        Offset(size.width * 0.45, size.height * 0.75),
-        paint,
-      );
-      canvas.drawLine(
-        Offset(size.width * 0.45, size.height * 0.75),
-        Offset(size.width * 0.85, size.height * 0.3),
-        paint,
-      );
-    } else {
-      // 在左上角绘制page, 在右下角绘制maxPage
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: "$page",
-          style: TextStyle(fontSize: size.width * 0.8, color: Colors.white),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, const Offset(0, 0));
-      final textPainter2 = TextPainter(
-        text: TextSpan(
-          text: "/$maxPage",
-          style: TextStyle(fontSize: size.width * 0.5, color: Colors.white),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter2.layout();
-      textPainter2.paint(
-        canvas,
-        Offset(
-          size.width - textPainter2.width,
-          size.height - textPainter2.height,
-        ),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return oldDelegate is! _ReadingHistoryPainter ||
-        oldDelegate.page != page ||
-        oldDelegate.maxPage != maxPage;
-  }
-}
-
 class _ReadingHistoryBadge extends StatelessWidget {
   const _ReadingHistoryBadge({
     required this.page,
@@ -1118,18 +1040,47 @@ class _ReadingHistoryBadge extends StatelessWidget {
   final int? maxPage;
   final String? description;
 
+  Widget _number(String text, double fontSize, Alignment alignment) =>
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: alignment,
+        child: Text(
+          text,
+          textDirection: TextDirection.ltr,
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(fontSize: fontSize, height: 1, color: Colors.white),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) => Tooltip(
     message: description ?? 'P$page',
     child: Semantics(
       label: description ?? 'P$page',
+      excludeSemantics: true,
       child: SizedBox.square(
         dimension: 24,
         child: ColoredBox(
           color: Colors.blue.withValues(alpha: 0.9),
           child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: CustomPaint(painter: _ReadingHistoryPainter(page, maxPage)),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: maxPage == null
+                ? _number('$page', 14, Alignment.center)
+                : page == maxPage
+                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _number('$page', 14, Alignment.topLeft),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: _number('/$maxPage', 9, Alignment.bottomRight),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
