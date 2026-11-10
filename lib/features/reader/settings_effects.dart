@@ -89,8 +89,11 @@ Iterable<ReaderSettingEffect> readerSettingEffects(String key) sync* {
   if (key == ReaderPreferences.showSystemStatusBar.key) {
     yield ReaderSettingEffect.updateSystemUi;
   }
-  if (key.startsWith('readerBrightness') ||
-      key == ReaderPreferences.showChapterComments.key ||
+  if (key.startsWith('readerBrightness')) {
+    yield ReaderSettingEffect.rebuildShell;
+    return;
+  }
+  if (key == ReaderPreferences.showChapterComments.key ||
       key == ReaderPreferences.showChapterCommentsAtEnd.key ||
       key == ReaderPreferences.showSystemStatusBar.key ||
       key == ReaderPreferences.showPageNumberInReader.key ||

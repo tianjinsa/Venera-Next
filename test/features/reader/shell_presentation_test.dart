@@ -239,13 +239,13 @@ void main() {
           await tester.pump();
         }
       }
-      await tester.tap(find.byTooltip('Reader brightness'));
+      await tester.tap(find.byTooltip('Adjust picture'));
       await tester.pump();
       expect(
         tester.getRect(find.byType(ReaderBrightnessPanel)).bottom,
         scenario.size.height - ReaderBottomBar.height - 20 - 12,
       );
-      await tester.tap(find.byTooltip('Reader brightness'));
+      await tester.tap(find.byTooltip('Adjust picture'));
       await tester.pump();
       Focus.of(
         tester.element(find.byIcon(Icons.screen_rotation)),

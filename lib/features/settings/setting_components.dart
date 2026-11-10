@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:venera_next/foundation/preferences.dart';
 import 'setting_field.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +17,7 @@ import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 
 const _savingIndicator = SizedBox.square(
-  dimension: 18,
+  dimension: 10,
   child: CircularProgressIndicator(strokeWidth: 2),
 );
 
@@ -34,6 +35,34 @@ abstract class _SettingState<W extends StatefulWidget, T>
   int _revision = 0;
   T? _preview;
   SettingField<T>? _previewField;
+  String? _storedValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _storedValue = jsonEncode(fields.read<T>(field));
+    appdata.settings.addListener(_fieldChanged);
+  }
+
+  void _fieldChanged() {
+    if (!mounted) return;
+    final value = jsonEncode(fields.read<T>(field));
+    if (_storedValue == value) return;
+    setState(() => _storedValue = value);
+  }
+
+  @override
+  void didUpdateWidget(covariant W oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _storedValue = jsonEncode(fields.read<T>(field));
+  }
+
+  @override
+  void dispose() {
+    appdata.settings.removeListener(_fieldChanged);
+    super.dispose();
+  }
+
   bool get saving => savingSettings;
   T? get currentValue =>
       _preview != null && _previewField?.matches(field) == true
@@ -76,6 +105,21 @@ abstract class _SettingState<W extends StatefulWidget, T>
           ),
       ],
     ),
+  );
+
+  // Keep the control's Element and layout while persistence is pending.
+  // Replacing it with a spinner interrupts gestures and changes text wrapping.
+  Widget pendingControl(Widget child) => Stack(
+    clipBehavior: Clip.none,
+    children: [
+      child,
+      if (saving)
+        const Positioned(
+          right: 0,
+          bottom: 0,
+          child: IgnorePointer(child: _savingIndicator),
+        ),
+    ],
   );
 }
 
@@ -167,9 +211,7 @@ class _SwitchSettingState extends _SettingState<SwitchSetting, bool> {
       ListTile(
         title: Text(widget.title),
         subtitle: widget.subtitle == null ? null : Text(widget.subtitle!),
-        trailing: saving
-            ? _savingIndicator
-            : Switch(value: value!, onChanged: change),
+        trailing: pendingControl(Switch(value: value!, onChanged: change)),
       ),
     );
   }
@@ -386,27 +428,19 @@ class _DoubleLineSelectSettingsState
           ],
         ),
         subtitle:
-            widget.selectorBuilder?.call(
-              context,
-              value,
-              saving
-                  ? null
-                  : (selected) {
-                      if (mounted &&
-                          target.matches(field) &&
-                          (selected == null ||
-                              widget.optionTranslation.containsKey(selected))) {
-                        unawaited(change(selected));
-                      }
-                    },
-            ) ??
+            widget.selectorBuilder?.call(context, value, (selected) {
+              if (mounted &&
+                  target.matches(field) &&
+                  (selected == null ||
+                      widget.optionTranslation.containsKey(selected))) {
+                unawaited(change(selected));
+              }
+            }) ??
             Text(widget.optionTranslation[value] ?? "None"),
-        trailing: saving
-            ? _savingIndicator
-            : widget.selectorBuilder == null
-            ? const Icon(Icons.arrow_drop_down)
+        trailing: widget.selectorBuilder == null
+            ? pendingControl(const Icon(Icons.arrow_drop_down))
             : null,
-        onTap: saving || widget.selectorBuilder != null
+        onTap: widget.selectorBuilder != null
             ? null
             : () {
                 var renderBox = context.findRenderObject() as RenderBox;
@@ -537,32 +571,32 @@ class _EndSelectorSelectSettingState
               ),
           ],
         ),
-        trailing: saving
-            ? _savingIndicator
-            : widget.selectorBuilder?.call(context, value, (selected) {
-                    if (mounted &&
-                        target.matches(field) &&
-                        (selected == null ||
-                            widget.optionTranslation.containsKey(selected))) {
+        trailing: pendingControl(
+          widget.selectorBuilder?.call(context, value, (selected) {
+                if (mounted &&
+                    target.matches(field) &&
+                    (selected == null ||
+                        widget.optionTranslation.containsKey(selected))) {
+                  unawaited(change(selected));
+                }
+              }) ??
+              Select(
+                current: options[value],
+                values: options.values.toList(),
+                minWidth: 64,
+                onTap: (index) {
+                  if (mounted &&
+                      target.matches(field) &&
+                      index >= 0 &&
+                      index < options.length) {
+                    final selected = options.keys.elementAt(index);
+                    if (widget.optionTranslation.containsKey(selected)) {
                       unawaited(change(selected));
                     }
-                  }) ??
-                  Select(
-                    current: options[value],
-                    values: options.values.toList(),
-                    minWidth: 64,
-                    onTap: (index) {
-                      if (mounted &&
-                          target.matches(field) &&
-                          index >= 0 &&
-                          index < options.length) {
-                        final selected = options.keys.elementAt(index);
-                        if (widget.optionTranslation.containsKey(selected)) {
-                          unawaited(change(selected));
-                        }
-                      }
-                    },
-                  ),
+                  }
+                },
+              ),
+        ),
       ),
     );
   }

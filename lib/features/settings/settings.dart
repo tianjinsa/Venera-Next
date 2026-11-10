@@ -12,3 +12,5 @@ export 'reader_brightness.dart' show ReaderBrightnessSetting;
 export 'settings_page.dart';
 export 'sponsors.dart';
 export 'webdav_connection_fields.dart';
+
+export 'author_blocking.dart' show showAuthorRuleEditor;

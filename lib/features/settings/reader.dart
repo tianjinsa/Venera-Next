@@ -1,3 +1,4 @@
+import 'reader_appearance.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/preferences.dart';
@@ -49,6 +50,7 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
   @override
   void initState() {
     super.initState();
+    _scope = _readScope();
     appdata.settings.addListener(_refresh);
   }
 
@@ -58,8 +60,22 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
     super.dispose();
   }
 
+  Object? _scope;
+  Object _readScope() => (
+    widget.comicId != null &&
+        appdata.settings.isComicSpecificSettingsEnabled(
+          widget.comicId!,
+          widget.comicSource,
+        ),
+    appdata.settings.isDeviceSpecificSettingsEnabled(),
+    appdata.settings.tvLowMemoryEnabled,
+  );
+
   void _refresh() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final scope = _readScope();
+    if (_scope == scope) return;
+    setState(() => _scope = scope);
   }
 
   ReaderPreferenceStore get _store => ReaderPreferenceStore(
@@ -138,7 +154,7 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
           onDetect: widget.onDetectLayout,
           onChanged: () {
             widget.onChanged?.call('readerMode');
-            _refresh();
+            setState(() {});
           },
         ).toSliver();
 
@@ -229,6 +245,19 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
               ],
             ),
           if (comicId == null) _modeSettings(),
+          ListTile(title: Text('Adjust picture'.tl)).toSliver(),
+          ReaderBrightnessSetting(
+            comicId: widget.comicId,
+            sourceKey: widget.comicSource,
+            preview: widget.brightnessPreview,
+            onChanged: widget.onChanged,
+          ).toSliver(),
+          ReaderAppearanceSettings(
+            comicId: isEnabledSpecificSettings ? widget.comicId : null,
+            sourceKey: isEnabledSpecificSettings ? widget.comicSource : null,
+            useDeviceSettings: useDeviceSpecificSettings,
+            onChanged: widget.onChanged,
+          ).toSliver(),
           const Divider().toSliver(),
           SwitchSetting.reader(
             title: "Tap to turn Pages".tl,
@@ -259,12 +288,6 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
             comicId: isEnabledSpecificSettings ? widget.comicId : null,
             comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
             useDeviceSettings: useDeviceSpecificSettings,
-          ).toSliver(),
-          ReaderBrightnessSetting(
-            comicId: widget.comicId,
-            sourceKey: widget.comicSource,
-            preview: widget.brightnessPreview,
-            onChanged: widget.onChanged,
           ).toSliver(),
           SwitchSetting.reader(
             title: "E-Ink display refresh".tl,
@@ -665,53 +688,6 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
             help:
                 "On the image browsing page, you can quickly collect images by sliding horizontally or vertically according to your reading mode"
                     .tl,
-            comicId: isEnabledSpecificSettings ? widget.comicId : null,
-            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
-            useDeviceSettings: useDeviceSpecificSettings,
-          ).toSliver(),
-          ListTile(
-            title: Text('${'Line enhancement'.tl} / ${'Night mode'.tl}'),
-          ).toSliver(),
-          SwitchSetting.reader(
-            title: 'Line enhancement'.tl,
-            preference: ReaderPreferences.readerLineEnhancement,
-            subtitle:
-                'Deepen faint lines and text. Reduce strength for color comics.'
-                    .tl,
-            onChanged: () => widget.onChanged?.call('readerLineEnhancement'),
-            comicId: isEnabledSpecificSettings ? widget.comicId : null,
-            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
-            useDeviceSettings: useDeviceSpecificSettings,
-          ).toSliver(),
-          SliderSetting.reader(
-            title: 'Line enhancement strength'.tl,
-            preference: ReaderPreferences.readerLineEnhancementStrength,
-            valueFormatter: (value) => '${(value * 100).round()}%',
-            onChanged: () =>
-                widget.onChanged?.call('readerLineEnhancementStrength'),
-            comicId: isEnabledSpecificSettings ? widget.comicId : null,
-            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
-            useDeviceSettings: useDeviceSpecificSettings,
-          ).toSliver(),
-          SelectSetting.reader(
-            title: 'Night mode'.tl,
-            preference: ReaderPreferences.readerNightMode,
-            optionTranslation: {
-              'none': 'Off'.tl,
-              'warm': 'Warm'.tl,
-              'dark': 'Dark'.tl,
-              'red': 'Red'.tl,
-            },
-            onChanged: () => widget.onChanged?.call('readerNightMode'),
-            comicId: isEnabledSpecificSettings ? widget.comicId : null,
-            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
-            useDeviceSettings: useDeviceSpecificSettings,
-          ).toSliver(),
-          SliderSetting.reader(
-            title: 'Night mode intensity'.tl,
-            preference: ReaderPreferences.readerNightModeIntensity,
-            valueFormatter: (value) => '${(value * 100).round()}%',
-            onChanged: () => widget.onChanged?.call('readerNightModeIntensity'),
             comicId: isEnabledSpecificSettings ? widget.comicId : null,
             comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
             useDeviceSettings: useDeviceSpecificSettings,

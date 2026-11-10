@@ -33,7 +33,7 @@ class ReadingDurationFailure implements FailureDetails {
 
   @override
   String get message =>
-      'Reading duration has ${failures.length} pending errors';
+      'Reading duration has ${failures.length} pending errors:\n${failures.map((failure) => failure.cause).join('\n')}';
 
   @override
   Object? get cause => failures.firstOrNull?.cause;

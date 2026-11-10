@@ -28,7 +28,7 @@ import 'package:venera_next/routing/app_navigation.dart';
 import '../../components/sidebar_presentation_test.dart'
     show pumpSidebar, settleSidebarWork;
 
-class _History extends Fake implements HistoryManager {
+class _History extends Fake with ChangeNotifier implements HistoryManager {
   @override
   History? find(String id, ComicType type) => null;
 }

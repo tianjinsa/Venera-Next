@@ -69,6 +69,10 @@ class _ReaderWithLoadingState
   }
 
   @override
+  Widget buildFrame(BuildContext context, Widget child) =>
+      ColoredBox(color: Theme.of(context).colorScheme.surface, child: child);
+
+  @override
   Future<Res<ReaderProps>> loadData(RequestScope scope) => _entryLoader.load(
     id: widget.id,
     sourceKey: widget.sourceKey,

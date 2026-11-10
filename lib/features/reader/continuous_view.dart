@@ -548,8 +548,11 @@ class ContinuousModeState extends State<ReaderContinuousView>
           _isNavigatingWaterfallLocation) {
         return;
       }
-      _setReaderLocation(imageRef);
-      widget.onUpdate();
+      if (currentChapter != imageRef.position.chapter ||
+          currentPage != imageRef.position.imageNumber) {
+        _setReaderLocation(imageRef);
+        widget.onUpdate();
+      }
     } else if (page != currentPage) {
       navigation.reportPage(page);
       widget.onUpdate();

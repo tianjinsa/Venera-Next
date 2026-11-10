@@ -209,6 +209,7 @@ class GalleryModeState extends State<ReaderGalleryView>
   }
 
   bool _precacheScheduled = false;
+  Object? _lastPrecache;
   void _schedulePrecache() {
     if (_precacheScheduled) return;
     _precacheScheduled = true;
@@ -223,6 +224,16 @@ class GalleryModeState extends State<ReaderGalleryView>
         !ReaderImageCachePolicy.allowActivePrecache) {
       return;
     }
+    final identity = (
+      widget.imageWork,
+      data.content,
+      data.layout.imagesPerPage,
+      data.layout.singleImageOnFirstPage,
+      startPage,
+      preCacheCount,
+    );
+    if (_lastPrecache == identity) return;
+    _lastPrecache = identity;
     for (int i = startPage - 1; i <= startPage + preCacheCount; i++) {
       if (i == startPage ||
           i <= 0 ||

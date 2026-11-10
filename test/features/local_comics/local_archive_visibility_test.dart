@@ -316,53 +316,55 @@ void main() {
   }
 
   for (final action in ['Select All', 'Invert Selection']) {
-    testWidgets('bulk action only selects visible archives: $action', (
-      tester,
-    ) async {
-      final library = await _prepare(tester);
-      await tester.runAsync(() => library.import('local', _names));
-      appdata.settings['blockedWords'] = <String>['black'];
-      await _show(tester);
-      expect(find.byType(ComicTile), findsOneWidget);
-      expect(find.text('Hidden by keyword filters: 1 comics'), findsOneWidget);
-      await _selectFirst(tester);
-      await tester.tap(find.byTooltip(action));
-      await tester.pumpAndSettle();
-      final selected = _selection(tester);
-      expect(selected, hasLength(action == 'Select All' ? 1 : 0));
-      expect(
-        selected.keys.any((comic) => comic.title.contains('black')),
-        isFalse,
-      );
-      expect(library.manager.count, 2);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'bulk action includes keyword matches in user-imported archives: $action',
+      (tester) async {
+        final library = await _prepare(tester);
+        await tester.runAsync(() => library.import('local', _names));
+        appdata.settings['blockedWords'] = <String>['black'];
+        await _show(tester);
+        expect(find.byType(ComicTile), findsNWidgets(2));
+        expect(find.text('Hidden by keyword filters: 1 comics'), findsNothing);
+        await _selectFirst(tester);
+        final first = _selection(tester).keys.single.id;
+        await tester.tap(find.byTooltip(action));
+        await tester.pumpAndSettle();
+        final selected = _selection(tester);
+        expect(selected, hasLength(action == 'Select All' ? 2 : 1));
+        expect(
+          selected.keys.any((comic) => comic.id == first),
+          action == 'Select All',
+        );
+        expect(library.manager.count, 2);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
-  testWidgets('new keyword exclusions immediately remove hidden selections', (
-    tester,
-  ) async {
-    final library = await _prepare(tester);
-    await tester.runAsync(() => library.import('local', _names));
-    await _show(tester);
-    await _selectFirst(tester);
-    await tester.tap(find.byTooltip('Select All'));
-    await tester.pumpAndSettle();
-    appdata.settings['blockedWords'] = <String>['black'];
-    await tester.pumpAndSettle();
-    expect(_selection(tester), hasLength(1));
-    expect(_selection(tester).keys.single.title, 'Sample24');
-    appdata.settings['blockedWords'] = <String>['Sample'];
-    await tester.pumpAndSettle();
-    expect(_selection(tester), isEmpty);
-    expect(find.byTooltip('Select All'), findsNothing);
-    expect(find.text('Local'), findsOneWidget);
-    expect(library.manager.count, 2);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'keyword edits preserve user-imported archives and their selection',
+    (tester) async {
+      final library = await _prepare(tester);
+      await tester.runAsync(() => library.import('local', _names));
+      await _show(tester);
+      await _selectFirst(tester);
+      await tester.tap(find.byTooltip('Select All'));
+      await tester.pumpAndSettle();
+      appdata.settings['blockedWords'] = <String>['black'];
+      await tester.pumpAndSettle();
+      expect(_selection(tester), hasLength(2));
+      appdata.settings['blockedWords'] = <String>['Sample'];
+      await tester.pumpAndSettle();
+      expect(_selection(tester), hasLength(2));
+      expect(find.byTooltip('Select All'), findsOneWidget);
+      expect(find.byType(ComicTile), findsNWidgets(2));
+      expect(library.manager.count, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
-    'abbreviated keyword matches title text, not the content category',
+    'discovery keyword matching does not filter the imported library',
     (tester) async {
       final library = await _prepare(tester);
       await tester.runAsync(() => library.import('local', _names));
@@ -372,8 +374,8 @@ void main() {
           .singleWhere((comic) => comic.title.contains('black'));
       expect(isBlocked(longTitle), 'bl');
       await _show(tester);
-      expect(find.byType(ComicTile), findsOneWidget);
-      expect(find.text('Hidden by keyword filters: 1 comics'), findsOneWidget);
+      expect(find.byType(ComicTile), findsNWidgets(2));
+      expect(find.text('Hidden by keyword filters: 1 comics'), findsNothing);
       appdata.settings['blockedWords'] = <String>['BL'];
       await tester.pumpAndSettle();
       expect(isBlocked(longTitle), isNull);
@@ -454,7 +456,7 @@ void main() {
   for (final brightness in Brightness.values) {
     for (final landscape in [false, true]) {
       testWidgets(
-        'visible selection and hidden notice adapt to large text and reduced motion: $brightness landscape=$landscape',
+        'complete library selection adapts to large text and reduced motion: $brightness landscape=$landscape',
         (tester) async {
           final library = await _prepare(tester);
           await tester.runAsync(() => library.import('local', _names));
@@ -468,65 +470,74 @@ void main() {
           );
           expect(
             find.text('Hidden by keyword filters: 1 comics'),
-            findsOneWidget,
+            findsNothing,
           );
           await _selectFirst(tester);
           await tester.tap(find.byTooltip('Select All'));
           await tester.pumpAndSettle();
-          expect(_selection(tester), hasLength(1));
-          expect(find.text('1'), findsOneWidget);
+          expect(_selection(tester), hasLength(2));
+          expect(find.text('2'), findsOneWidget);
           appdata.settings['blockedWords'] = <String>[];
           await tester.pumpAndSettle();
           expect(find.byType(ComicTile), findsNWidgets(2));
-          expect(_selection(tester), hasLength(1));
+          expect(_selection(tester), hasLength(2));
           expect(tester.takeException(), isNull);
         },
       );
     }
   }
 
-  testWidgets('stale bulk menus cannot act on a newly hidden selection', (
-    tester,
-  ) async {
-    final library = await _prepare(tester);
-    await tester.runAsync(() => library.import('local', _names));
-    await _show(tester);
-    await _selectFirst(tester);
-    final entries = tester.widget<MenuButton>(find.byType(MenuButton)).entries;
-    appdata.settings['blockedWords'] = <String>['Sample'];
-    await tester.pumpAndSettle();
-    final barriers = find.byType(ModalBarrier).evaluate().length;
-    for (final entry in entries) {
-      entry.onClick();
-    }
-    await tester.pumpAndSettle();
-    expect(find.byType(ModalBarrier), findsNWidgets(barriers));
-    expect(find.byType(ContentDialog), findsNothing);
-    expect(_selection(tester), isEmpty);
-    await tester.runAsync(library.expectReadable);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'stale bulk menus cannot act after the user clears their selection',
+    (tester) async {
+      final library = await _prepare(tester);
+      await tester.runAsync(() => library.import('local', _names));
+      await _show(tester);
+      await _selectFirst(tester);
+      final entries = tester
+          .widget<MenuButton>(find.byType(MenuButton))
+          .entries;
+      appdata.settings['blockedWords'] = <String>['Sample'];
+      await tester.tap(find.byType(ComicTile).first);
+      await tester.pumpAndSettle();
+      final barriers = find.byType(ModalBarrier).evaluate().length;
+      for (final entry in entries) {
+        entry.onClick();
+      }
+      await tester.pumpAndSettle();
+      expect(find.byType(ModalBarrier), findsNWidgets(barriers));
+      expect(find.byType(ContentDialog), findsNothing);
+      expect(_selection(tester), isEmpty);
+      await tester.runAsync(library.expectReadable);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('an open delete confirmation rechecks the visible selection', (
-    tester,
-  ) async {
-    final library = await _prepare(tester);
-    await tester.runAsync(() => library.import('local', _names));
-    await _show(tester);
-    await _selectFirst(tester);
-    tester
-        .widget<MenuButton>(find.byType(MenuButton))
-        .entries
-        .singleWhere((entry) => entry.text == 'Delete')
-        .onClick();
-    await tester.pumpAndSettle();
-    expect(find.text('Confirm'), findsOneWidget);
-    appdata.settings['blockedWords'] = <String>['Sample'];
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Confirm'));
-    await tester.pumpAndSettle();
-    expect(find.text('Confirm'), findsNothing);
-    await tester.runAsync(library.expectReadable);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'an open delete confirmation still rechecks a changed selection',
+    (tester) async {
+      final library = await _prepare(tester);
+      await tester.runAsync(() => library.import('local', _names));
+      await _show(tester);
+      await _selectFirst(tester);
+      tester
+          .widget<MenuButton>(find.byType(MenuButton))
+          .entries
+          .singleWhere((entry) => entry.text == 'Delete')
+          .onClick();
+      await tester.pumpAndSettle();
+      expect(find.text('Confirm'), findsOneWidget);
+      appdata.settings['blockedWords'] = <String>['Sample'];
+      final grid = tester.widget<SliverGridComics>(
+        find.byType(SliverGridComics),
+      );
+      grid.onTap!(grid.comics.last, 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+      expect(find.text('Confirm'), findsNothing);
+      await tester.runAsync(library.expectReadable);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

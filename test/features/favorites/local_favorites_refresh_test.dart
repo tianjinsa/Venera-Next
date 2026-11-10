@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/components/button.dart';
+import 'package:venera_next/features/comic_details/comic_details.dart';
+import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/features/favorites/favorite_models.dart';
 import 'package:venera_next/features/favorites/favorites_manager.dart';
@@ -33,9 +35,19 @@ Finder _tile(String id) => find.byWidgetPredicate(
   (widget) => widget is ComicTile && widget.comic.id == id,
 );
 
+class _CountingHistory extends HistoryManager {
+  _CountingHistory() : super.create();
+  int reads = 0;
+  @override
+  History? find(String id, ComicType type) {
+    reads++;
+    return super.find(id, type);
+  }
+}
+
 class _Fixture {
   final manager = LocalFavoritesManager.independent();
-  final history = HistoryManager.create();
+  final history = _CountingHistory();
   final navigator = GlobalKey<NavigatorState>();
   double textScale = 1;
   bool dark = false;
@@ -335,38 +347,43 @@ void main() {
     });
   }
 
-  testWidgets('select all and invert use only visible favorite records', (
-    tester,
-  ) async {
-    final fixture = await _prepare(tester, 3);
-    appdata.settings[KeywordPreferences.comics.key] = <String>['Existing 1'];
-    await tester.pumpWidget(fixture.host());
-    await _settle(tester);
-    await tester.tap(find.byTooltip('Select comics'));
-    await tester.pumpAndSettle();
-    await _chooseAction(tester, 'Select All');
-    expect(find.text('Selected 2 comics'), findsOneWidget);
-    final grid = tester.widget<SliverGridComics>(find.byType(SliverGridComics));
-    expect(
-      grid.selections!.keys.map((comic) => comic.id),
-      unorderedEquals(['seed-0', 'seed-2']),
-    );
-    await _chooseAction(tester, 'Invert Selection');
-    expect(find.text('Selected 0 comics'), findsOneWidget);
-    await _chooseAction(tester, 'Invert Selection');
-    expect(find.text('Selected 2 comics'), findsOneWidget);
-    await tester.tap(_tile('seed-0'));
-    await tester.pumpAndSettle();
-    expect(find.text('Selected 1 comics'), findsOneWidget);
-    appdata.settings[KeywordPreferences.comics.key] = <String>['Existing 2'];
-    await tester.pumpAndSettle();
-    expect(find.text('Selected 1 comics'), findsNothing);
-    expect(
-      tester.widget<SliverGridComics>(find.byType(SliverGridComics)).selections,
-      isEmpty,
-    );
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'keyword changes do not hide favorites or change their selection',
+    (tester) async {
+      final fixture = await _prepare(tester, 3);
+      appdata.settings[KeywordPreferences.comics.key] = <String>['Existing 1'];
+      await tester.pumpWidget(fixture.host());
+      await _settle(tester);
+      await tester.tap(find.byTooltip('Select comics'));
+      await tester.pumpAndSettle();
+      await _chooseAction(tester, 'Select All');
+      expect(find.text('Selected 3 comics'), findsOneWidget);
+      final grid = tester.widget<SliverGridComics>(
+        find.byType(SliverGridComics),
+      );
+      expect(
+        grid.selections!.keys.map((comic) => comic.id),
+        unorderedEquals(['seed-0', 'seed-1', 'seed-2']),
+      );
+      await _chooseAction(tester, 'Invert Selection');
+      expect(find.text('Selected 0 comics'), findsOneWidget);
+      await _chooseAction(tester, 'Invert Selection');
+      expect(find.text('Selected 3 comics'), findsOneWidget);
+      await tester.tap(_tile('seed-0'));
+      await tester.pumpAndSettle();
+      expect(find.text('Selected 2 comics'), findsOneWidget);
+      appdata.settings[KeywordPreferences.comics.key] = <String>['Existing 2'];
+      await tester.pumpAndSettle();
+      expect(find.text('Selected 2 comics'), findsOneWidget);
+      expect(
+        tester
+            .widget<SliverGridComics>(find.byType(SliverGridComics))
+            .selections,
+        hasLength(2),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('selection entry clears on back and on folder changes', (
     tester,
@@ -398,7 +415,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('long-press range selection skips hidden comics', (tester) async {
+  testWidgets('long-press range selection retains keyword matches', (
+    tester,
+  ) async {
     final fixture = await _prepare(tester, 3);
     appdata.settings[KeywordPreferences.comics.key] = <String>['Existing 1'];
     await tester.pumpWidget(fixture.host());
@@ -407,14 +426,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.longPress(_tile('seed-2'));
     await tester.pumpAndSettle();
-    expect(find.text('Selected 2 comics'), findsOneWidget);
+    expect(find.text('Selected 3 comics'), findsOneWidget);
     expect(
       tester
           .widget<SliverGridComics>(find.byType(SliverGridComics))
           .selections!
           .keys
           .map((comic) => comic.id),
-      unorderedEquals(['seed-0', 'seed-2']),
+      unorderedEquals(['seed-0', 'seed-1', 'seed-2']),
     );
     expect(tester.takeException(), isNull);
   });
@@ -548,4 +567,54 @@ void main() {
     expect(_tile('from-b'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    '1200 favorites skip keyword matching and per-comic history queries',
+    (tester) async {
+      final fixture = await _prepare(tester, 1200);
+      appdata.settings['blockedWords'] = ['Existing'];
+      await tester.pumpWidget(fixture.host());
+      await _settle(tester);
+      final grid = tester.widget<SliverGridComics>(
+        find.byType(SliverGridComics),
+      );
+      expect(grid.filterBlockedComics, isFalse);
+      expect(grid.comics, hasLength(1200));
+      expect(fixture.history.reads, 0);
+      appdata.settings['readerBrightness'] = 75;
+      await tester.pump();
+      expect(fixture.history.reads, 0);
+      await tester.tap(find.byTooltip('Select comics'));
+      await tester.pumpAndSettle();
+      await _chooseAction(tester, 'Select All');
+      expect(find.text('Selected 1200 comics'), findsOneWidget);
+      expect(fixture.history.reads, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'favorite details use the list navigator and keep the cover hero',
+    (tester) async {
+      final fixture = await _prepare(tester, 1);
+      final previous = appNavigation.mainNavigatorKey;
+      appNavigation.mainNavigatorKey = fixture.navigator;
+      addTearDown(() => appNavigation.mainNavigatorKey = previous);
+      appdata.settings['onClickFavorite'] = 'viewDetail';
+      await tester.pumpWidget(fixture.host());
+      await _settle(tester);
+      final hero = tester.widget<ComicTile>(_tile('seed-0')).heroID;
+      await tester.tap(_tile('seed-0'));
+      await tester.pump();
+      expect(fixture.navigator.currentState!.canPop(), isTrue);
+      expect(
+        tester
+            .widget<ComicPage>(find.byType(ComicPage, skipOffstage: false))
+            .heroID,
+        hero,
+      );
+      fixture.navigator.currentState!.pop();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

@@ -6,6 +6,10 @@ import 'package:venera_next/components/keyword_rule_labels.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/settings_save_state.dart';
+import 'package:venera_next/components/window_selection_task.dart';
+import 'package:venera_next/features/favorites/favorites_scope.dart';
+import 'package:venera_next/features/comic_widgets/keyword_hidden_notice.dart';
+import 'package:venera_next/foundation/selection_operation.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/translations.dart';
@@ -46,6 +50,45 @@ class KeywordBlockingSettings extends StatefulWidget {
 
 class _KeywordBlockingSettingsState
     extends SettingsSaveState<KeywordBlockingSettings> {
+  bool _scanning = false;
+
+  Future<void> _scanFavorites() async {
+    if (_scanning || !acceptsSettingsChanges) return;
+    final store = FavoritesScope.capture(context);
+    final manager = store.manager;
+    final generation = manager.connectionGeneration;
+    final owner = WindowSelectionTask(context);
+    setState(() => _scanning = true);
+    try {
+      final comics = await owner.run((operation) async {
+        operation.checkActive();
+        return manager.getAllComicsAsync();
+      });
+      if (!mounted ||
+          !owner.canPresent ||
+          !store.isCurrent ||
+          generation != manager.connectionGeneration) {
+        return;
+      }
+      setState(() => _scanning = false);
+      await showKeywordFilterReview(
+        context,
+        comics: () => comics,
+        description:
+            'Favorites are always visible. Review matches here to improve your rules.'
+                .tl,
+      );
+    } on SelectionCancelled {
+      // The settings page or its library was retired.
+    } catch (error) {
+      if (mounted && owner.canPresent) {
+        context.showMessage(message: error.toString());
+      }
+    } finally {
+      if (mounted) setState(() => _scanning = false);
+    }
+  }
+
   BlockedKeywordList get _target =>
       widget.comments ? BlockedKeywordList.comments : BlockedKeywordList.comics;
 
@@ -100,8 +143,26 @@ class _KeywordBlockingSettingsState
           ),
         ],
         body: ListView.builder(
-          itemCount: rules.length,
+          itemCount: rules.length + (widget.comments ? 0 : 1),
           itemBuilder: (context, index) {
+            if (!widget.comments && index == 0) {
+              return ListTile(
+                leading: const Icon(Icons.manage_search),
+                title: Text('Scan local favorites'.tl),
+                subtitle: Text(
+                  'Review keyword and author matches without hiding favorites.'
+                      .tl,
+                ),
+                trailing: _scanning
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.chevron_right),
+                onTap: _scanning ? null : _scanFavorites,
+              );
+            }
+            if (!widget.comments) index--;
             final rule = rules[index];
             return ListTile(
               title: Text(
@@ -216,6 +277,30 @@ class _KeywordRuleEditorState extends SettingsSaveState<KeywordRuleEditor> {
             _error = _stale
                 ? 'The rule changed. Close and reopen the editor.'.tl
                 : 'Keyword already exists'.tl;
+          });
+        }
+      },
+    );
+  }
+
+  Future<void> _delete() async {
+    final original = widget.initialRule;
+    if (original == null || !_editable || !acceptsSettingsChanges) return;
+    var removed = false;
+    await saveSetting(
+      (widget.target, original.keyword),
+      () async {
+        removed = await _keywordSettings.removeRule(widget.target, original);
+      },
+      onSaved: () {
+        if (!removed) {
+          setState(() {
+            _stale = true;
+            _error = 'The rule changed. Close and reopen the editor.'.tl;
+          });
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) leaveSettings();
           });
         }
       },
@@ -361,6 +446,14 @@ class _KeywordRuleEditorState extends SettingsSaveState<KeywordRuleEditor> {
       ),
       actions: [
         settingsSaveStatus,
+        if (widget.initialRule != null)
+          TextButton(
+            onPressed: _editable ? _delete : null,
+            child: Text(
+              'Delete'.tl,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
         FilledButton(
           onPressed: _editable ? _save : null,
           child: Text(widget.initialRule == null ? 'Add'.tl : 'Save'.tl),

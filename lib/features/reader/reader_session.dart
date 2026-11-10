@@ -18,7 +18,7 @@ class ReaderSessionFailure implements FailureDetails {
   FailureKind get kind => FailureKind.failed;
   @override
   String get message =>
-      'Reader session failed: ${failures.map((failure) => failure.operation).join(', ')}';
+      'Reader session failed:\n${failures.map((failure) => '${failure.operation}: ${failure.error}').join('\n')}';
   @override
   Object? get cause => failures.firstOrNull?.error;
   @override

@@ -1,3 +1,4 @@
+import 'reader_appearance.dart';
 import 'package:flutter/material.dart';
 import 'package:venera_next/features/reader/brightness.dart';
 import 'package:venera_next/components/settings_save_state.dart';
@@ -126,7 +127,14 @@ class _ReaderBrightnessSettingState
               brightness: brightness,
               onEnabledChanged: _enabled,
               onBrightnessChanged: _brightness,
-              status: settingsSaveStatus,
+              status: hasSettingsSaveError ? settingsSaveStatus : null,
+              additionalSettings: ReaderAppearanceSettings(
+                comicId: widget.comicId,
+                sourceKey: widget.sourceKey,
+                activeScope: true,
+                compact: true,
+                onChanged: widget.onChanged,
+              ),
             )
           : Column(
               mainAxisSize: MainAxisSize.min,
@@ -137,7 +145,7 @@ class _ReaderBrightnessSettingState
                   onEnabledChanged: _enabled,
                   onBrightnessChanged: _brightness,
                 ),
-                settingsSaveStatus,
+                if (hasSettingsSaveError) settingsSaveStatus,
               ],
             ),
     );

@@ -133,15 +133,12 @@ void main() {
         );
         await tester.pumpAndSettle();
         if (mode == 'detailed') {
-          expect(find.text('Chapter 21 / 55 - Page 162 / 233'), findsOneWidget);
+          expect(find.text('Chapter 21 / 55 - P162 / 233'), findsOneWidget);
         } else {
           expect(find.text('Ch. 21/55'), findsOneWidget);
-          expect(find.text('P. 162/233'), findsOneWidget);
+          expect(find.text('P162/233'), findsOneWidget);
         }
-        expect(
-          find.byTooltip('Chapter 21 / 55 - Page 162 / 233'),
-          findsOneWidget,
-        );
+        expect(find.byTooltip('Chapter 21 / 55 - P162 / 233'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       });
@@ -170,16 +167,16 @@ void main() {
       ),
     );
     await tester.pumpWidget(view());
-    expect(find.text('Chapter 21 / 55 - Page 162 / 233'), findsOneWidget);
+    expect(find.text('Chapter 21 / 55 - P162 / 233'), findsOneWidget);
     expect(find.text('Ch. 21/55'), findsNothing);
     appdata.settings['showHistoryStatusOnTile'] = true;
     await tester.pumpWidget(view());
-    expect(find.text('Chapter 21 / 55 - Page 162 / 233'), findsOneWidget);
-    expect(find.text('Ch. 21/55'), findsOneWidget);
-    expect(find.text('P. 162/233'), findsOneWidget);
+    expect(find.text('Chapter 21 / 55 - P162 / 233'), findsOneWidget);
+    expect(find.text('Ch. 21/55'), findsNothing);
+    expect(find.text('P162/233'), findsNothing);
     appdata.settings['showDetailedReadingProgress'] = false;
     await tester.pumpWidget(view());
-    expect(find.text('Chapter 21 - Page 162'), findsNWidgets(3));
+    expect(find.text('Chapter 21 - P162'), findsOneWidget);
     expect(find.text('Ch. 21/55'), findsNothing);
     expect(item.maxChapter, 55);
     expect(item.maxPage, 233);
@@ -197,9 +194,9 @@ void main() {
         home: Scaffold(body: SimpleComicTile(comic: item)),
       ),
     );
-    expect(find.text('Ch. 21'), findsOneWidget);
-    expect(find.text('P. 162/233'), findsOneWidget);
-    expect(find.byTooltip('Chapter 21 - Page 162 / 233'), findsOneWidget);
+    expect(find.text('Ch. 21'), findsNothing);
+    expect(find.text('P162/233'), findsNothing);
+    expect(find.byTooltip('Chapter 21 - P162 / 233'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -208,8 +205,8 @@ void main() {
     tester,
   ) async {
     const title = 'A very long chapter title with a subtitle and punctuation';
-    const progress = 'Chapter 21 / 55 - Page 162 / 233';
-    const tooltip = '$title - Page 162\n$progress';
+    final progress = '$title - P162 / 233';
+    final tooltip = '$title - P162\n$progress';
     final item = _history(source)..chapterTitle = title;
     appdata.settings['showHistoryStatusOnTile'] = true;
     final semantics = tester.ensureSemantics();
@@ -234,12 +231,12 @@ void main() {
         ),
       );
       expect(find.text(progress), findsOneWidget);
-      expect(find.text('Ch. 21/55'), findsOneWidget);
-      expect(find.text('P. 162/233'), findsOneWidget);
-      expect(find.byTooltip(tooltip), findsNWidgets(2));
+      expect(find.text('Ch. 21/55'), findsNothing);
+      expect(find.text('P162/233'), findsNothing);
+      expect(find.byTooltip(tooltip), findsNWidgets(3));
       expect(
         find.bySemanticsLabel(RegExp(RegExp.escape(tooltip))),
-        findsNWidgets(2),
+        findsNWidgets(3),
       );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
@@ -254,7 +251,7 @@ void main() {
         'compact progress stays accessible at dark=$dark scale=$scale',
         (tester) async {
           const description =
-              'Volume Two - A long chapter title (Chapter 21 / 55) - Page 162 / 233';
+              'Volume Two - A long chapter title (Chapter 21 / 55) - P162 / 233';
           configureComicWidgets(
             tileStateResolver: (_) => const ComicTileState(
               isFavorite: true,
@@ -262,7 +259,7 @@ void main() {
               historyPage: 162,
               historyMaxPage: 233,
               historyDescription: description,
-              historyCompactDescription: 'Ch. 21/55\nP. 162/233',
+              historyCompactDescription: 'Ch. 21/55\nP162/233',
             ),
           );
           final semantics = tester.ensureSemantics();
@@ -301,14 +298,14 @@ void main() {
                 ),
               ),
             );
-            expect(find.text('Ch. 21/55'), findsNWidgets(3));
-            expect(find.text('P. 162/233'), findsNWidgets(3));
+            expect(find.text('Ch. 21/55'), findsNothing);
+            expect(find.text('P162/233'), findsNothing);
             expect(find.byTooltip(description), findsNWidgets(3));
             expect(find.bySemanticsLabel(description), findsNWidgets(3));
-            for (var i = 0; i < 3; i++) {
-              final chapter = tester.getRect(find.text('Ch. 21/55').at(i));
-              final page = tester.getRect(find.text('P. 162/233').at(i));
-              expect(page.top, greaterThanOrEqualTo(chapter.bottom));
+            for (final tooltip in find.byTooltip(description).evaluate()) {
+              final size = (tooltip.renderObject! as RenderBox).size;
+              expect(size.width, 24);
+              expect(size.height, 24);
             }
             expect(tester.takeException(), isNull);
             await tester.pumpWidget(const SizedBox.shrink());

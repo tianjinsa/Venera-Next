@@ -133,7 +133,6 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   @override
   void initState() {
     super.initState();
-    _brightnessPreview.addListener(update);
     widget.favoriteChanges.addListener(_imageFavoritesChanged);
   }
 
@@ -179,7 +178,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   void _replaceBrightnessPreview() {
     _sidebarBinding.close();
     _brightnessPreview.dispose();
-    _brightnessPreview = ReaderBrightnessPreview()..addListener(update);
+    _brightnessPreview = ReaderBrightnessPreview();
   }
 
   void _applySystemUiMode() {
@@ -258,13 +257,16 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
           ),
           if (!isOnChapterCommentsPage)
             Positioned.fill(
-              child: ReaderBrightnessOverlay(
-                enabled:
-                    _brightnessPreview.enabled ??
-                    widget.data.preferences.readerBrightnessEnabled,
-                brightness:
-                    _brightnessPreview.brightness ??
-                    widget.data.preferences.readerBrightness,
+              child: ListenableBuilder(
+                listenable: _brightnessPreview,
+                builder: (context, _) => ReaderBrightnessOverlay(
+                  enabled:
+                      _brightnessPreview.enabled ??
+                      widget.data.preferences.readerBrightnessEnabled,
+                  brightness:
+                      _brightnessPreview.brightness ??
+                      widget.data.preferences.readerBrightness,
+                ),
               ),
             ),
           if (!isOnChapterCommentsPage) _buildInformation(),

@@ -424,7 +424,7 @@ void main() {
         Icons.favorite_border,
         Icons.fullscreen,
         Icons.screen_rotation,
-        Icons.brightness_6,
+        Icons.tune,
         Icons.play_circle_outline,
         Icons.library_books,
         Icons.download,
@@ -472,7 +472,7 @@ void main() {
           ),
         );
         expect(find.byIcon(Icons.favorite), findsOneWidget);
-        expect(find.byIcon(Icons.brightness_4), findsOneWidget);
+        expect(find.byIcon(Icons.tune), findsOneWidget);
         expect(
           find.byIcon(switch (orientation) {
             ReaderOrientation.system => Icons.screen_rotation,

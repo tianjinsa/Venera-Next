@@ -28,7 +28,7 @@ class ReaderProgressFailure implements FailureDetails {
 
   @override
   String get message =>
-      'Reading progress has ${failures.length} pending errors';
+      'Reading progress has ${failures.length} pending errors:\n${failures.map((failure) => failure.cause).join('\n')}';
 
   @override
   Object? get cause => failures.firstOrNull?.cause;

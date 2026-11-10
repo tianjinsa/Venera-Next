@@ -8,6 +8,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/components/keyword_match_preview.dart';
+import 'package:venera_next/components/image.dart';
+import 'package:venera_next/features/favorites/favorites_scope.dart';
+import 'package:venera_next/features/favorites/favorites_manager.dart';
+import 'package:venera_next/features/favorites/favorite_models.dart';
+import 'package:venera_next/features/settings/author_blocking.dart';
+import 'package:venera_next/foundation/comic_type.dart';
 import 'package:venera_next/components/message.dart' show ContentDialog;
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/features/comic_source/models.dart';
@@ -116,6 +122,36 @@ Future<void> _capture(WidgetTester tester, String name) async {
 
 Comic _comic(String title) =>
     Comic(title, '', title, null, null, '', 'webdav_library', null, null);
+
+class _ScanFavorites extends Fake
+    with ChangeNotifier
+    implements LocalFavoritesManager {
+  int reads = 0;
+  @override
+  int get connectionGeneration => 1;
+  @override
+  Future<List<FavoriteItem>> getAllComicsAsync() async {
+    reads++;
+    return [
+      FavoriteItem(
+        id: 'keyword',
+        name: 'alpha comic',
+        author: 'Other',
+        coverPath: '',
+        type: ComicType.local,
+        tags: const [],
+      ),
+      FavoriteItem(
+        id: 'author',
+        name: 'Other comic',
+        author: 'Excluded',
+        coverPath: '',
+        type: ComicType.local,
+        tags: const [],
+      ),
+    ];
+  }
+}
 
 void main() {
   App.dataPath = Directory.systemTemp.path;
@@ -263,7 +299,7 @@ void main() {
             .isLegacy,
         isTrue,
       );
-      await _tap(tester, find.text('Edit rule').first);
+      await _tap(tester, find.text('Keyword: bl').first);
       await _mode(tester, 'Whole word');
       await _tap(tester, find.byType(SwitchListTile));
       await _save(tester);
@@ -350,7 +386,7 @@ void main() {
         ),
       );
       await _tap(tester, find.text('Hidden by keyword filters: 1 comics'));
-      await _tap(tester, find.text('Edit rule'));
+      await _tap(tester, find.text('Keyword: bl'));
       await _mode(tester, 'Whole word');
       final release = Completer<void>();
       addTearDown(() {
@@ -587,4 +623,99 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
+  testWidgets(
+    'reason rows show covers and edit or delete keyword and author rules',
+    (tester) async {
+      final root = _prepare();
+      appdata.settings['blockedAuthors'] = ['Excluded'];
+      configureComicWidgets(
+        tileImageProviderResolver: (_) =>
+            const AssetImage('assets/app_icon.png'),
+        keywordRuleEditor: (context, rule) => showKeywordRuleEditor(
+          context,
+          target: BlockedKeywordList.comics,
+          rule: rule,
+        ),
+        authorRuleEditor: showAuthorRuleEditor,
+      );
+      addTearDown(configureComicWidgets);
+      await tester.pumpWidget(
+        _host(
+          CustomScrollView(
+            slivers: [
+              SliverGridComics(
+                comics: [
+                  _comic('alpha comic'),
+                  const Comic(
+                    'Other comic',
+                    '',
+                    'author',
+                    'Excluded',
+                    null,
+                    '',
+                    'webdav_library',
+                    null,
+                    null,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+      await _tap(tester, find.text('Hidden by keyword filters: 2 comics'));
+      expect(find.byType(AnimatedImage), findsNWidgets(2));
+      expect(find.text('Edit rule'), findsNothing);
+      await _tap(tester, find.text('Author: Excluded'));
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Excluded',
+      );
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pump();
+      await _flush(tester, appdata.saveData(false));
+      expect(_saved(root)['blockedAuthors'], isEmpty);
+      await _tap(tester, find.text('Keyword: alpha'));
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pump();
+      await _flush(tester, appdata.saveData(false));
+      expect(_saved(root)['blockedWords'], isEmpty);
+      expect(
+        find.text('No comics in this list are hidden by keywords.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
+    'local favorite scan reviews matches without changing the library',
+    (tester) async {
+      _prepare();
+      appdata.settings['blockedAuthors'] = ['Excluded'];
+      final favorites = _ScanFavorites();
+      addTearDown(favorites.dispose);
+      await tester.pumpWidget(
+        FavoritesScope(
+          manager: favorites,
+          child: _host(const KeywordBlockingSettings()),
+        ),
+      );
+      await _tap(tester, find.text('Scan local favorites'));
+      expect(favorites.reads, 1);
+      expect(find.text('Keyword: alpha'), findsOneWidget);
+      expect(find.text('Author: Excluded'), findsOneWidget);
+      expect(
+        find.text(
+          'Favorites are always visible. Review matches here to improve your rules.',
+        ),
+        findsOneWidget,
+      );
+      expect(appdata.settings['blockedWords'], ['alpha']);
+      expect(appdata.settings['blockedAuthors'], ['Excluded']);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 }

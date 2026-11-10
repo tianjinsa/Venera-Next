@@ -1,8 +1,8 @@
 import 'package:venera_next/features/history/history_scope.dart';
+import 'package:venera_next/features/history/history_manager.dart';
 import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
-import 'package:venera_next/foundation/keyword_filter.dart';
 import 'package:venera_next/components/file_save_task.dart';
 import 'favorite_models.dart';
 import 'favorite_folder.dart';
@@ -46,7 +46,6 @@ import 'package:venera_next/foundation/app_locale.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/navigation_admission.dart';
 import 'package:venera_next/foundation/appdata.dart';
-import 'package:venera_next/foundation/comic_type.dart';
 import 'package:venera_next/foundation/consts.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/opencc.dart';
@@ -108,6 +107,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   late final FavoriteStoreBinding _store;
 
   late final LocalFavoritesManager _observedManager;
+  late final HistoryManager _observedHistory;
   late final int _observedGeneration;
   late final String _observedDataPath;
   WindowSelectionTask? _queryOwner;
@@ -155,11 +155,17 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     _reconcileSelection();
   }
 
-  List<FavoriteItem> get _visibleComics {
-    final filter = KeywordFilter.fromSettings(appdata.settings);
-    return (searchMode ? searchResults : filterComics(comics))
-        .where((comic) => isBlocked(comic, filter: filter) == null)
-        .toList();
+  List<FavoriteItem> get _visibleComics =>
+      searchMode ? searchResults : filterComics(comics);
+
+  List<FavoriteItem>? _filteredInput, _filteredComics;
+  String? _filteredReadState;
+
+  void _onHistoryChanged() {
+    _filteredInput = null;
+    if (_canReadObservedFolder && readFilterSelect != readFilterList[0]) {
+      setState(_reconcileSelection);
+    }
   }
 
   void _reconcileSelection() {
@@ -170,10 +176,6 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
         if (selectedComics[comic] == true) comic: true,
     };
     if (selectedComics.isEmpty) multiSelectMode = false;
-  }
-
-  void _onSettingsChanged() {
-    if (_canReadObservedFolder) setState(_reconcileSelection);
   }
 
   void updateComics() {
@@ -236,10 +238,18 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   }
 
   List<FavoriteItem> filterComics(List<FavoriteItem> curComics) {
-    return curComics.where((comic) {
-      var history = HistoryScope.read(
-        context,
-      ).find(comic.id, ComicType(comic.sourceKey.hashCode));
+    if (readFilterSelect != 'Completed' && readFilterSelect != 'UnCompleted') {
+      return curComics;
+    }
+    if (identical(_filteredInput, curComics) &&
+        _filteredReadState == readFilterSelect) {
+      return _filteredComics!;
+    }
+    final histories = _observedHistory;
+    _filteredInput = curComics;
+    _filteredReadState = readFilterSelect;
+    return _filteredComics = curComics.where((comic) {
+      final history = histories.find(comic.id, comic.type);
       if (readFilterSelect == "UnCompleted") {
         return history == null || history.page != history.maxPage;
       } else if (readFilterSelect == "Completed") {
@@ -329,7 +339,8 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     }
     comics = [];
     _observedManager.addListener(updateComics);
-    appdata.settings.addListener(_onSettingsChanged);
+    _observedHistory = HistoryScope.read(context);
+    _observedHistory.addListener(_onHistoryChanged);
   }
 
   @override
@@ -380,7 +391,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     _cancelMetadataUpdates();
     _retireUpdateFlyout();
     _observedManager.removeListener(updateComics);
-    appdata.settings.removeListener(_onSettingsChanged);
+    _observedHistory.removeListener(_onHistoryChanged);
     scrollController.dispose();
     super.dispose();
   }
@@ -488,7 +499,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     final displayedComics = searchMode ? searchResults : filterComics(comics);
     final compactActions = context.width < changePoint && !isAllFolder;
     final canSelect =
-        _canReadObservedFolder && !isLoading && _visibleComics.isNotEmpty;
+        _canReadObservedFolder && !isLoading && displayedComics.isNotEmpty;
     void enterSelection() {
       if (!_canReadObservedFolder ||
           _queryOwner?.canPresent != true ||
@@ -1003,7 +1014,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                       text: "Jump to Detail".tl,
                       onClick: () {
                         final c = selectedComics.keys.first as FavoriteItem;
-                        appNavigation.mainNavigatorKey?.currentContext?.to(
+                        context.to(
                           () => ComicPage(id: c.id, sourceKey: c.sourceKey),
                         );
                       },
@@ -1189,7 +1200,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     icon: Icons.menu_book_outlined,
                     text: "Read".tl,
                     onClick: () {
-                      appNavigation.mainNavigatorKey?.currentContext?.to(
+                      context.to(
                         () =>
                             ReaderWithLoading(id: c.id, sourceKey: c.sourceKey),
                       );
@@ -1212,7 +1223,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     appdata.settings,
                   ).read(FavoritePreferences.onClickFavorite) ==
                   "viewDetail") {
-                appNavigation.mainNavigatorKey?.currentContext?.to(
+                context.to(
                   () => ComicPage(
                     id: c.id,
                     sourceKey: c.sourceKey,
@@ -1222,7 +1233,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                   ),
                 );
               } else {
-                appNavigation.mainNavigatorKey?.currentContext?.to(
+                context.to(
                   () => ReaderWithLoading(id: c.id, sourceKey: c.sourceKey),
                 );
               }

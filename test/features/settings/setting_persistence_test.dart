@@ -81,8 +81,13 @@ void main() {
       );
       final release = Completer<void>();
       final exclusive = AppDataOperations.instance.run(() => release.future);
+      final originalSwitch = tester.element(find.byType(Switch));
+      final originalTitle = tester.getRect(find.text('Page number'));
       await tester.tap(find.byType(Switch));
       await tester.pump();
+      expect(tester.element(find.byType(Switch)), same(originalSwitch));
+      expect(tester.getRect(find.text('Page number')), originalTitle);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
       expect(appdata.settings['showPageNumberInReader'], isTrue);
       expect(callbacks, 0);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);

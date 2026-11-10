@@ -486,7 +486,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 SliverGridComics(
                   key: _gridKey,
                   comics: comics,
-                  filterBlockedWords: false,
+                  filterBlockedComics: false,
                   selections: {
                     for (final comic in comics)
                       if (selectedComics.contains(_identity(comic)))

@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/image.dart';
-import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/foundation/appdata.dart';
@@ -473,7 +472,7 @@ void main() {
       final scrollbar = tester.widget<AppScrollBar>(find.byType(AppScrollBar));
       expect(
         scrollbar.dragLabelBuilder!(),
-        records[1].lastReadTime.split(' ').first,
+        records[0].lastReadTime.split(' ').first,
       );
       final tagReads = records.fold(0, (sum, comic) => sum + comic.tagReads);
       final descriptionReads = records.fold(
@@ -572,7 +571,7 @@ void main() {
 
   for (final allBlocked in [false, true]) {
     testWidgets(
-      'author-filtered pages keep prefetching (all blocked: $allBlocked)',
+      'history retains blocked authors without extra page reads (all match: $allBlocked)',
       (tester) async {
         history.records = List.generate(
           180,
@@ -585,16 +584,12 @@ void main() {
         appdata.settings['blockedAuthors'] = ['Hidden'];
         images.cache(history.records, thumbnailSize: detailedThumbnailSize);
         await mount(tester);
-        expect(history.pageReads, allBlocked ? 3 : 2);
-        if (allBlocked) {
-          expect(find.byType(ComicTile), findsNothing);
-        } else {
-          expect(
-            tester.widget<ComicTile>(find.byType(ComicTile).first).comic.id,
-            'author-60',
-          );
-        }
-        expect(find.byType(SliverListLoadingIndicator), findsNothing);
+        expect(history.pageReads, 1);
+        expect(
+          tester.widget<ComicTile>(find.byType(ComicTile).first).comic.id,
+          'author-0',
+        );
+        expect(find.text('Hidden by keyword filters: 60 comics'), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );

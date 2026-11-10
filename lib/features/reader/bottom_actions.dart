@@ -107,9 +107,9 @@ List<Widget> buildReaderBottomActions(
         ),
       ),
     Tooltip(
-      message: 'Reader brightness'.tl,
+      message: 'Adjust picture'.tl,
       child: IconButton(
-        icon: Icon(brightnessEnabled ? Icons.brightness_4 : Icons.brightness_6),
+        icon: const Icon(Icons.tune),
         color: brightnessEnabled ? Theme.of(context).colorScheme.primary : null,
         onPressed: onBrightness,
       ),

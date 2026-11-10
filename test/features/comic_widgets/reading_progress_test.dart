@@ -5,7 +5,7 @@ import 'package:venera_next/features/comic_widgets/comic_tile.dart';
 import 'package:venera_next/foundation/appdata.dart';
 
 void main() {
-  const description = '第二部 - 第100话：重新开始 - Page 23';
+  const description = '第二部 - 第100话：重新开始 - P23';
   const comic = Comic(
     'Book',
     '',
@@ -34,7 +34,7 @@ void main() {
   for (final dark in [false, true]) {
     for (final scale in [1.0, 3.0]) {
       testWidgets(
-        'progress remains readable with dark=$dark and text scale=$scale',
+        'compact indicator retains progress details with dark=$dark and text scale=$scale',
         (tester) async {
           final oldMode = appdata.settings['comicDisplayMode'];
           appdata.settings['comicDisplayMode'] = 'brief';
@@ -80,7 +80,7 @@ void main() {
               ),
             );
             await tester.pump();
-            expect(find.text(description), findsNWidgets(4));
+            expect(find.text(description), findsNothing);
             expect(find.byTooltip(description), findsNWidgets(4));
             expect(find.bySemanticsLabel(description), findsNWidgets(4));
             expect(tester.takeException(), isNull);

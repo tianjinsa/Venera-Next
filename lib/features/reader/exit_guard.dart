@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:venera_next/components/background_save.dart';
 import 'package:venera_next/foundation/navigation_admission.dart';
 import 'package:venera_next/foundation/translations.dart';
 
-/// Saves a mounted reader before navigation, retaining its pause until removal.
+/// Retains the exit hold through removal. An application-owned background
+/// callback can finish accepted writes after navigation; other hosts may drain
+/// before leaving through [ReaderExitGuard.prepare].
 class ReaderExitGuard extends StatefulWidget {
   const ReaderExitGuard({
     required this.prepare,
@@ -14,6 +17,7 @@ class ReaderExitGuard extends StatefulWidget {
     required this.onError,
     required this.child,
     this.onBackRequested,
+    this.saveInBackground,
     super.key,
   });
 
@@ -21,6 +25,7 @@ class ReaderExitGuard extends StatefulWidget {
   final void Function() Function() holdForLeave;
   final void Function(Object error, StackTrace stackTrace) onError;
   final Widget child;
+  final Future<void> Function()? saveInBackground;
 
   /// A visible menu may consume back before the save-and-leave transaction.
   final bool Function()? onBackRequested;
@@ -63,6 +68,19 @@ class ReaderExitGuardState extends State<ReaderExitGuard> {
     _failedRoute = null;
     _attempt = attempt;
     _freeze();
+    if (widget.saveInBackground case final save?) {
+      try {
+        attempt.acceptRelease(widget.holdForLeave());
+        navigator.pop();
+        _popped = !route.isCurrent;
+        if (_popped && mounted) BackgroundSave.run(context, save);
+      } catch (error, stack) {
+        attempt.report(error, stack);
+      } finally {
+        _finishAttempt(attempt, route);
+      }
+      return attempt.completion.future;
+    }
     unawaited(_prepareExit(attempt, route, navigator, widget.prepare));
     return attempt.completion.future;
   }

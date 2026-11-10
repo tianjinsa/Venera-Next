@@ -976,6 +976,7 @@ class ReaderState extends State<Reader>
   SelectionTaskRegistry? _sessionRegistry;
   void Function()? _releaseSessionHost;
   Future<void>? _sessionClosing;
+  bool _backgroundExit = false;
   bool _sessionFrozen = false;
   bool _stateDisposed = false;
 
@@ -1005,7 +1006,18 @@ class ReaderState extends State<Reader>
     _exitFrame?.removeCloseStartListener(_holdWindowSession);
     _exitFrame?.removeCloseFailureListener(_resumeWindowSession);
     _exitFrame?.removeExitTask(_prepareWindowSession);
-    _exitFrame?.trackExitTask(closing);
+    _exitFrame?.trackExitTask(
+      _backgroundExit
+          ? closing.then<void>(
+              (_) {},
+              onError: (Object _, StackTrace _) {
+                // The persistent background indicator reports this failure.
+                // The session registry retains the original failed future for
+                // final application shutdown; the window still joins its drain.
+              },
+            )
+          : closing,
+    );
     _resumeWindowSession();
     unawaited(
       closing.then<void>(
@@ -1704,6 +1716,32 @@ class ReaderState extends State<Reader>
     };
   }
 
+  Future<void> _closeReaderInBackground() async {
+    _backgroundExit = true;
+    final failures =
+        <({String operation, Object error, StackTrace stackTrace})>[];
+    Future<void> finish(String operation, Future<void> Function() close) async {
+      try {
+        await close();
+      } catch (error, stackTrace) {
+        failures.add((
+          operation: operation,
+          error: error,
+          stackTrace: stackTrace,
+        ));
+      }
+    }
+
+    await Future.wait([
+      finish('reading session', _closeSession),
+      finish('volume listener', _closeVolume),
+      finish('reader window', _closeReaderWindow),
+      if (_platformEffects case final effects?)
+        finish('platform restoration', effects.closeAndWait),
+    ]);
+    if (failures.isNotEmpty) throw ReaderSessionFailure(failures);
+  }
+
   ReaderPlatformEffectsBinding? _platformEffects;
   ReaderOrientation get readerOrientation =>
       _platformEffects?.handle.orientation ?? ReaderOrientation.system;
@@ -1921,6 +1959,7 @@ class ReaderState extends State<Reader>
         return true;
       },
       prepare: _prepareReaderExit,
+      saveInBackground: _closeReaderInBackground,
       holdForLeave: _session.holdForExit,
       onError: (error, stack) {
         Log.error('Reader', 'Failed to save before leaving: $error', stack);
@@ -1936,22 +1975,27 @@ class ReaderState extends State<Reader>
           );
         }
       },
-      child: ExcludeFocus(
-        excluding: _sessionFrozen,
-        child: AbsorbPointer(
-          absorbing: _sessionFrozen,
-          child: KeyboardListener(
-            focusNode: focusNode,
-            autofocus: true,
-            onKeyEvent: onKeyEvent,
-            child: Overlay.wrap(
-              child: ReaderShellHost(
-                reader: this,
-                child: ReaderGestureHost(
+      child: ColoredBox(
+        color: Theme.of(context).colorScheme.surface,
+        child: ExcludeFocus(
+          excluding: _sessionFrozen,
+          child: AbsorbPointer(
+            absorbing: _sessionFrozen,
+            child: KeyboardListener(
+              focusNode: focusNode,
+              autofocus: true,
+              onKeyEvent: onKeyEvent,
+              child: Overlay.wrap(
+                child: ReaderShellHost(
                   reader: this,
-                  child: ReaderImagesHost(
+                  child: ReaderGestureHost(
                     reader: this,
-                    key: Key(mode.isWaterfall ? mode.key : chapter.toString()),
+                    child: ReaderImagesHost(
+                      reader: this,
+                      key: Key(
+                        mode.isWaterfall ? mode.key : chapter.toString(),
+                      ),
+                    ),
                   ),
                 ),
               ),

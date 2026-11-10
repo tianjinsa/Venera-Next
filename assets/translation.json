@@ -1,5 +1,11 @@
 {
   "zh_CN": {
+    "Adjust picture": "调节画面",
+    "Background save failed": "后台保存失败",
+    "Scan local favorites": "扫描本地收藏夹",
+    "Review keyword and author matches without hiding favorites.": "检查收藏中的关键词和作者匹配，不会隐藏收藏。",
+    "Favorites are always visible. Review matches here to improve your rules.": "收藏夹始终完整显示。可在此检查匹配结果并调整规则。",
+    "Tap a matching reason to edit its rule.": "点击匹配原因可编辑或删除对应规则。",
     "Failed to load history": "历史记录加载失败",
     "Night mode": "夜览模式",
     "Night mode intensity": "夜览强度",
@@ -1062,6 +1068,12 @@
     "Unable to copy report.": "无法复制报告，请重试。"
   },
   "zh_TW": {
+    "Adjust picture": "調節畫面",
+    "Background save failed": "背景儲存失敗",
+    "Scan local favorites": "掃描本機收藏夾",
+    "Review keyword and author matches without hiding favorites.": "檢查收藏中的關鍵字和作者匹配，不會隱藏收藏。",
+    "Favorites are always visible. Review matches here to improve your rules.": "收藏夾始終完整顯示。可在此檢查匹配結果並調整規則。",
+    "Tap a matching reason to edit its rule.": "點擊匹配原因可編輯或刪除對應規則。",
     "Failed to load history": "歷史記錄載入失敗",
     "Night mode": "夜覽模式",
     "Night mode intensity": "夜覽強度",

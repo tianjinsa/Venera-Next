@@ -227,6 +227,10 @@
     ],
     [
       "settings",
+      "comic_widgets"
+    ],
+    [
+      "settings",
       "favorites"
     ],
     [
@@ -541,6 +545,7 @@
     "components/appbar.dart",
     "components/application_update_prompt.dart",
     "components/async_confirm_dialog.dart",
+    "components/background_save.dart",
     "components/button.dart",
     "components/code.dart",
     "components/consts.dart",
@@ -743,6 +748,7 @@
     "features/settings/logs.dart",
     "features/settings/network.dart",
     "features/settings/reader.dart",
+    "features/settings/reader_appearance.dart",
     "features/settings/reader_brightness.dart",
     "features/settings/reader_mode.dart",
     "features/settings/setting_components.dart",

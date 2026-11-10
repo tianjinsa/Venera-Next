@@ -178,17 +178,13 @@ class History implements Comic {
             'ep': number(ep, maxChapter),
           })
         : null;
-    if (!showTotals && !compact && chapterTitle?.trim().isNotEmpty == true) {
+    if (chapterTitle?.trim().isNotEmpty == true) {
       parts.add(chapterTitle!.trim());
     } else if (chapter != null) {
       parts.add(chapter);
     }
     if (page >= 1) {
-      parts.add(
-        (compact ? 'P. @page' : 'Page @page').tlParams({
-          'page': number(page, maxPage),
-        }),
-      );
+      parts.add('P${number(page, maxPage)}');
     }
     return parts.join(compact ? '\n' : ' - ');
   }

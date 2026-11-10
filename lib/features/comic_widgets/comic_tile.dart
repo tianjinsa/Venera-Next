@@ -44,6 +44,9 @@ typedef ComicFavoriteDisplayStateResolver =
 typedef ComicKeywordRuleEditor =
     Future<void> Function(BuildContext context, KeywordRule rule);
 
+typedef ComicAuthorRuleEditor =
+    Future<void> Function(BuildContext context, String author);
+
 class ComicTileState {
   const ComicTileState({
     this.isFavorite = false,
@@ -85,6 +88,7 @@ ComicWidgetListenerRegistrar? _addComicWidgetStateListener;
 ComicWidgetListenerRegistrar? _removeComicWidgetStateListener;
 ComicFavoriteDisplayStateResolver? _comicFavoriteDisplayStateResolver;
 ComicKeywordRuleEditor? _comicKeywordRuleEditor;
+ComicAuthorRuleEditor? _comicAuthorRuleEditor;
 
 void configureComicWidgets({
   ComicPageBuilder? comicPageBuilder,
@@ -95,6 +99,7 @@ void configureComicWidgets({
   ComicWidgetListenerRegistrar? removeStateListener,
   ComicFavoriteDisplayStateResolver? favoriteDisplayStateResolver,
   ComicKeywordRuleEditor? keywordRuleEditor,
+  ComicAuthorRuleEditor? authorRuleEditor,
 }) {
   _comicPageBuilder = comicPageBuilder;
   _addComicFavoriteHandler = addFavorite;
@@ -104,9 +109,11 @@ void configureComicWidgets({
   _removeComicWidgetStateListener = removeStateListener;
   _comicFavoriteDisplayStateResolver = favoriteDisplayStateResolver;
   _comicKeywordRuleEditor = keywordRuleEditor;
+  _comicAuthorRuleEditor = authorRuleEditor;
 }
 
 ComicKeywordRuleEditor? get comicKeywordRuleEditor => _comicKeywordRuleEditor;
+ComicAuthorRuleEditor? get comicAuthorRuleEditor => _comicAuthorRuleEditor;
 
 void addComicWidgetStateListener(VoidCallback listener) {
   _addComicWidgetStateListener?.call(listener);
@@ -339,116 +346,47 @@ class ComicTile extends StatelessWidget {
       _ => _buildBriefMode(context, state),
     };
 
-    final isFavorite = state.isFavorite;
-    final progressInDescription =
-        type != 'gallery' && state.descriptionOverride != null;
-    final historyPage = progressInDescription
-        ? null
-        : state.historyPage == 0
-        ? 1
-        : state.historyPage;
-    final historyDescription = progressInDescription
-        ? null
-        : state.historyDescription;
-    final hasUpdate = state.hasNewUpdate;
-
-    if (!isFavorite && historyPage == null && !hasUpdate) {
+    final historyPage = state.historyPage == 0 ? 1 : state.historyPage;
+    if (!state.isFavorite && historyPage == null && !state.hasNewUpdate) {
       return child;
     }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = type == 'gallery' && constraints.maxWidth < 88;
-        final badgeSize = compact ? 18.0 : 24.0;
-        final separateProgress =
-            historyDescription != null &&
-            state.historyCompactDescription != null;
-        // Keep multi-line progress over the cover, not over the comic title.
-        return Stack(
-          children: [
-            Positioned.fill(child: child),
-            Positioned(
-              left: type == 'detailed'
-                  ? 16
-                  : compact
-                  ? 4
-                  : 6,
-              top: compact ? 6 : 8,
-              right: type == 'detailed'
-                  ? separateProgress
-                        ? math.max(
-                            16.0,
-                            constraints.maxWidth -
-                                16 -
-                                (constraints.maxHeight - 16) * 0.68,
-                          )
-                        : 16
-                  : compact
-                  ? 4
-                  : 6,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isFavorite || hasUpdate || !separateProgress)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isFavorite)
-                            Container(
-                              height: badgeSize,
-                              width: badgeSize,
-                              color: Colors.green,
-                              child: Icon(
-                                Icons.bookmark_rounded,
-                                size: badgeSize * 2 / 3,
-                                color: Colors.white,
-                              ),
-                            ),
-                          if (!separateProgress && historyDescription != null)
-                            Flexible(
-                              child: _ReadingProgressBadge(
-                                historyDescription,
-                                tooltip: state.historyTooltipDescription,
-                              ),
-                            ),
-                          if (historyPage != null && historyDescription == null)
-                            Container(
-                              height: badgeSize,
-                              color: Colors.blue.toOpacity(0.9),
-                              constraints: BoxConstraints(minWidth: badgeSize),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: compact ? 2 : 4,
-                              ),
-                              child: CustomPaint(
-                                painter: _ReadingHistoryPainter(
-                                  historyPage,
-                                  state.historyMaxPage,
-                                ),
-                              ),
-                            ),
-                          if (hasUpdate)
-                            _buildUpdateBadge(context, size: badgeSize),
-                        ],
+    return Stack(
+      children: [
+        Positioned.fill(child: child),
+        Positioned(
+          left: type == 'detailed' ? 16 : 6,
+          top: 8,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (state.isFavorite)
+                  const SizedBox.square(
+                    dimension: 24,
+                    child: ColoredBox(
+                      color: Colors.green,
+                      child: Icon(
+                        Icons.bookmark_rounded,
+                        size: 16,
+                        color: Colors.white,
                       ),
-                    if (separateProgress)
-                      _ReadingProgressBadge(
-                        historyDescription,
-                        tooltip: state.historyTooltipDescription,
-                        compactDescription: state.historyCompactDescription,
-                      ),
-                  ],
-                ),
-              ),
+                    ),
+                  ),
+                if (historyPage != null)
+                  _ReadingHistoryBadge(
+                    page: historyPage,
+                    maxPage: state.historyMaxPage,
+                    description:
+                        state.historyTooltipDescription ??
+                        state.historyDescription,
+                  ),
+                if (state.hasNewUpdate) _buildUpdateBadge(context),
+              ],
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 
@@ -1169,42 +1107,29 @@ class _ReadingHistoryPainter extends CustomPainter {
   }
 }
 
-class _ReadingProgressBadge extends StatelessWidget {
-  const _ReadingProgressBadge(
-    this.description, {
-    this.compactDescription,
-    this.tooltip,
+class _ReadingHistoryBadge extends StatelessWidget {
+  const _ReadingHistoryBadge({
+    required this.page,
+    this.maxPage,
+    this.description,
   });
-  final String description;
-  final String? compactDescription;
-  final String? tooltip;
+  final int page;
+  final int? maxPage;
+  final String? description;
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: tooltip ?? description,
+    message: description ?? 'P$page',
     child: Semantics(
-      label: tooltip ?? description,
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-        color: context.colorScheme.primaryContainer,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final line
-                in compactDescription?.split('\n') ??
-                    [description.replaceAll('\n', ' ')])
-              Text(
-                line,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: context.colorScheme.onPrimaryContainer,
-                ),
-              ),
-          ],
+      label: description ?? 'P$page',
+      child: SizedBox.square(
+        dimension: 24,
+        child: ColoredBox(
+          color: Colors.blue.withValues(alpha: 0.9),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: CustomPaint(painter: _ReadingHistoryPainter(page, maxPage)),
+          ),
         ),
       ),
     ),
@@ -1258,35 +1183,33 @@ class SimpleComicTile extends StatelessWidget {
     );
 
     final state = _tileState(comic);
-    if (state.hasNewUpdate || state.historyDescription != null) {
+    if (state.hasNewUpdate || state.historyPage != null) {
       child = Stack(
         children: [
           child,
-          if (state.hasNewUpdate)
-            Positioned(
-              left: 0,
-              top: 0,
-              child: Container(
-                decoration: const BoxDecoration(
-                  borderRadius: BorderRadius.only(
-                    bottomRight: Radius.circular(4),
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: _buildUpdateBadge(context),
+          Positioned(
+            left: 0,
+            top: 0,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                bottomRight: Radius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (state.historyPage case final page?)
+                    _ReadingHistoryBadge(
+                      page: page == 0 ? 1 : page,
+                      maxPage: state.historyMaxPage,
+                      description:
+                          state.historyTooltipDescription ??
+                          state.historyDescription,
+                    ),
+                  if (state.hasNewUpdate) _buildUpdateBadge(context),
+                ],
               ),
             ),
-          if (state.historyDescription case final description?)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _ReadingProgressBadge(
-                description,
-                compactDescription: state.historyCompactDescription,
-                tooltip: state.historyTooltipDescription,
-              ),
-            ),
+          ),
         ],
       );
     }

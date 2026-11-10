@@ -94,7 +94,7 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
     return protectSettings(
       Column(
         children: [
-          if (savingSettings || hasSettingsSaveError) settingsSaveStatus,
+          if (hasSettingsSaveError) settingsSaveStatus,
           Expanded(
             child: IconTheme(
               data: IconThemeData(

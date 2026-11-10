@@ -153,6 +153,7 @@ class ReaderBrightnessPanel extends StatelessWidget {
     required this.onBrightnessChanged,
     this.onBrightnessChangeEnd,
     this.status,
+    this.additionalSettings,
   });
   final bool enabled;
   final Object? brightness;
@@ -160,6 +161,7 @@ class ReaderBrightnessPanel extends StatelessWidget {
   final ValueChanged<int> onBrightnessChanged;
   final ValueChanged<int>? onBrightnessChangeEnd;
   final Widget? status;
+  final Widget? additionalSettings;
   @override
   Widget build(BuildContext context) {
     final panelWidth =
@@ -173,23 +175,36 @@ class ReaderBrightnessPanel extends StatelessWidget {
       color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(8),
       clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: panelWidth,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ReaderBrightnessControl(
-                compact: true,
-                enabled: enabled,
-                brightness: brightness,
-                onEnabledChanged: onEnabledChanged,
-                onBrightnessChanged: onBrightnessChanged,
-                onBrightnessChangeEnd: onBrightnessChangeEnd,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: panelWidth,
+          maxHeight:
+              (MediaQuery.sizeOf(context).height -
+                      MediaQuery.paddingOf(context).vertical -
+                      160)
+                  .clamp(100.0, double.infinity),
+        ),
+        child: SingleChildScrollView(
+          child: SizedBox(
+            width: panelWidth,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ReaderBrightnessControl(
+                    compact: true,
+                    enabled: enabled,
+                    brightness: brightness,
+                    onEnabledChanged: onEnabledChanged,
+                    onBrightnessChanged: onBrightnessChanged,
+                    onBrightnessChangeEnd: onBrightnessChangeEnd,
+                  ),
+                  ?additionalSettings,
+                  ?status,
+                ],
               ),
-              ?status,
-            ],
+            ),
           ),
         ),
       ),

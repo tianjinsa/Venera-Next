@@ -136,6 +136,10 @@ void main() {
           );
           continue;
         }
+        if (key.startsWith('readerBrightness')) {
+          expect(effects, [ReaderSettingEffect.rebuildShell]);
+          continue;
+        }
         expect(effects.last, ReaderSettingEffect.rebuildReader, reason: key);
         expect(effects.toSet().length, effects.length, reason: key);
         if (effects.contains(ReaderSettingEffect.updateSystemUi)) {

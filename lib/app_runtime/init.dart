@@ -45,6 +45,7 @@ Future<void> init(CoreBootstrap core) async {
       target: BlockedKeywordList.comics,
       rule: rule,
     ),
+    authorRuleEditor: showAuthorRuleEditor,
     tileStateResolver: _resolveComicTileState,
     tileImageProviderResolver: _resolveComicTileImageProvider,
     addStateListener: (listener) {

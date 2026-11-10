@@ -503,7 +503,7 @@ void main() {
   }
 
   testWidgets(
-    'source replacement reloads images while exit drains the original chapter',
+    'source replacement retires the old chapter while exit saves in the background',
     (tester) async {
       final fixture = await _ReaderFixture.create(tester);
       final manager = ComicSourceManager();
@@ -549,7 +549,8 @@ void main() {
         var closed = false;
         final closing = reader.requestExit().then((_) => closed = true);
         await tester.pump();
-        expect(closed, isFalse);
+        expect(closed, isTrue);
+        expect(find.byIcon(Icons.save_outlined), findsOneWidget);
         oldChapter.complete(Res([first]));
         await _pumpUntil(tester, () => closed);
         await closing;
@@ -1350,7 +1351,7 @@ void main() {
   }
 
   testWidgets(
-    'floating action cannot navigate during reader save and can resume after failure',
+    'retired floating actions stay disabled when background saving fails',
     (tester) async {
       final fixture = await _ReaderFixture.create(tester);
       final saving = Completer<void>();
@@ -1379,7 +1380,9 @@ void main() {
         await exiting;
         await tester.pumpAndSettle();
         report(1);
-        expect(reader.chapterNavigation.action, isNotNull);
+        expect(reader.chapterNavigation.action, isNull);
+        expect(find.byIcon(Icons.error_outline), findsOneWidget);
+        expect(fixture.readerKey.currentState, isNull);
       } finally {
         if (!saving.isCompleted) saving.complete();
         await fixture.dispose(tester);
@@ -1495,7 +1498,7 @@ void main() {
   });
 
   testWidgets(
-    'embedded comments exit waits for reader save and retains failed route',
+    'embedded comments return immediately and retain a background save error',
     (tester) async {
       final fixture = await _ReaderFixture.create(tester);
       final source = _ReaderCommentSource();
@@ -1519,11 +1522,8 @@ void main() {
         expect(fixture.readerKey.currentState, same(reader));
         saving.completeError(StateError('Comments exit save failed'));
         await tester.pumpAndSettle();
-        expect(fixture.readerKey.currentState, same(reader));
-        expect(find.text('Unable to close. Please try again.'), findsOneWidget);
-        fixture.history.onProgress = null;
-        await tester.tap(exit);
-        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.error_outline), findsOneWidget);
+        expect(find.text('Unable to close. Please try again.'), findsNothing);
         expect(fixture.readerKey.currentState, isNull);
         expect(tester.takeException(), isNull);
       } finally {
@@ -2455,7 +2455,7 @@ void main() {
   );
 
   testWidgets(
-    'reader back waits for native effects restoration',
+    'reader back returns while native effects finish in the background',
     (tester) async {
       final fixture = await _ReaderFixture.create(tester);
       final platform = _PlatformEffectsProbe()..install();
@@ -2470,11 +2470,12 @@ void main() {
         var left = false;
         final leaving = reader.requestExit().then((_) => left = true);
         await tester.pump();
-        expect(left, isFalse);
+        expect(left, isTrue);
         expect(
           ModalRoute.of(fixture.readerKey.currentContext!)!.isCurrent,
-          isTrue,
+          isFalse,
         );
+        expect(find.byIcon(Icons.save_outlined), findsOneWidget);
         restored.complete();
         await _pumpUntil(tester, () => left);
         await leaving;

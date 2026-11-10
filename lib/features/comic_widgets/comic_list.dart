@@ -67,6 +67,7 @@ class SliverGridComics extends StatefulWidget {
 class SliverGridComicsState extends State<SliverGridComics> {
   List<Comic> comics = [];
   List<int> heroIDs = [];
+  Map<(String, String), int> _indexes = const {};
 
   static int _nextHeroID = 0;
   final _gridKey = GlobalKey();
@@ -88,10 +89,6 @@ class SliverGridComicsState extends State<SliverGridComics> {
   }
 
   void _refreshComics() {
-    final previousIDs = <(String, String), List<int>>{};
-    for (var i = 0; i < comics.length; i++) {
-      (previousIDs[(comics[i].sourceKey, comics[i].id)] ??= []).add(heroIDs[i]);
-    }
     final filter = widget.filterBlockedComics
         ? ComicBlockFilter.fromSettings(appdata.settings)
         : null;
@@ -102,6 +99,10 @@ class SliverGridComicsState extends State<SliverGridComics> {
           _sourceComics.length,
         ).every((i) => identical(_sourceComics[i], widget.comics[i]))) {
       return;
+    }
+    final previousIDs = <(String, String), List<int>>{};
+    for (var i = 0; i < comics.length; i++) {
+      (previousIDs[(comics[i].sourceKey, comics[i].id)] ??= []).add(heroIDs[i]);
     }
     _blockFilter = filter;
     _filterWords = widget.filterBlockedWords;
@@ -122,6 +123,10 @@ class SliverGridComicsState extends State<SliverGridComics> {
           _ => _nextHeroID++,
         },
     ];
+    _indexes = {
+      for (var i = 0; i < comics.length; i++)
+        (comics[i].sourceKey, comics[i].id): i,
+    };
   }
 
   @override
@@ -132,6 +137,7 @@ class SliverGridComicsState extends State<SliverGridComics> {
 
   @override
   void initState() {
+    _displaySettings = _readDisplaySettings();
     _refreshComics();
     addComicWidgetStateListener(update);
     appdata.settings.addListener(_onSettingsChanged);
@@ -146,13 +152,37 @@ class SliverGridComicsState extends State<SliverGridComics> {
   }
 
   void _onSettingsChanged() {
-    if (mounted) {
-      update();
-    }
+    if (!mounted) return;
+    final filter = widget.filterBlockedComics
+        ? ComicBlockFilter.fromSettings(appdata.settings)
+        : null;
+    final display = _readDisplaySettings();
+    if (identical(filter, _blockFilter) && display == _displaySettings) return;
+    _displaySettings = display;
+    setState(() {
+      if (!identical(filter, _blockFilter)) _refreshComics();
+    });
   }
 
+  Object _readDisplaySettings() {
+    final preferences = GlobalPreferenceStore(appdata.settings);
+    return (
+      preferences.read(DiscoveryPreferences.comicDisplayMode),
+      preferences.read(DiscoveryPreferences.comicTileScale),
+      preferences.read(AppPreferences.language),
+      preferences.read(DiscoveryPreferences.showFavoriteStatusOnTile),
+      preferences.read(DiscoveryPreferences.showHistoryStatusOnTile),
+      preferences.read(DiscoveryPreferences.showDetailedReadingProgress),
+      preferences.read(DiscoveryPreferences.showUpdateStatusOnTile),
+      preferences.read(FavoritePreferences.displayMode),
+      preferences.read(FavoritePreferences.galleryColumns),
+    );
+  }
+
+  late Object _displaySettings;
+
   void update() {
-    if (mounted) setState(_refreshComics);
+    if (mounted) setState(() {});
   }
 
   @override
@@ -167,6 +197,7 @@ class SliverGridComicsState extends State<SliverGridComics> {
       gridKey: _gridKey,
       comics: comics,
       heroIDs: heroIDs,
+      indexes: _indexes,
       selection: widget.selections,
       onLastItemBuild: widget.onLastItemBuild,
       badgeBuilder: widget.badgeBuilder,
@@ -202,6 +233,7 @@ class _SliverGridComics extends StatelessWidget {
     required this.gridKey,
     required this.comics,
     required this.heroIDs,
+    required this.indexes,
     this.onLastItemBuild,
     this.badgeBuilder,
     this.menuBuilder,
@@ -216,6 +248,7 @@ class _SliverGridComics extends StatelessWidget {
   final List<Comic> comics;
 
   final List<int> heroIDs;
+  final Map<(String, String), int> indexes;
 
   final Map<Comic, bool>? selection;
 
@@ -237,10 +270,6 @@ class _SliverGridComics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final indexes = {
-      for (var i = 0; i < comics.length; i++)
-        (comics[i].sourceKey, comics[i].id): i,
-    };
     return SliverGrid(
       key: gridKey,
       delegate: SliverChildBuilderDelegate(
