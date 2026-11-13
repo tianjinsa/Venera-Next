@@ -212,3 +212,16 @@ flutter pub get --enforce-lockfile
 ### Gradle 下载过慢
 
 可以在本地临时切换 Gradle wrapper 镜像或配置网络代理，但环境相关地址不应提交到仓库。提交前应确认 `gradle-wrapper.properties` 没有混入本地镜像改动。
+
+## 仅运行 GitHub Actions 质量与回归测试
+
+Cloud Codex 默认使用 fork 工作分支的手动构建工作流进行测试，不在云环境自动跑本地测试或重型构建。选择 `tests_only=true` 可强制完整质量门禁且不构建安装包；此时 `skip_tests` 不会跳过测试。普通构建中 `tests_only` 默认 false，已有平台/签名行为保持。
+
+```sh
+gh workflow run build.yml --repo tianjinsa/Venera-Next \
+  --ref codex/agent-center-tab -f tests_only=true -f skip_tests=false \
+  -f build_android=false -f build_windows=false -f build_macos=false \
+  -f build_ios=false -f build_linux_x64=false -f build_linux_arm64=false
+```
+
+提交推送后再触发，并核对 run 的 head SHA、所需 job 和最终结果；派发成功不代表通过。此入口不会创建 Release。

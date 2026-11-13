@@ -4,5 +4,7 @@
 
 本仓库的可发现 Skills：
 
-- [云环境启动与恢复](.agents/skills/venera-cloud-startup/SKILL.md)：核验/安全切换正确分支，复用环境及身份，长测试等待结束后才读取摘要。
+- [云环境启动与恢复](.agents/skills/venera-cloud-startup/SKILL.md)：核验/安全切换正确分支，复用环境及身份，默认在 GitHub Actions 测试并记录准确 SHA/结果。
 - [二次开发分支维护](.agents/skills/venera-agent-branch-maintenance/SKILL.md)：修改、验证、提交推送及上游整合时保留功能契约和维护记录。
+
+测试默认在 fork 的 GitHub Actions 运行；Cloud Codex 不自动运行本地测试或重型构建。具体入口及结果记录遵循上述两份 Skill。

@@ -1,6 +1,6 @@
 ---
 name: venera-cloud-startup
-description: 启动或恢复 Venera Next 的 Codex Cloud 工作环境。先确认 /workspace/Venera-Next 和 codex/agent-center-tab，再进行编辑、验证、提交或推送；禁止在 main/work 等错误分支继续开发，避免启动时重复安装依赖或运行全量测试。
+description: 启动或恢复 Venera Next 的 Codex Cloud 工作环境。先确认 /workspace/Venera-Next 和 codex/agent-center-tab，再进行编辑、验证、提交或推送；禁止在 main/work 等错误分支继续开发，复用依赖，默认在 fork 的 GitHub Actions 测试，不在 Cloud 自动跑本地测试。
 ---
 
 # Venera Next 云环境启动与恢复
@@ -56,29 +56,18 @@ command -v git flutter dart python
 
 必要时读取 `/workspace/venera-setup-notes.txt`。不要仅因为进入了新会话就重新安装 SDK、更新锁文件或重跑环境准备；只修复实际缺少的能力。需要解析依赖时使用锁定版本：`flutter pub get --enforce-lockfile`。不得修改 Flutter SDK 来掩盖项目或测试问题。中间文件和日志放在 `/workspace/work/<任务>/`，不放仓库根目录或用户主目录。
 
-Python 打包回归需要常规目录权限时，仅在相应子进程设 `umask 022`。不改全局权限，不将云端测试通过描述为 Android/Apple/Windows/HarmonyOS 原生或真机通过。
+GitHub Actions 的 Python 打包回归需要常规目录权限时，仅在相应子进程设 `umask 022`。不改全局权限，不将云端测试通过描述为 Android/Apple/Windows/HarmonyOS 原生或真机通过。
 
-## 4. 长测试只在完成后读取摘要
+## 4. 测试交给 GitHub Actions
 
-本项目的全量测试有6500+个测试用例，测试完成约 20 分钟。
+用户已明确：Cloud Codex 可能算力有限，**默认在 fork 的 GitHub Actions 跑测试**。本地只做编辑、文档、源码核对、格式及轻量静态检查；不要因启动/恢复会话就运行 Flutter、Python、原生测试或重型构建，也不要重复安装原生测试环境。
 
-启动检查不自动运行测试。根据本次改动及 `CONTRIBUTING.md` 选择验证；需要全量 Flutter 回归时只启动一轮最终代码验证。下面的命令自行等待测试结束，再输出退出码与末尾摘要：
-
-```sh
-mkdir -p /workspace/work/current-validation
-if flutter test --no-pub --reporter expanded > /workspace/work/current-validation/flutter-test.log 2>&1; then
-  test_exit=0
-else
-  test_exit=$?
-fi
-printf 'Flutter test exit: %s\n' "$test_exit"
-tail -n 12 /workspace/work/current-validation/flutter-test.log
-exit "$test_exit"
-```
-
-*不要不断轮询日志或进程，不循环调用 tail/rg/wc/stat/ps 查询进度*。等待期间可做独立审查或文档，不修改被验证的产品代码，不并发启动另一个 Flutter 测试/构建以争用测试资产。仅在完成后读取一次摘要，免得浪费额度；失败时再定位具体失败段。
-
-用户补充新问题而必须修改代码时，先停止旧验证并记录中止，最终代码完成后统一运行。明确区分中止、全量通过、失败修正后定向通过和未运行，不虚报结果。
+- 先读取[分支维护 Skill](../venera-agent-branch-maintenance/SKILL.md)的 Actions 流程。使用现有 PR 检查，或工作分支的 `build.yml`：`tests_only=true`、`skip_tests=false`，六个平台安装包开关均为 false；测试复用 `analyze.yml`，不发布版本。
+- 先完成源码并按会话授权提交推送，再触发对应 SHA 的验证；记录 run URL、head SHA、job conclusion 和失败摘要。queued/in_progress 不当作通过，旧 SHA 的结果不当作新源码的通过。
+- 可以在 CI 等待期间处理独立文档。不频繁查询状态，不循环读取完整日志；失败后只提取需要的失败名称和堆栈。已完成的历史结果不因新会话自动重跑。
+- 环境重连导致旧句柄丢失时，先确认本地进程是否还存在、是否有完整结束摘要；中断/部分通过/超时要如实记录。停止已明确切换到 CI 的本地轮次，不重复启动本地全量，不把资源问题推断为已证实 OOM。
+- 只有用户明确要求本地复现时才跑有界最小用例，沿用结束后读取一次摘要的规则，且不并发启动第二个测试/构建或修改被验证的产品代码。
+- 用户要求跳过或停止测试时，停止相应轮次并记录，不阻塞已授权的提交推送，不再次索要确认。
 
 ## 5. 完成前复核
 
