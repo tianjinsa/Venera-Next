@@ -26,6 +26,7 @@ import 'continuous_data.dart';
 import 'continuous_scroll.dart';
 import 'current_image.dart';
 import 'display_image_provider.dart';
+import 'image_precache.dart';
 import 'white_border_crop.dart';
 import 'reader_controller.dart';
 import 'reader_viewport.dart';
@@ -88,6 +89,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
         AutoReadingViewport,
         AutoReadingImageViewport {
   late var _imageDownloads = ReaderImageDownloads(work: widget.imageWork);
+  late var _imagePrecache = ReaderImagePrecache(work: widget.imageWork);
   late var _whiteBorderCrop = ReaderWhiteBorderCrop(widget.imageWork);
 
   @override
@@ -474,6 +476,8 @@ class ContinuousModeState extends State<ReaderContinuousView>
       _scrollController?.resetLayoutAnchor();
       unawaited(_imageDownloads.dispose());
       _imageDownloads = ReaderImageDownloads(work: widget.imageWork);
+      unawaited(_imagePrecache.dispose());
+      _imagePrecache = ReaderImagePrecache(work: widget.imageWork);
       unawaited(_waterfall.dispose());
       _waterfall = _createWaterfall();
       _isRestoringPrependedSegmentPosition = false;
@@ -504,6 +508,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
     _releaseWaterfallLoading?.call(notify: false);
     unawaited(_waterfall.dispose());
     unawaited(_imageDownloads.dispose());
+    unawaited(_imagePrecache.dispose());
     itemPositionsListener.itemPositions.removeListener(onPositionChanged);
     unawaited(_photoPositionSubscription?.cancel());
     photoViewController.dispose();
@@ -648,6 +653,17 @@ class ContinuousModeState extends State<ReaderContinuousView>
       lastVisible = math.max(lastVisible, image.index);
     }
     cacheImages(lastVisible);
+    // Visible work takes priority. Warm only the next image, with the exact
+    // provider/key used for display, after the visible images have decoded.
+    final next =
+        preCacheCount > 0 &&
+            !_scrollController!.position.recommendDeferredLoading(context) &&
+            !visible.any((image) => image.loading)
+        ? _imageRefAt(lastVisible + 1)
+        : null;
+    _imagePrecache.replace([
+      if (next != null) _imageProvider(next),
+    ], createLocalImageConfiguration(context));
     if (crossChapter) {
       _ensureWaterfallImagesBefore(firstVisible);
       _ensureWaterfallImagesAfter(lastVisible);
@@ -853,6 +869,18 @@ class ContinuousModeState extends State<ReaderContinuousView>
     );
   }
 
+  ReaderImageProvider _imageProvider(WaterfallImageRef image) =>
+      ReaderImageProvider(
+        image.imageKey,
+        data.sourceKey,
+        data.comicId,
+        image.position.chapterId,
+        image.position.imageNumber,
+        enableResize: true,
+        diagnostics: widget.imageWork.diagnostics,
+        decodePixelBudget: data.decodePixelBudget,
+      );
+
   void cacheImages(int current) {
     if (!mounted || !ReaderImageCachePolicy.allowActivePrecache) return;
     for (int i = current + 1; i <= current + preCacheCount; i++) {
@@ -1052,16 +1080,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
       width = double.infinity;
     }
 
-    final image = ReaderImageProvider(
-      imageRef.imageKey,
-      data.sourceKey,
-      data.comicId,
-      imageRef.position.chapterId,
-      imageRef.position.imageNumber,
-      enableResize: true,
-      diagnostics: widget.imageWork.diagnostics,
-      decodePixelBudget: data.decodePixelBudget,
-    );
+    final image = _imageProvider(imageRef);
 
     var comicImage = SizeChangedLayoutNotifier(
       child: ComicImage(
@@ -1080,6 +1099,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
         cropIdentity: image.key,
         onInit: (state) => imageStates.add(state),
         onDispose: (state) => imageStates.remove(state),
+        onImageReady: _schedulePositionUpdate,
       ),
     );
 

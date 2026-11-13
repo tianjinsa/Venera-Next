@@ -45,6 +45,7 @@ class ComicImage extends StatefulWidget {
     int? cacheHeight,
     this.onInit,
     this.onDispose,
+    this.onImageReady,
   }) : image = ResizeImage.resizeIfNeeded(cacheWidth, cacheHeight, image),
        assert(cacheWidth == null || cacheWidth > 0),
        assert(cacheHeight == null || cacheHeight > 0);
@@ -91,6 +92,9 @@ class ComicImage extends StatefulWidget {
   final void Function(State<ComicImage> state)? onInit;
 
   final void Function(State<ComicImage> state)? onDispose;
+
+  /// First-frame readiness can change without changing the cached layout size.
+  final VoidCallback? onImageReady;
 
   static void clear() => ComicImageState.clear();
 
@@ -285,6 +289,7 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
   }
 
   void _handleImageFrame(ImageInfo imageInfo, bool synchronousCall) {
+    final firstFrame = _frameNumber == null;
     _clearPendingProgress();
     setState(() {
       _replaceImage(info: imageInfo);
@@ -294,6 +299,7 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
       _wasSynchronouslyLoaded = _wasSynchronouslyLoaded | synchronousCall;
     });
     _requestCrop();
+    if (firstFrame) widget.onImageReady?.call();
   }
 
   void _requestCrop() {

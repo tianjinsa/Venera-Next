@@ -123,6 +123,120 @@ void main() {
     expect(BaseImageProvider.debugActiveLoadCount, 0);
   });
 
+  test('speculative reads are serial, bounded and deduplicated', () async {
+    final bytes = Completer<Uint8List>();
+    releasePending.add(() {
+      if (!bytes.isCompleted) bytes.complete(_png);
+    });
+    final precache = owner(work());
+    final images = List.generate(
+      ReaderImagePrecache.maximumPending + 2,
+      (_) => provider((_) => bytes.future),
+    );
+    for (final image in images) {
+      precache.preload(image, ImageConfiguration.empty);
+      precache.preload(image, ImageConfiguration.empty);
+    }
+    expect(images.map((image) => image.loads), [1, 0, 0, 0, 0, 0]);
+    // Queued entries already belong to the session, but have not opened a
+    // stream, read a file, or allocated an encoded/native image buffer.
+    final closing = precache.dispose();
+    bytes.complete(_png);
+    await frame();
+    await closing;
+    expect(images.map((image) => image.loads), [1, 0, 0, 0, 0, 0]);
+  });
+
+  test(
+    'a new viewport drops stale queued work and joins the old read',
+    () async {
+      final firstBytes = Completer<Uint8List>();
+      final nextBytes = Completer<Uint8List>();
+      releasePending.add(() {
+        if (!firstBytes.isCompleted) firstBytes.complete(_png);
+        if (!nextBytes.isCompleted) nextBytes.complete(_png);
+      });
+      final precache = owner(work());
+      final first = provider((_) => firstBytes.future);
+      final stale = provider((_) async => _png);
+      final next = provider((_) => nextBytes.future);
+      precache.replace([first, stale], ImageConfiguration.empty);
+      expect(first.loads, 1);
+      expect(stale.loads, 0);
+      precache.replace([next], ImageConfiguration.empty);
+      await frame();
+      expect(stale.loads, 0);
+      expect(next.loads, 0);
+      firstBytes.complete(_png);
+      for (var i = 0; i < 4 && next.loads == 0; i++) {
+        await frame();
+      }
+      expect(next.loads, 1);
+      expect(stale.loads, 0);
+      final closing = precache.dispose();
+      nextBytes.complete(_png);
+      await frame();
+      await closing;
+    },
+  );
+
+  test(
+    'the next decode waits for the previous native frame and cleanup',
+    () async {
+      final native = Completer<ui.FrameInfo>();
+      final pixels = await _image();
+      final codec = _Codec(native.future);
+      releasePending.add(() {
+        if (!native.isCompleted) native.complete(_Frame(pixels));
+      });
+      final precache = owner(work());
+      final first = provider(
+        (_) async => _png,
+        decoder: (buffer, {getTargetSize}) async {
+          buffer.dispose();
+          return codec;
+        },
+      );
+      final next = provider((_) async => _png);
+      precache.replace([first, next], ImageConfiguration.empty);
+      await pumpEventQueue();
+      expect(codec.reads, 1);
+      expect(next.loads, 0);
+      precache.replace([next], ImageConfiguration.empty);
+      await frame();
+      expect(next.loads, 0);
+      native.complete(_Frame(pixels));
+      for (var i = 0; i < 4 && next.loads == 0; i++) {
+        await frame();
+      }
+      expect(codec.disposals, 1);
+      expect(pixels.debugDisposed, isTrue);
+      expect(next.loads, 1);
+    },
+  );
+
+  test('a session hold cancels unresolved queued pages too', () async {
+    final bytes = Completer<Uint8List>();
+    releasePending.add(() {
+      if (!bytes.isCompleted) bytes.complete(_png);
+    });
+    final session = work();
+    final precache = owner(session);
+    final first = provider((_) => bytes.future);
+    final queued = provider((_) async => _png);
+    precache.replace([first, queued], ImageConfiguration.empty);
+    final preparing = session.prepareForExit();
+    await frame();
+    expect(queued.loads, 0);
+    bytes.complete(_png);
+    final release = await preparing;
+    release();
+    await frame();
+    expect(queued.loads, 0);
+    precache.replace([queued], ImageConfiguration.empty);
+    expect(queued.loads, 1);
+  });
+
   test('held sessions reject precache without resolving an image', () async {
     final session = work();
     final precache = owner(session);

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+
 /// Budget and memory-pressure lifetime for one reader. Late platform replies
 /// and delayed exit work cannot change a newer reader's cache.
 class ReaderImageCachePolicy {
@@ -14,6 +16,8 @@ class ReaderImageCachePolicy {
     _restore?.cancel();
     _restore = null;
     _activeUnderPressure = false;
+    _limit = _activeBudget;
+    _updatePrecachePermission();
   }
 
   static const defaultLimit = 100 << 20;
@@ -23,8 +27,13 @@ class ReaderImageCachePolicy {
   static Timer? _restore;
   static bool _activeUnderPressure = false;
   static int _activeBudget = defaultLimit;
-  static bool get allowActivePrecache =>
-      !_activeUnderPressure && _activeBudget >= 64 << 20;
+  static final _precacheAllowed = ValueNotifier(true);
+  static ValueListenable<bool> get precacheAllowed => _precacheAllowed;
+  static bool get allowActivePrecache => _precacheAllowed.value;
+
+  static void _updatePrecachePermission() {
+    _precacheAllowed.value = !_activeUnderPressure && _activeBudget >= 64 << 20;
+  }
 
   final Future<int?> Function() readAvailableMemory;
   final void Function(int bytes) setLimit;
@@ -42,6 +51,7 @@ class ReaderImageCachePolicy {
     _limit = value;
     _activeBudget = value;
     setLimit(value);
+    _updatePrecachePermission();
   }
 
   Future<void> configure() async {

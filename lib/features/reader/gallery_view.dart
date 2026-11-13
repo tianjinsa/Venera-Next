@@ -1,4 +1,3 @@
-import 'image_cache_policy.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -14,6 +13,7 @@ import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/image_provider/reader_image.dart';
 
 import 'gallery_data.dart';
+import 'image_cache_policy.dart';
 import 'display_image_provider.dart';
 import 'image_dimensions.dart';
 import 'image_position.dart';
@@ -222,6 +222,7 @@ class GalleryModeState extends State<ReaderGalleryView>
   void cache(int startPage) {
     if (isChapterCommentsPage(startPage) ||
         !ReaderImageCachePolicy.allowActivePrecache) {
+      _imagePrecache.replace(const [], ImageConfiguration.empty);
       return;
     }
     final identity = (
@@ -229,33 +230,43 @@ class GalleryModeState extends State<ReaderGalleryView>
       data.content,
       data.layout.imagesPerPage,
       data.layout.singleImageOnFirstPage,
+      data.decodePixelBudget,
       startPage,
       preCacheCount,
     );
     if (_lastPrecache == identity) return;
     _lastPrecache = identity;
-    for (int i = startPage - 1; i <= startPage + preCacheCount; i++) {
-      if (i == startPage ||
-          i <= 0 ||
-          i > totalPages ||
-          isChapterCommentsPage(i)) {
+    final decoded = <ReaderImageProvider>[];
+    // The next page has priority over the previous, usually cached page.
+    for (final adjacent in [
+      if (preCacheCount > 0) startPage + 1,
+      startPage - 1,
+    ]) {
+      if (adjacent <= 0 ||
+          adjacent > totalPages ||
+          isChapterCommentsPage(adjacent)) {
         continue;
       }
-      _cachePage(i, i == startPage + 1 || i == startPage - 1);
+      final (start, end) = getPageImagesRange(adjacent);
+      for (var i = start; i < end; i++) {
+        decoded.add(_imageProvider(data.images[i]));
+      }
+    }
+    _imagePrecache.replace(decoded, createLocalImageConfiguration(context));
+    for (int i = startPage + 2; i <= startPage + preCacheCount; i++) {
+      if (i > totalPages || isChapterCommentsPage(i)) {
+        continue;
+      }
+      _downloadPage(i);
     }
   }
 
-  void _cachePage(int page, bool shouldPreCache) {
+  void _downloadPage(int page) {
     if (isChapterCommentsPage(page)) return;
     var (startIndex, endIndex) = getPageImagesRange(page);
     for (int i = startIndex; i < endIndex; i++) {
       final key = data.images[i];
-      if (shouldPreCache) {
-        _imagePrecache.preload(
-          _imageProvider(key),
-          createLocalImageConfiguration(context),
-        );
-      } else if (!key.startsWith('file://')) {
+      if (!key.startsWith('file://')) {
         _imageDownloads.preload(
           key,
           data.sourceKey,

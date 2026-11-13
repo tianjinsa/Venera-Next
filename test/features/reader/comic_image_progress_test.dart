@@ -11,7 +11,7 @@ class _Stream extends ImageStreamCompleter {
 }
 
 class _Image extends ImageProvider<_Image> {
-  final stream = _Stream();
+  var stream = _Stream();
   @override
   Future<_Image> obtainKey(ImageConfiguration configuration) =>
       SynchronousFuture(this);
@@ -33,6 +33,61 @@ double? _progress(WidgetTester tester) => tester
 
 void main() {
   tearDown(ComicImage.clear);
+
+  testWidgets(
+    'first-frame readiness is reported when cached geometry is unchanged',
+    (tester) async {
+      final source = _Image();
+      var ready = 0;
+      var resizes = 0;
+      Widget host() => MaterialApp(
+        home: Align(
+          alignment: Alignment.topCenter,
+          child: NotificationListener<SizeChangedLayoutNotification>(
+            onNotification: (_) {
+              resizes++;
+              return false;
+            },
+            child: SizeChangedLayoutNotifier(
+              child: ComicImage(
+                image: source,
+                width: double.infinity,
+                onImageReady: () => ready++,
+              ),
+            ),
+          ),
+        ),
+      );
+      void frame() {
+        final recorder = ui.PictureRecorder();
+        ui.Canvas(recorder).drawColor(Colors.white, ui.BlendMode.src);
+        final picture = recorder.endRecording();
+        source.stream.frame(picture.toImageSync(20, 30));
+        picture.dispose();
+      }
+
+      await tester.pumpWidget(host());
+      frame();
+      await tester.pump();
+      expect(ready, 1);
+      await tester.pumpWidget(const SizedBox());
+      source.stream = _Stream();
+      await tester.pumpWidget(host());
+      final before = tester.getSize(find.byType(ComicImage));
+      final beforeResizes = resizes;
+      frame();
+      await tester.pump();
+      expect(ready, 2);
+      expect(tester.getSize(find.byType(ComicImage)), before);
+      expect(resizes, beforeResizes);
+      frame();
+      await tester.pump();
+      expect(ready, 2);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('changing source cancels queued progress from the old image', (
     tester,

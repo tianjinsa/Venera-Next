@@ -38,6 +38,7 @@ void main() {
       final query = Completer<int?>();
       final policy = ReaderImageCachePolicy(
         readAvailableMemory: () => query.future,
+        maximumBytes: () => 192 << 20,
         setLimit: limits.add,
         onError: (_, _) => fail('unexpected error'),
       );
@@ -45,7 +46,7 @@ void main() {
       policy.handleMemoryPressure();
       query.complete(8 << 30);
       await pending;
-      expect(limits, [32 << 20]);
+      expect(limits, [192 << 20, 32 << 20]);
       expect(ReaderImageCachePolicy.allowActivePrecache, isFalse);
       policy.dispose();
       await tester.pump(const Duration(seconds: 1));
@@ -94,5 +95,28 @@ void main() {
     expect(limits, isEmpty);
     await tester.pump(const Duration(seconds: 1));
     expect(limits, [100 << 20]);
+  });
+
+  testWidgets('pressure cannot increase an inherited smaller TV budget', (
+    tester,
+  ) async {
+    final old = ReaderImageCachePolicy(
+      readAvailableMemory: () async => 8 << 30,
+      maximumBytes: () => 16 << 20,
+      setLimit: (_) {},
+      onError: (error, _) => fail('$error'),
+    );
+    await old.configure();
+    old.dispose();
+    final limits = <int>[];
+    final current = ReaderImageCachePolicy(
+      readAvailableMemory: () async => null,
+      setLimit: limits.add,
+      onError: (error, _) => fail('$error'),
+    );
+    current.handleMemoryPressure();
+    expect(limits, [16 << 20]);
+    current.dispose();
+    await tester.pump(const Duration(seconds: 1));
   });
 }

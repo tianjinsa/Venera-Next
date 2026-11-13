@@ -51,7 +51,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | O04 | 作者独立规则，作者名称及 author/artist 标签精确匹配；不可变快照兼容原地规则修改；继续保留 Next 的关键词匹配方式及大小写选项 | `lib/features/comic_widgets/comic_blocking.dart`；`test/prime_migration/comic_blocking_test.dart`、`test/foundation/keyword_rules_test.dart` |
 | O05 | 收藏、历史、本地漫画、稍后再看、追更和 Agent 展示不按关键词/作者隐藏；发现/搜索继续过滤；独立扫描收藏用于调规则 | R00、R08、R09；`test/features/comic_widgets/keyword_filter_consumers_test.dart`、`test/agent/agent_showcase_filtering_test.dart` |
 | O06 | 无关键盘/阅读设置不重查全列表；收藏默认展示不逐本查历史，已读筛选缓存；查询/搜索/选择所有权及追更 generation 门禁保留 | R01；`lib/foundation/context.dart`、`lib/features/favorites/local_favorites_page.dart`；`test/features/favorites/local_favorites_refresh_test.dart`、`favorite_updates_service_test.dart` |
-| O07 | 阅读图像缓存取可用内存 1/16 并限 32–192 MiB；内存压力下最多 32 MiB 且暂停预解码；退出 1 秒后收缩，重入取消旧收缩；TV 上限保留 | `lib/features/reader/image_cache_policy.dart`；`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart` |
+| O07 | 阅读图像缓存取可用内存 1/16 并限 32–192 MiB；内存压力下最多 32 MiB 且取消主动预解码及排队订阅，可见图片不受取消影响；每视图预解码串行、最多四个请求，原生收尾后才交接下一项；退出 1 秒后收缩，重入取消旧收缩；TV 及继承的较小上限保留 | `lib/features/reader/image_cache_policy.dart`、`image_precache.dart`；`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart`、`image_precache_pressure_test.dart` |
 | O08 | 最后进度、前台时长准确提交；控制器/计时器/监听清理、旧回调门禁和任务所有权有效；返回后由原会话后台收尾 | R05、R12；`lib/features/reader/reading_session.dart`；`test/features/reader/reader_exit_integration_test.dart`、`reading_session_test.dart` |
 | O09 | 线条增强及强度、暗色/暖色/红色夜览；黑线不变浅、纸白不提亮；评论可跳过增强而保留夜览；实时调整不重置缩放/进度 | `lib/foundation/reader_preferences.dart`、`lib/features/settings/reader_appearance.dart`；`test/prime_migration/reader_color_effects_test.dart`、`test/features/settings/reader_settings_persistence_test.dart` |
 | O10 | 历史后台读取与保存互不阻塞；WAL 快照、恢复前等待读取；主键 `(id, type)` 保留 Next 全部扩展列及每日时长事务；Pica 跨库导入临时 DELETE 后恢复 WAL，失败保留数据 | `lib/features/history/`、Next 导入/恢复队列；`test/prime_migration/history_pagination_test.dart`、`test/features/history/history_repository_test.dart`、`agent_statistics_test.dart` |
@@ -127,6 +127,14 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
 
 ## 最近验证与维护记录
+
+### 2026-11-13：阅读首帧预热与内存压力调度
+
+- 开发基点 `8bb1b343`，实际分支 `codex/agent-center-tab`。核对 Prime `2f55f730` / `3bd8de94` 与历史设备记录，确认 O07 缓存机制已迁入；原记录没有证明低内存是唯一根因，不能将旧设备结果当作 Next 当前验收。
+- 连续／瀑布流继续预下载远端字节，并仅在可见图片就绪、未建议延迟加载时预解码下一张，本地图片同样覆盖；预热与显示共用 provider 构造、尺寸预算和缓存键。高速滚动不新增投机解码，换页／换所有者／退出撤下旧订阅。
+- 画廊与连续视图共用有界串行预解码，最多四个请求；读取、codec 和首帧的实际收尾完成后才启动下一项，排队项在准入前不解析图片。内存压力或较小缓存预算通过只读许可通知及时取消预加载，保留其他可见消费者及 Next 的任务／错误所有权。
+- 首帧就绪通过独立通知进入已有帧后视口更新门禁；缓存尺寸未变化时也继续预热，后续动图帧不重复触发。回归入口为 `comic_image_progress_test.dart` 的同尺寸重载与重复帧。
+- 新增串行／容量／去重、窗口替换、原生解码收尾、退出恢复、低内存显示和压力下共享加载回归。验证交给本轮准确 SHA 的 Actions；本地只进行格式与轻量静态检查，不将测试代码或异步等待时长称为设备帧率／GPU 完成证据。实际运行链接和结论见迁移记录。
 
 ### 2026-11-13：按模板归并正文并补齐原版现象
 
