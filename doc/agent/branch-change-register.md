@@ -86,10 +86,10 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 
 | 编号 | 保留行为与来源提交 | 实现与验证入口 |
 | --- | --- | --- |
-| C01 | `tests_only` 手动入口强制完整质量门禁并抑制全部安装包构建，原版构建调用默认不受影响；`skip_tests` 手动开关默认关闭，普通平台和鸿蒙正确透传；跳过测试时仍保留静态检查、编译及产物校验（`00bdd61`） | `.github/workflows/build.yml`、`analyze.yml`、`main.yml`、`harmonyos-release.yml`、`tool/harmonyos/ci_full_app.py`；`test_android_signing.py`、`tool/harmonyos/test_full_app.py` |
+| C01 | 独立 `tests.yml` 固定完整质量门禁，不经过构建、无打包／签名或跳过测试输入；替代旧 `build.yml tests_only`。构建保留默认关闭的 `skip_tests` 与平台开关，所选平台统一等待一次公共质量检查；按平台选择范围，发布调用通过 `quality_checked` 复用通过结果。跳过测试仍保留静态检查、编译、签名及产物校验（原 `00bdd61`，本轮分离入口） | `.github/workflows/tests.yml`、`build.yml`、`analyze.yml`、`main.yml`、`harmonyos-release.yml`、`tool/harmonyos/ci_full_app.py`；`test_workflow_entrypoints.py`、`test_android_signing.py`、`tool/harmonyos/test_full_app.py` |
 | C02 | Android 签名从 fork Secrets 写入 runner 临时目录，受限权限且结束清理；按配置的 keystore/alias 取得预期公开证书，所有 APK/发布校验匹配该身份，不硬编码上游证书或信任 APK 自报身份（`00bdd61`、`af00d83`） | `android/app/build.gradle`、`.github/scripts/AndroidSigningIdentity.java`、`android_tv_build.py`、工作流；`test_android_signing.py`、`test_android_signing_identity.py`、`test_android_tv_build.py` |
 | C03 | Android 选择后固定构建手机/TV 全部 8 个 APK 和两份清单；两种 flavor 顺序复用编译；单 ABI 拆包不与 Flutter/NDK 过滤互斥，PR ARM64 冒烟使用正确拆包参数（`49fbc67`、`1262aea`、`001a9cf`） | `.github/scripts/build_android.py`、`android_tv_build.py`、`android/app/build.gradle`；`test_android_tv_build.py`、`test_ci_optimization.py` |
-| C04 | PR 按变更范围选择重型检查和平台冒烟；同平台旧构建取消、跨平台保留；Rust 使用已有工具链与真实编译缓存，分离恢复/保存，失败缓存显式保存，磁盘仅低空间时清理（`49fbc67`、`001a9cf`、`cefb7a3`） | `.github/scripts/ci_scope.py`、`prepare_rust_toolchain.py`、`prepare_android_space.py`、`.github/actions/rust-cache/`、`rust-cache-save/`；`test_ci_optimization.py`、`test_desktop_ci.py` |
+| C04 | PR 按变更范围选择重型检查和平台冒烟；同平台旧构建取消、跨平台保留，所选平台组合透传独立质量并发键；独立全量测试与构建不互相取消。Rust 使用已有工具链与真实编译缓存，分离恢复/保存，失败缓存显式保存，磁盘仅低空间时清理（`49fbc67`、`001a9cf`、`cefb7a3`） | `.github/scripts/ci_scope.py`、`prepare_rust_toolchain.py`、`prepare_android_space.py`、`.github/actions/rust-cache/`、`rust-cache-save/`；`test_workflow_entrypoints.py`、`test_ci_optimization.py`、`test_desktop_ci.py` |
 | C05 | Windows 保留中间文件、流式 ZIP/正确 Inno Setup 启动器及缓存；macOS/iOS 共用准备、按需 Rust targets/CocoaPods 缓存（`001a9cf`、`cefb7a3`） | `windows/build.py`、`windows/build.iss`、`windows/build_arm64.iss`、`.github/scripts/prepare_apple_build.py`、工作流；`test_windows_build.py`、`test_windows_installer.py`、`test_desktop_ci.py`、`test_apple_rustup_wrapper.py` |
 | C06 | Linux x64/ARM64 共用矩阵、C/C++ 缓存、依赖检测及可复用打包/冒烟容器；Arch 预编译打包不额外安装编译器/GTK/WebKit；兼容的快速压缩，上传避免重复压缩（`001a9cf`） | `.github/scripts/prepare_linux_build.py`、`build_linux_packages.py`、`build_arch_package.py`、相关 Dockerfile、`debian/build.py`；`test_linux_packages.py`、`test_arch_package.py`、`test_debian_package.py`、`test_desktop_ci.py` |
 
@@ -127,6 +127,13 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
 
 ## 最近验证与维护记录
+
+### 2026-11-13：独立全量测试入口与构建依赖优化
+
+- 新增 `tests.yml`，Actions 显示为「全量测试」，仅手动派发、无输入，直接以 `platforms=all / skip_tests=false` 运行现有 `analyze.yml`；手动事件不按最后一次文档提交缩减检查，不包含构建／签名／发布任务。
+- 删除构建入口 `tests_only`，保留原平台选项和 `skip_tests=false` 默认。所选平台统一等待一次公共质量检查：失败不继续打包，已验证的发布调用保留跳过重复检查的路径；按平台族控制无关检查，不同平台组合独立质量并发键，原有签名、清单和平台特有测试保持。
+- 根规则、两份 Skill、中英文构建指南同步新入口。新工作流契约 7 项与既有构建／签名／发布兼容 63 项定向回归通过；使用校验过 SHA-256 的官方 `actionlint 1.7.7` 验证定义及发布调用，无问题。版本、结构／架构和差异检查通过，未构建平台范围见迁移记录。不因入口重构重跑已通过的阅读器全量。
+- 阅读器最终源码 `a5222bcab780c58e4ea3097c1f0c8a3a51eb4b80` 的 [Actions 43401061170](https://github.com/tianjinsa/Venera-Next/actions/runs/43401061170) 最终 success；所有质量任务通过，安装包任务按原测试专用模式跳过。后续仅文档与工作流改动不冒充该 SHA 的新全量结果。
 
 ### 2026-11-13：图片完成卡顿反馈稿与 CI 等待
 

@@ -62,7 +62,7 @@ GitHub Actions 的 Python 打包回归需要常规目录权限时，仅在相应
 
 用户已明确：**非全量测试可以在云环境运行，只有全量测试放在 fork 的 GitHub Actions**。本地根据修改范围运行有界定向回归，复用已有环境；不要因启动/恢复会话自动跑全量、启动重型构建或重复安装原生测试环境。
 
-- 先读取[分支维护 Skill](../venera-agent-branch-maintenance/SKILL.md)的 Actions 流程。使用现有 PR 检查，或工作分支的 `build.yml`：`tests_only=true`、`skip_tests=false`，六个平台安装包开关均为 false；测试复用 `analyze.yml`，不发布版本。
+- 先读取[分支维护 Skill](../venera-agent-branch-maintenance/SKILL.md)的 Actions 流程。使用现有 PR 检查，或工作分支的独立 `tests.yml`（Actions 名为「全量测试」）：无构建平台／跳过测试输入，固定运行 `analyze.yml` 完整门禁，不打包、不签名、不发布。`build.yml` 仅用于所选平台构建，原 `tests_only` 入口已移除。
 - 先完成源码并按会话授权提交推送，再触发对应 SHA 的验证；记录 run URL、head SHA、job conclusion 和失败摘要。queued/in_progress 不当作通过，旧 SHA 的结果不当作新源码的通过。
 - 可以在 CI 等待期间处理独立文档。派发后仅确认一次 run URL／准确 SHA；全量通常至少运行 20 分钟，运行满 20 分钟前不反复查询状态。之后仍未结束时至少间隔 10 分钟再查，用户主动要求状态时除外；不使用每分钟轮询或持续刷新日志。失败后只提取需要的失败名称和堆栈，已完成的历史结果不因新会话自动重跑。
 - 环境重连导致旧句柄丢失时，先确认本地进程是否还存在、是否有完整结束摘要；中断/部分通过/超时要如实记录。停止已明确切换到 CI 的本地轮次，不重复启动本地全量，不把资源问题推断为已证实 OOM。

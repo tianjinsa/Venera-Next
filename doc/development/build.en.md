@@ -213,8 +213,10 @@ The Flutter/Dart version or package-source environment usually does not match. C
 
 You may temporarily use a local Gradle wrapper mirror or configure a network proxy. Environment-specific URLs must not be committed. Before submitting changes, verify that `gradle-wrapper.properties` does not contain local mirror edits.
 
-## Run quality checks without building packages
+## Run the full test workflow separately
 
-Cloud Codex may run bounded tests for the current changes in the cloud environment; full test suites run in the fork's GitHub Actions. Dispatch `build.yml` on the reviewed working branch with `tests_only=true`, `skip_tests=false` and all six package platform switches set to false. Test-only mode runs the full reusable quality workflow, forces tests on and disables every package build job. Normal builds retain the default `tests_only=false` behavior and signing rules.
+Cloud Codex may run bounded tests for the current changes in the cloud environment; full suites use the fork's separate **全量测试** workflow, `tests.yml`. Select the reviewed working branch and run it without inputs. It calls the shared `analyze.yml` checks with every platform enabled and tests on, including manual runs after documentation-only commits. It has no package or signing jobs and its cancellation group is independent of builds.
 
-Record the run URL, exact head SHA and required job conclusions. Successful dispatch is not a passing test result; this entry does not publish a Release. See the Chinese guide for the full CLI example.
+`build.yml` retains platform selection and the existing `skip_tests=false` default; the old `tests_only` input has been removed. Selected package jobs wait for their common quality gate. Quality checks follow the selected platform families; release callers reuse their completed gate through `quality_checked`. Different package selections use independent quality groups. Signing, package verification and platform-specific startup/share/AppImage checks remain in package builds.
+
+Record the run URL, exact head SHA and required job conclusions. Wait until a full run is at least 20 minutes old before checking, then at least 10 minutes between checks. Successful dispatch is not a passing result; this workflow does not publish a Release. See the Chinese guide for the CLI command.

@@ -8,11 +8,6 @@ on:
         description: Public certificate fingerprint read from the configured signing keystore
         value: ${{ jobs.Build_Android.outputs.signer_sha256 }}
     inputs:
-      tests_only:
-        description: '仅运行质量与回归测试，不构建安装包'
-        required: false
-        type: boolean
-        default: false
       skip_tests:
         description: '跳过测试，仍执行静态检查和构建产物校验'
         required: false
@@ -54,11 +49,6 @@ on:
         required: false
   workflow_dispatch:
     inputs:
-      tests_only:
-        description: '仅运行质量与回归测试，不构建安装包'
-        required: false
-        type: boolean
-        default: false
       skip_tests:
         description: '跳过测试，仍执行静态检查和构建产物校验'
         required: false
@@ -104,15 +94,16 @@ permissions:
 
 jobs:
   Manual_Quality:
-    if: ${{ (inputs.tests_only || inputs.build_android) && !inputs.quality_checked }}
+    if: ${{ !inputs.quality_checked && (inputs.build_android || inputs.build_windows || inputs.build_macos || inputs.build_ios || inputs.build_linux_x64 || inputs.build_linux_arm64) }}
     uses: ./.github/workflows/analyze.yml
     with:
-      skip_tests: ${{ !inputs.tests_only && inputs.skip_tests }}
-      platforms: ${{ (inputs.tests_only || inputs.build_macos || inputs.build_ios) && 'all' || 'android' }}
+      concurrency_key: build-${{ inputs.build_android }}-${{ inputs.build_windows }}-${{ inputs.build_macos }}-${{ inputs.build_ios }}-${{ inputs.build_linux_x64 }}-${{ inputs.build_linux_arm64 }}
+      skip_tests: ${{ inputs.skip_tests }}
+      platforms: ${{ (inputs.build_macos || inputs.build_ios) && (inputs.build_android && 'all' || 'apple') || (inputs.build_android && 'android' || 'desktop') }}
 
   Build_Android:
     needs: Manual_Quality
-    if: ${{ !cancelled() && !inputs.tests_only && inputs.build_android && (needs.Manual_Quality.result == 'success' || needs.Manual_Quality.result == 'skipped') }}
+    if: ${{ !cancelled() && inputs.build_android && (needs.Manual_Quality.result == 'success' || needs.Manual_Quality.result == 'skipped') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     outputs:
@@ -219,7 +210,8 @@ jobs:
           status: ${{ job.status }}
 
   Build_Windows:
-    if: ${{ !inputs.tests_only && inputs.build_windows }}
+    needs: Manual_Quality
+    if: ${{ !cancelled() && inputs.build_windows && (needs.Manual_Quality.result == 'success' || needs.Manual_Quality.result == 'skipped') }}
     runs-on: windows-2025
     timeout-minutes: 45
     env:
@@ -341,7 +333,8 @@ jobs:
           status: ${{ job.status }}
 
   Build_Apple:
-    if: ${{ !inputs.tests_only && (inputs.build_macos || inputs.build_ios) }}
+    needs: Manual_Quality
+    if: ${{ !cancelled() && (inputs.build_macos || inputs.build_ios) && (needs.Manual_Quality.result == 'success' || needs.Manual_Quality.result == 'skipped') }}
     runs-on: macos-15
     timeout-minutes: 90
     env:
@@ -472,7 +465,8 @@ jobs:
           status: ${{ job.status }}
 
   Build_Linux:
-    if: ${{ !inputs.tests_only && (inputs.build_linux_x64 || inputs.build_linux_arm64) }}
+    needs: Manual_Quality
+    if: ${{ !cancelled() && (inputs.build_linux_x64 || inputs.build_linux_arm64) && (needs.Manual_Quality.result == 'success' || needs.Manual_Quality.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:

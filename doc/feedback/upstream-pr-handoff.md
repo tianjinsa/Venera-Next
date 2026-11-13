@@ -6,7 +6,7 @@
 
 1. [反馈索引](README.md)：12 份缺陷/组件稿和 6 份功能建议，证据与模板已分类。
 2. 本文件的范围、实现映射和验证记录。
-3. 仓库 `AGENTS.md`、`agent.md` 和两份 `.agents/skills/`：云环境可以运行有界定向测试，全量在 GitHub Actions；派发后确认一次 URL／SHA，满 20 分钟再查看状态，之后未结束至少间隔 10 分钟。
+3. 仓库 `AGENTS.md`、`agent.md` 和两份 `.agents/skills/`：云环境可以运行有界定向测试，全量使用独立 `tests.yml`，不再走构建入口；派发后确认一次 URL／SHA，满 20 分钟再查看状态，之后未结束至少间隔 10 分钟。
 4. 只在涉及对应行为时查 [保留登记](../agent/branch-change-register.md) / [迁移记录](../agent/migration.md)。不为接续任务重新遍历 6000 多项日志、全部 Agent 工具或旧 Prime 整仓差异。
 
 ## 范围更正：原 U11 已撤出上游缺陷清单
@@ -103,7 +103,7 @@ git switch -c codex/upstream-reader-ui-fixes upstream/main
 - 最终代码本地严格 Flutter 分析无问题，47 个变更 Dart 文件格式、结构/架构/版本检查通过；依赖来源/许可证和审查工具自检通过。Python 仓库脚本 328 项（7 跳过），鸿蒙脚本 51 项通过，均发生在用户改为 Actions 之前。
 - 一个扩展定向轮次主动中止，另有续读边界失败后修正；它不是全绿记录。
 - 本地全量在环境恢复后已没有活跃 runner，句柄也丢失；日志停在约 14:37，记录 2271 通过、52 跳过，`source_transaction_crash_test.dart` 的 `settingsPartial` 用例出现 30 秒超时。没有完整结束摘要，记为中断，不视作全量通过；未证实 OOM，也不因怀疑 Cloud 资源不足而删测试/放宽超时。
-- 用户要求今后统一在 GitHub Actions 测试。新入口为 fork 工作分支 `build.yml` 的 `tests_only=true`、`skip_tests=false`，复用原质量工作流并抑制安装包构建。后续以当前准确 head SHA 的 CI 为准；CI 结果链接在本文件末尾和迁移记录追加。
+- 当时用户要求全量移至 GitHub Actions，新增旧入口 `build.yml tests_only=true / skip_tests=false`，复用原质量工作流并抑制安装包构建；当前已由独立 `tests.yml` 替代，定向测试可在云环境运行。历史结果仍按当时准确 SHA 记录，最新入口和结论见文末。
 
 ## 下一会话的最短执行清单
 
@@ -134,5 +134,6 @@ gh run view 43364772554 --repo tianjinsa/Venera-Next \
 
 - U12 直接说明图片刚加载成功附近的间歇卡顿、连续模式明显／瀑布流较轻，链接当前仓库 `a5222bca`，不展开 Prime 修复历史。实际安装包和阅读诊断仍需按真实情况填写；未发布上游 Issue。
 - 最新产品源码为 `a5222bcab780c58e4ea3097c1f0c8a3a51eb4b80`，定向三轮共 345 项通过、23 项按原条件跳过，另有可重复的同步字节准备对照；不把这些结果当作手机帧率或全量通过。
-- 最新 [Actions 43401061170](https://github.com/tianjinsa/Venera-Next/actions/runs/43401061170) 验证该 SHA；旧 `c0a80e33` 的 `43398732298` 已被新任务并发取消。上方 `423e67a3` 的旧运行最终已 success，但不覆盖本次新源码。
+- 最新 [Actions 43401061170](https://github.com/tianjinsa/Venera-Next/actions/runs/43401061170) 验证该 SHA，最终 success，所有质量任务通过；旧 `c0a80e33` 的 `43398732298` 已被新任务并发取消。上方 `423e67a3` 的旧运行最终已 success，但不覆盖本次新源码。
+- 后续手动全量使用新独立入口 `tests.yml`（Actions 名「全量测试」），`build.yml tests_only` 已删除；本段旧 run 当时仍使用旧入口，不重写其真实调用历史。
 - 不重复派发、不每分钟查看状态。派发后先等运行满 20 分钟；仍未结束时至少间隔 10 分钟，用户主动要求状态时除外。只读取必要最终摘要／失败堆栈，不反复读取数千项日志。最新结论同步至[迁移记录](../agent/migration.md#反馈稿与-ci-等待2026-11-13)。

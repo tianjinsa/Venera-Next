@@ -162,7 +162,14 @@
 
 ## 反馈稿与 CI 等待（2026-11-13）
 
-本轮后续仅补反馈／维护文档，不改变 `a5222bca` 的产品源码与测试：新增第一人称 [U12](../feedback/U12-reader-image-completion-stutter.md)，索引更新为 12 份缺陷／组件稿和 6 份建议；直接说明现象并链接当前仓库，未实际发布上游。用户要求避免频繁轮询，已停止本地每分钟 watcher，远端 [43401061170](https://github.com/tianjinsa/Venera-Next/actions/runs/43401061170) 继续验证 head `a5222bcab780c58e4ea3097c1f0c8a3a51eb4b80`，运行满 20 分钟再查结果，未结束至少间隔 10 分钟。旧 [43398732298](https://github.com/tianjinsa/Venera-Next/actions/runs/43398732298) 已被新任务的并发策略取消，不记为通过。
+本轮后续仅补反馈／维护文档，不改变 `a5222bca` 的产品源码与测试：新增第一人称 [U12](../feedback/U12-reader-image-completion-stutter.md)，索引更新为 12 份缺陷／组件稿和 6 份建议；直接说明现象并链接当前仓库，未实际发布上游。用户要求避免频繁轮询，已停止本地每分钟 watcher，远端 [43401061170](https://github.com/tianjinsa/Venera-Next/actions/runs/43401061170) 验证 head `a5222bcab780c58e4ea3097c1f0c8a3a51eb4b80`；运行满 20 分钟查看时 Flutter 仍运行，再间隔 10 分钟读取到最终 success。所有质量任务通过，包括完整 Flutter／覆盖率、TV、原生内存安全、Rhttp、Apple 和 Android Provider；不包含安装包或真机帧率验收。旧 [43398732298](https://github.com/tianjinsa/Venera-Next/actions/runs/43398732298) 已被新任务的并发策略取消，不记为通过。
+
+## 独立全量测试入口与构建优化（2026-11-13）
+
+- 按用户新要求增加 `.github/workflows/tests.yml`，固定调用共用质量定义 `analyze.yml`，不再借用构建工作流；无平台打包、签名、发布或跳过测试输入。手动事件仍强制全部质量范围，不受最后一个文档提交影响。
+- `build.yml` 删除 `tests_only`，保留原平台开关、默认关闭的 `skip_tests`、签名／产物／启动等门禁。所选构建统一等待公共质量检查，失败时避免继续占用打包 runner；Android、Apple、桌面按实际选择执行质量范围，发布已完成质量检查时不重复运行。
+- `analyze.yml` 增加可选 `concurrency_key`，调用方按全部平台组合传入，避免不同平台构建的质量任务共享取消组。新测试工作流和构建组也独立。既有缓存、Android 全 8 包及平台特有回归保留，不削减测试或调整其并发／超时。
+- 新入口与构建依赖、旧模式移除、全量范围及取消隔离有 7 项定向回归，通过；既有 CI 范围、桌面准备、Android 八包／签名、Apple Rustup／版本和发布恢复兼容回归另 63 项通过，共 70 项。官方 `actionlint 1.7.7` 下载前后核对 SHA-256，检查修改的 YAML 与发布调用，无问题；版本一致性、结构／架构边界与差异检查通过。未在云环境构建安装包，也不为本轮入口重构重复启动已通过的阅读器全量；原成功证据绑定 `a5222bca`，工作流改动单独记录本地验证。
 
 ## 数据与代码回退
 

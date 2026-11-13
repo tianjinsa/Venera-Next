@@ -213,15 +213,17 @@ flutter pub get --enforce-lockfile
 
 可以在本地临时切换 Gradle wrapper 镜像或配置网络代理，但环境相关地址不应提交到仓库。提交前应确认 `gradle-wrapper.properties` 没有混入本地镜像改动。
 
-## 仅运行 GitHub Actions 质量与回归测试
+## 单独运行 GitHub Actions 全量测试
 
-Cloud Codex 可以在云环境按本次修改运行有界定向测试，全量测试使用 fork 工作分支的手动构建工作流，不在本地自动启动全量或重型构建。选择 `tests_only=true` 可强制完整质量门禁且不构建安装包；此时 `skip_tests` 不会跳过测试。普通构建中 `tests_only` 默认 false，已有平台/签名行为保持。
+Cloud Codex 可以在云环境按本次修改运行有界定向测试，全量测试使用 fork 的独立「全量测试」工作流，不在本地自动启动全量或重型构建。Actions 中选择「全量测试」→ Run workflow → `codex/agent-center-tab`，或执行：
 
 ```sh
-gh workflow run build.yml --repo tianjinsa/Venera-Next \
-  --ref codex/agent-center-tab -f tests_only=true -f skip_tests=false \
-  -f build_android=false -f build_windows=false -f build_macos=false \
-  -f build_ios=false -f build_linux_x64=false -f build_linux_arm64=false
+gh workflow run tests.yml --repo tianjinsa/Venera-Next \
+  --ref codex/agent-center-tab
 ```
 
-提交推送后再触发，并核对 run 的 head SHA、所需 job 和最终结果；派发成功不代表通过。此入口不会创建 Release。
+`tests.yml` 固定完整运行共用 `analyze.yml` 的静态分析、脚本、Flutter／覆盖率、TV、原生内存安全、Rhttp、Apple 和 Android Provider 门禁，没有打包／签名任务，也没有构建平台或跳过测试输入。手动派发不按最后一个文档提交缩减检查；该测试组与构建组独立取消，不发布 Release。
+
+构建仍使用 `build.yml`，保留平台开关和默认关闭的 `skip_tests`，旧 `tests_only` 输入已移除。所选平台统一等待一次公共质量检查；Android 单独构建不启动 Apple 检查，纯桌面不启动 Android Provider，Android 与 Apple 同时选择才取全部范围。发布流程已通过质量检查时通过 `quality_checked` 复用结果，避免重复运行；不同平台选择的质量批次独立。各平台签名、安装包清单及实际启动／分享／AppImage 校验仍在相应构建中执行。
+
+提交推送后再触发，并核对 run 的 head SHA、所需 job 和最终结果；派发成功不代表通过。先等运行满 20 分钟再查，未结束至少间隔 10 分钟，不使用每分钟 watcher。

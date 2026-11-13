@@ -1,0 +1,19 @@
+name: 全量测试
+run-name: 全量测试 ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  Quality:
+    uses: ./.github/workflows/analyze.yml
+    with:
+      platforms: all
+      skip_tests: false

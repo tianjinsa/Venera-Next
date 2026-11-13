@@ -2,6 +2,10 @@ name: "代码分析"
 on:
   workflow_call:
     inputs:
+      concurrency_key:
+        description: '调用方检查批次，隔离不同平台构建的质量任务'
+        type: string
+        default: ''
       platforms:
         description: 'Quality platforms: all, android, apple or desktop'
         type: string
@@ -17,7 +21,7 @@ on:
       - main
 
 concurrency:
-  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.concurrency_key || 'default' }}
   cancel-in-progress: ${{ github.event_name != 'workflow_call' }}
 
 permissions:
@@ -25,7 +29,7 @@ permissions:
 
 jobs:
   changes:
-    name: 检查构建元数据并选择测试范围
+    name: 版本、架构与测试范围
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:

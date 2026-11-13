@@ -48,18 +48,14 @@ git status --short --branch
 按用户 2026-11-13 的最新澄清，**非全量测试可以在云环境运行，只有全量测试在 `tianjinsa/Venera-Next` 的 GitHub Actions** 运行。Cloud Codex 根据修改范围运行有界定向回归，不自动启动本地全量或重型构建，不以云端算力不足为理由删测试、延长用例超时或修改 SDK。
 
 1. 完成可审查的代码和文档，核验分支、身份和差异；按会话已授权的范围提交并推送。测试必须对应准确源码 SHA，后续改产品代码需验证新 SHA。
-2. 优先复用现有 PR 检查；需要手动测试时，在工作分支调用 `build.yml` 的 `tests_only: true`、`skip_tests: false`。该入口复用 `analyze.yml` 的完整质量门禁，不构建安装包、不发布 Release、不创建临时 PR。示例：
+2. 优先复用现有 PR 检查；需要手动全量测试时，在工作分支调用独立的 `tests.yml`（Actions 名为「全量测试」）。该入口固定完整运行 `analyze.yml`，不经过构建流程，无构建平台／跳过测试输入，不构建安装包、不发布 Release、不创建临时 PR。示例：
 
    ```sh
-   gh workflow run build.yml --repo tianjinsa/Venera-Next \
-     --ref codex/agent-center-tab \
-     -f tests_only=true -f skip_tests=false \
-     -f build_android=false -f build_windows=false \
-     -f build_macos=false -f build_ios=false \
-     -f build_linux_x64=false -f build_linux_arm64=false
+   gh workflow run tests.yml --repo tianjinsa/Venera-Next \
+     --ref codex/agent-center-tab
    ```
 
-目标分支若不含 tests_only，使用其已有的 PR 质量检查；不要机械提交未知输入，也不要把 fork CI 专属改动夹进上游 PR。
+目标分支若不含 `tests.yml`，使用其已有的 PR 质量检查；不要机械调用未知工作流，也不要把 fork CI 专属改动夹进上游 PR。`build.yml` 的旧 `tests_only` 参数已经移除，不再用于手动全量测试。
 
 3. 记录 run URL、head SHA、所需 job 和最终 conclusion；派发成功、queued、in_progress 都不是测试通过。派发后仅确认一次 URL／SHA；全量通常至少需要 20 分钟，运行满 20 分钟前不反复查询，之后仍未结束时至少间隔 10 分钟再查，用户主动要求状态时除外。期间处理独立文档，不使用每分钟 watcher；结束或失败后才读取必要日志段，不下载/重读整份数千项过程日志。
 4. 失败时定位失败用例及原因，修正后只为新变更/未解决问题安排必要验证。源任务/原生资源、持久化失败、TV、最终退出等待等既有门禁不能因改用 Actions 丢失。
