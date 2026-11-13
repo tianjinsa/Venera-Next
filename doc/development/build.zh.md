@@ -215,7 +215,7 @@ flutter pub get --enforce-lockfile
 
 ## 仅运行 GitHub Actions 质量与回归测试
 
-Cloud Codex 默认使用 fork 工作分支的手动构建工作流进行测试，不在云环境自动跑本地测试或重型构建。选择 `tests_only=true` 可强制完整质量门禁且不构建安装包；此时 `skip_tests` 不会跳过测试。普通构建中 `tests_only` 默认 false，已有平台/签名行为保持。
+Cloud Codex 可以在云环境按本次修改运行有界定向测试，全量测试使用 fork 工作分支的手动构建工作流，不在本地自动启动全量或重型构建。选择 `tests_only=true` 可强制完整质量门禁且不构建安装包；此时 `skip_tests` 不会跳过测试。普通构建中 `tests_only` 默认 false，已有平台/签名行为保持。
 
 ```sh
 gh workflow run build.yml --repo tianjinsa/Venera-Next \

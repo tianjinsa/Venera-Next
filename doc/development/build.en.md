@@ -215,6 +215,6 @@ You may temporarily use a local Gradle wrapper mirror or configure a network pro
 
 ## Run quality checks without building packages
 
-For Cloud Codex, tests run in the fork's GitHub Actions by default. Dispatch `build.yml` on the reviewed working branch with `tests_only=true`, `skip_tests=false` and all six package platform switches set to false. Test-only mode runs the full reusable quality workflow, forces tests on and disables every package build job. Normal builds retain the default `tests_only=false` behavior and signing rules.
+Cloud Codex may run bounded tests for the current changes in the cloud environment; full test suites run in the fork's GitHub Actions. Dispatch `build.yml` on the reviewed working branch with `tests_only=true`, `skip_tests=false` and all six package platform switches set to false. Test-only mode runs the full reusable quality workflow, forces tests on and disables every package build job. Normal builds retain the default `tests_only=false` behavior and signing rules.
 
 Record the run URL, exact head SHA and required job conclusions. Successful dispatch is not a passing test result; this entry does not publish a Release. See the Chinese guide for the full CLI example.
