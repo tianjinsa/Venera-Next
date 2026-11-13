@@ -12,10 +12,11 @@ from pathlib import Path
 
 from ci_build import CI, run_logged
 from native_build import ROOT, digest, require_within, validate_elf
-from prepare_full_app import BASE, DEPS, EXTRA_LIBRARIES, PROJECT, NATIVE_NOTICE_ASSET, NATIVE_NOTICE_SOURCE
+from prepare_full_app import BASE, DEPS, EXTRA_LIBRARIES, PROJECT, NATIVE_NOTICE_ASSET, NATIVE_NOTICE_SOURCE, LABEL_SOURCE
 from prepare_probe import LIBRARIES
 from sideload import audit_device_types
 from release_context import build_inputs
+from app_labels import APP_LABEL, audit_hap_labels
 
 
 ASSET_PREFIX = "resources/rawfile/flutter_assets/"
@@ -23,6 +24,7 @@ METADATA_ASSET = ASSET_PREFIX + "assets/harmonyos-app-build.json"
 TESTS = (
     "test/components/context_menu_test.dart",
     "test/components/application_update_prompt_test.dart",
+    "test/components/select_layout_test.dart",
     "test/foundation/application_update_service_test.dart",
     "test/foundation/harmonyos_test.dart",
     "test/foundation/directory_selection_test.dart",
@@ -40,6 +42,7 @@ TESTS = (
     "test/features/local_comics/import_export/directory_copy_test.dart",
     "test/features/local_comics/import_export/pdf_export_lifecycle_test.dart",
     "test/features/favorites/favorite_folder_path_test.dart",
+    "test/features/favorites/favorite_folder_browser_test.dart",
     "test/features/sync/app_data_archive_test.dart",
     "test/features/sync/favorite_hierarchy_transfer_test.dart",
     "test/features/favorites/favorite_hierarchy_test.dart",
@@ -72,12 +75,21 @@ TESTS = (
     "test/features/local_comics/local_archive_visibility_test.dart",
     "test/features/local_comics/local_registration_storage_test.dart",
     "test/features/local_comics/local_repository_test.dart",
+    "test/features/comic_widgets/reading_status_layout_test.dart",
+    "test/features/comic_widgets/reading_progress_test.dart",
+    "test/features/comic_widgets/detailed_reading_progress_test.dart",
+    "test/features/settings/local_storage_settings_test.dart",
+    "test/features/settings/app_controls_persistence_test.dart",
+    "test/features/comic_details/share_lifecycle_test.dart",
+    "test/features/reader/bottom_actions_test.dart",
     "test/features/reader/platform_effects_controller_test.dart",
     "test/features/reader/platform_effects_test.dart",
     "test/features/reader/reader_exit_integration_test.dart",
     "test/features/reader/continuous_input_test.dart",
     "test/features/reader/display_image_provider_test.dart",
     "test/features/reader/scroll_aware_display_image_test.dart",
+    "test/features/reader/white_border_crop_test.dart",
+    "test/features/favorites/local_favorites_refresh_test.dart",
 )
 
 
@@ -86,7 +98,7 @@ def audit_full_hap(hap, metadata, expected_assets):
         raise ValueError("Only an unsigned reader experiment may be exported")
     if (metadata.get("purpose") != "full_reader_experiment" or metadata.get("reader_integrated") is not True
             or metadata.get("runtime_verified") is not False or metadata.get("signed") is not False
-            or metadata.get("entrypoint") != "lib/main.dart"):
+            or metadata.get("entrypoint") != "lib/main.dart" or metadata.get("app_label") != APP_LABEL):
         raise ValueError("This is not an unverified full reader experiment")
     expected = metadata["native_libraries"]
     if set(expected) != set(LIBRARIES) | set(EXTRA_LIBRARIES):
@@ -104,6 +116,7 @@ def audit_full_hap(hap, metadata, expected_assets):
         if audit_device_types(archive) != metadata["device_types"]:
             raise ValueError("Unexpected reader device targets")
         app = json.loads(archive.read("module.json"))["app"]
+        app_label = audit_hap_labels(archive)
         for packed, declared in (("bundleName", "bundle_name"), ("versionName", "hap_version_name"), ("versionCode", "version_code")):
             if app.get(packed) != metadata[declared]:
                 raise ValueError(f"Unexpected actual full reader {packed}: {app.get(packed)!r} != {metadata[declared]!r}")
@@ -125,12 +138,14 @@ def audit_full_hap(hap, metadata, expected_assets):
         for name, checksum in expected_assets.items():
             if hashlib.sha256(archive.read(ASSET_PREFIX + name)).hexdigest() != checksum:
                 raise ValueError(f"Rewritten/missing real application asset: {name}")
-        return {"bundle_name": app["bundleName"], "version_name": app["versionName"], "version_code": app["versionCode"],
+        return {"bundle_name": app["bundleName"], "app_label": app_label, "version_name": app["versionName"], "version_code": app["versionCode"],
                 "minimum_api": app["minAPIVersion"], "target_api": app["targetAPIVersion"],
                 "device_types": metadata["device_types"], "libraries": records, "asset_count": len(expected_assets)}
 
 
 def check_real_source(metadata):
+    if metadata["source_files"].get(LABEL_SOURCE) != digest(ROOT / LABEL_SOURCE):
+        raise ValueError("Prepared native launcher label policy differs")
     for name, checksum in metadata["source_files"].items():
         if name.startswith("lib/") and digest(PROJECT / name) != checksum:
             raise ValueError(f"Prepared application Dart source differs: {name}")

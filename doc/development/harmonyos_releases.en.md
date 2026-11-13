@@ -42,7 +42,7 @@ The bundle is `com.github.cyrilpeng.veneranext.harmony`, with label `VeneraNext 
 
 GitHub's release-by-tag endpoint returns published releases only. Draft verification searches the authenticated, fully paginated release list for exactly one matching tag and fetches its current assets by numeric release ID. Missing or ambiguous drafts, changed IDs/tags and unexpected states stop publication. Published verification uses the public tag endpoint, and creation explicitly targets the caller's source SHA. RC2 uploaded all 26 assets as a draft, but the old lookup received HTTP 404; RC3 reruns the complete release path with the corrected lookup.
 
-The full workflow's `Release` requires Quality, the existing platform Build and HarmonyOS. Missing, damaged, stale or mismatched HAP assets must never use `continue-on-error`. Upload to a draft first, then verify every HarmonyOS asset required by the release commit's configuration through the GitHub API: names, sizes, upload state and SHA-256. Publish only after verification, then check the public assets again. Investigate failures rather than silently omitting HarmonyOS.
+The full workflow's `Release` requires Quality, the existing platform Build and HarmonyOS. Missing, damaged, stale or mismatched HAP assets must never use `continue-on-error`. Create or reuse a draft, then verify every required HarmonyOS asset through the GitHub API: names, sizes, upload state and SHA-256. The version's device-acceptance policy below must also pass before publication. Recheck assets and any acceptance report afterward. Investigate failures rather than silently omitting HarmonyOS.
 
 The publishing job checks out the two source trees into sibling `release-source/` and `harmonyos-source/` directories. Generated notes and packages live alongside them in `release_notes.md` and `outputs/`. Scripts run from `release-source/`; generated inputs remain outside both source directories, which still reject untracked and uncommitted inputs.
 
@@ -56,3 +56,36 @@ gh workflow run harmonyos-release.yml --ref main
 ```
 
 Platform scripts and SDK baselines live in `tool/harmonyos/README.md` on mainline. The commercial API 26 SDK uses a checksum-pinned community CI mirror, not claimed official checksums. No signing secrets are read. See the [user guide](../distribution/harmonyos-reader.en.md) for installation and limitations. This workflow does not comment on, close, reopen or track issues.
+
+## Device Acceptance for the Exact HAP
+
+Starting with `v1.18.4-rc.1+250`, the schema-3 configuration uses `runtime_acceptance: stable_required`. Prereleases may be published for device testing after all source, build and asset checks pass. Without a report, device acceptance remains pending. Stable releases require an accepted report before publication. Any report attached to a prerelease is also validated strictly; invalid or failed reports cannot be ignored. Historical `required` policies still require reports for both channels, and historical tags without the field keep their original behavior. Unknown values are rejected and published packages are not rewritten.
+
+Build manifests retain `runtime_verified: false`; a separate `harmonyos-runtime-acceptance.json` records device acceptance rather than changing packaging or prerelease publication into a runtime claim.
+
+After package verification, the HAP workflow produces a separate `harmonyos-runtime-acceptance-template` artifact bound to the exact source commit, version, build and original unsigned HAP SHA-256. Device, OS and test time are empty and every check is `not_run`. It is outside the three build assets and is never automatically uploaded as a passing report.
+
+| Check | Device completion condition |
+| --- | --- |
+| `startup` | Sign/install the native HAP and cold-start the complete app |
+| `source_and_reading` | Add a working source, search, open details and read multiple chapters; record the scope |
+| `archive_import` | Import/read multiple archives and a collection ZIP; cancellation and failures report correct results |
+| `directory_import` | Copy-import/read a folder when supported; only an absent system picker may be `unsupported`, with tested limit messaging and archive fallback |
+| `download` | Download chapters to the app library and read offline; failure/cancellation never reports success |
+| `backup_export_import` | Save an independent full backup, import into recoverable test data and check favorites, history and settings |
+| `same_key_upgrade` | Upgrade the installed app with its original signing identity/key and retain comics/data; no uninstall or data clearing |
+| `cold_restart_reading` | Fully exit/restart, then read old comics and restore progress/data |
+| `ui_and_capabilities` | Test narrow, landscape and large-text layouts; disabled relocation/lock enablement, imported-lock disablement, link copying and image saving behave correctly |
+
+Every check except the specified missing folder capability requires `pass` and an actual operation/result in `detail`. Supply the actual `device_model`, `os_version` and timezone-qualified `tested_at`. Exclude credentials, device identifiers, private comic names and signing material. Acceptance covers only the recorded device/OS; expand phone/tablet/system coverage separately.
+
+After testing and reviewing, a maintainer uploads the report to the exact version draft or public prerelease (replace example values). A stable report must identify the freshly rebuilt stable HAP; an RC report cannot be reused:
+
+```bash
+gh release upload vX.Y.Z /path/to/harmonyos-runtime-acceptance.json --repo CyrilPeng/Venera-Next
+gh run rerun RUN_ID --job RELEASE_JOB_ID --repo CyrilPeng/Venera-Next
+```
+
+After adding a missing draft report, rerun only the original run's Release job. Reruns reuse the original build artifacts and verify names, sizes and SHA-256 for **all platform** packages. Replacement builds are rejected. The report is the sole permitted extra asset and must be uploaded by a human maintainer with write/maintain/admin permission. Validation checks uploader, original bytes/digest, exact source/HAP, all results and test time; invalid or failed reports stop publication even when pending acceptance is allowed. After adding a report to a public prerelease, run `verify-published` against its original packages rather than attempting draft publication again.
+
+Under `stable_required`, a prerelease without a report produces `ready=true` with an explicit pending-device-acceptance message. A stable release without a report produces `ready=false`, retains every draft package and skips publication/CDN steps. Historical `required` policies retain drafts for both channels when reports are missing. Accepted reports produce `ready=true`; any public report is checked again. Successful builds alone establish neither publication nor device acceptance. Complete draft acceptance and rerun within the Actions artifact retention period (currently 14 days). Keep original packages if artifacts expire; do not replace tested packages. No HarmonyOS device was connected for this change, so device acceptance remains incomplete.

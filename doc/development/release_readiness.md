@@ -5,6 +5,66 @@ not mark unresolved reports as fixed. Dated verification records and the
 original device acceptance checklist remain below. The newest dated section
 defines the current release scope; older candidate sections are historical.
 
+## RC1 publishing recovery (2026-11-11)
+
+The exact tag `v1.18.4-rc.1` points to
+`9103ce1bca93ab11b23c6ec27ca0e37996b15f2a`. Its full build run
+`42935322644` passed all fifteen required quality/platform jobs, then failed
+in `Release` after uploading all 24 files to draft `441141139`. GitHub replaced
+`~` with `.` in the four DEB/RPM asset names, including when an API rename was
+attempted. Package bytes and digests were preserved.
+
+The publishing fix accepts only that filename conversion and rejects collisions
+before uploading. The manual `resume-release.yml` workflow runs on `main`, checks
+every original build gate, and permits only publishing-tool and record changes
+relative to the original source. It downloads the original run's artifacts,
+collects the named release packages, verifies all draft filenames, sizes and
+digests, and checks the original tag's notes, HAP and Android provenance. Existing
+runtime acceptance rules still apply. It publishes the existing draft and checks
+all public files again, producing a `release-recovery-receipt` artifact with both
+source and tooling commits and the original/recovery run IDs. No compiler job or
+tag is replaced. An RC is explicitly published with `--latest=false`.
+
+```bash
+gh workflow run resume-release.yml --ref main -f source_run=42935322644
+```
+
+Independent public-download verification and the five Issue notices remain the
+completion criteria after the recovery job succeeds. Original build failure is
+kept as historical evidence; a successful recovery does not rewrite that run.
+
+## v1.18.4 first prerelease (2026-11-11)
+
+The maintainer authorized a public prerelease followed by testing notices to
+the reporters affected by this round. Prepare `v1.18.4-rc.1`, build **250**, on
+`main` with synchronized release metadata, changelog and paired documentation
+in one Chinese conventional commit. Rebuild every platform from that exact tag.
+
+- Include Android mobile/TV, Windows, macOS, iOS, Linux x64/ARM64 and the unsigned
+  ARM64/API-26 HarmonyOS HAP. Preserve full quality, dependency, native-library,
+  signature, source, version, checksum, draft and public-asset verification.
+- The committed `runtime_acceptance: stable_required` policy permits RC device
+  testing without a report and continues to require exact-HAP acceptance for
+  stable releases. Validate every attached report in both channels; invalid or
+  failed reports must stop publication. Historical `required` policies keep
+  requiring reports in both channels. Do not upload the all-`not_run` template
+  as an acceptance report or change `signed: false` / `runtime_verified: false`.
+- Deliver #152 selection entry and visible-scope bulk actions, #155 subfolder
+  sorting, #115 matching options and hidden-reason diagnostics, and #158 shared
+  title/progress/picker layout fixes. #158 uses Android APK on HarmonyOS 4.2;
+  #159 uses native HAP on HarmonyOS 7 and receives accurate capability/limit
+  messaging. Persistent external storage for #159 remains unimplemented.
+- Require the configuration's three HarmonyOS assets: HAP, manifest and
+  SHA256SUMS. Link both nonempty guides at the exact tag. Preserve all historical
+  tags and assets. Keep stable updates at `v1.18.3`; RCs do not advance AltStore
+  or Winget. Preserve existing data and signing identities during upgrades.
+- After public package verification, send one version-specific testing notice
+  each to #115, #152, #155, #158 and #159 with focused reproduction steps. Check
+  existing comments for duplicates. Keep #115 closed and other reports open
+  for actual feedback; #159 remains investigating. No reply or successful
+  compilation establishes original-device acceptance. Reuse existing evidence
+  rather than requesting private comics, databases or repeated diagnostics.
+
 ## Post-v1.18.3 maintenance (2026-11-08)
 
 The following mainline changes are unreleased. Keep the published `v1.18.3`

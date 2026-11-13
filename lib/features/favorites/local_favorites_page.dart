@@ -415,6 +415,26 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     });
   }
 
+  bool _dismissLocalMode() {
+    if (!_canReadObservedFolder || _queryOwner?.canPresent != true) {
+      return false;
+    }
+    if (multiSelectMode) {
+      _cancel();
+      lastSelectedIndex = null;
+      return true;
+    }
+    if (searchMode) {
+      setState(() {
+        searchMode = false;
+        keyword = '';
+        updateComics();
+      });
+      return true;
+    }
+    return false;
+  }
+
   bool downloadComic(FavoriteItem c) {
     final library = LocalManager();
     var source = c.type.comicSource;
@@ -453,7 +473,11 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   var scrollController = ScrollController();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => _build(context, constraints.maxWidth),
+  );
+
+  Widget _build(BuildContext context, double availableWidth) {
     final target = widget;
     final selection = selectedComics.keys.cast<FavoriteItem>().toList();
     final selectedItems = selection.map((comic) => comic.detached()).toList();
@@ -500,6 +524,8 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     final compactActions = context.width < changePoint && !isAllFolder;
     final canSelect =
         _canReadObservedFolder && !isLoading && displayedComics.isNotEmpty;
+    final inlineSelectionActions =
+        availableWidth >= 440 + MediaQuery.textScalerOf(context).scale(20) * 4;
     void enterSelection() {
       if (!_canReadObservedFolder ||
           _queryOwner?.canPresent != true ||
@@ -886,6 +912,26 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
               "Selected @c comics".tlParams({"c": selectedComics.length}),
             ),
             actions: [
+              if (inlineSelectionActions) ...[
+                IconButton(
+                  key: const ValueKey('favorites-select-all'),
+                  tooltip: 'Select All'.tl,
+                  icon: const Icon(Icons.select_all),
+                  onPressed: canSelect ? selectAll : null,
+                ),
+                IconButton(
+                  key: const ValueKey('favorites-invert-selection'),
+                  tooltip: 'Invert Selection'.tl,
+                  icon: const Icon(Icons.flip),
+                  onPressed: canSelect ? invertSelection : null,
+                ),
+                IconButton(
+                  key: const ValueKey('favorites-deselect'),
+                  tooltip: 'Deselect'.tl,
+                  icon: const Icon(Icons.deselect),
+                  onPressed: _cancel,
+                ),
+              ],
               MenuButton(
                 menuIdentity: (
                   _observedManager,
@@ -934,21 +980,23 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                         );
                       },
                     ),
-                  MenuEntry(
-                    icon: Icons.select_all,
-                    text: "Select All".tl,
-                    onClick: selectAll,
-                  ),
-                  MenuEntry(
-                    icon: Icons.deselect,
-                    text: "Deselect".tl,
-                    onClick: _cancel,
-                  ),
-                  MenuEntry(
-                    icon: Icons.flip,
-                    text: "Invert Selection".tl,
-                    onClick: invertSelection,
-                  ),
+                  if (!inlineSelectionActions) ...[
+                    MenuEntry(
+                      icon: Icons.select_all,
+                      text: "Select All".tl,
+                      onClick: selectAll,
+                    ),
+                    MenuEntry(
+                      icon: Icons.deselect,
+                      text: "Deselect".tl,
+                      onClick: _cancel,
+                    ),
+                    MenuEntry(
+                      icon: Icons.flip,
+                      text: "Invert Selection".tl,
+                      onClick: invertSelection,
+                    ),
+                  ],
                   if (!isAllFolder && selectedItems.isNotEmpty)
                     MenuEntry(
                       icon: Icons.delete_outline,
@@ -1285,22 +1333,19 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
         child: body,
       ),
     );
+    if (multiSelectMode || searchMode) {
+      body = CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): _dismissLocalMode,
+        },
+        child: Focus(autofocus: true, child: body),
+      );
+    }
     return PopScope(
       canPop: !multiSelectMode && !searchMode && parentFolder == null,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        if (multiSelectMode) {
-          setState(() {
-            multiSelectMode = false;
-            selectedComics.clear();
-          });
-        } else if (searchMode) {
-          setState(() {
-            searchMode = false;
-            keyword = "";
-            updateComics();
-          });
-        } else {
+        if (!_dismissLocalMode()) {
           goToParent();
         }
       },

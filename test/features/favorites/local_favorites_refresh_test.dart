@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/components/button.dart';
 import 'package:venera_next/features/comic_details/comic_details.dart';
-import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/features/favorites/favorite_models.dart';
 import 'package:venera_next/features/favorites/favorites_manager.dart';
@@ -21,6 +20,7 @@ import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/comic_type.dart';
 import 'package:venera_next/foundation/opencc.dart';
+import 'package:venera_next/routing/app_navigation.dart';
 
 FavoriteItem _comic(String id, String title) => FavoriteItem(
   id: id,
@@ -48,7 +48,7 @@ class _CountingHistory extends HistoryManager {
 class _Fixture {
   final manager = LocalFavoritesManager.independent();
   final history = _CountingHistory();
-  final navigator = GlobalKey<NavigatorState>();
+  final navigator = appNavigation.rootNavigatorKey;
   double textScale = 1;
   bool dark = false;
 
@@ -59,12 +59,19 @@ class _Fixture {
       child: MaterialApp(
         navigatorKey: navigator,
         theme: dark ? ThemeData.dark() : ThemeData.light(),
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(textScale),
-            disableAnimations: true,
+        builder: (context, child) => Shortcuts(
+          shortcuts: {
+            LogicalKeySet(LogicalKeyboardKey.escape): VoidCallbackIntent(
+              appNavigation.pop,
+            ),
+          },
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(textScale),
+              disableAnimations: true,
+            ),
+            child: child!,
           ),
-          child: child!,
         ),
         home: Scaffold(
           body: LocalFavoritesPage(
@@ -174,6 +181,12 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 Future<void> _chooseAction(WidgetTester tester, String label) async {
+  final direct = find.byTooltip(label);
+  if (direct.evaluate().isNotEmpty) {
+    await tester.tap(direct);
+    await tester.pumpAndSettle();
+    return;
+  }
   final menu = find.byWidgetPredicate(
     (widget) =>
         widget is MenuButton &&
@@ -191,6 +204,65 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   App.dataPath = Directory.systemTemp.path;
   App.cachePath = Directory.systemTemp.path;
+
+  testWidgets(
+    'wide selection toolbar exposes common actions and Escape exits local modes',
+    (tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final fixture = await _prepare(tester, 3);
+      await tester.pumpWidget(fixture.host());
+      await _settle(tester);
+      await tester.tap(find.byTooltip('Search'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Existing 1');
+      await tester.pumpAndSettle();
+      await tester.longPress(_tile('seed-1'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('favorites-select-all')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('favorites-invert-selection')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('favorites-deselect')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('favorites-select-all')));
+      await tester.pumpAndSettle();
+      expect(find.text('Selected 1 comics'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('Selected 1 comics'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(_tile('seed-0'), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      expect(_tile('seed-0'), findsOneWidget);
+      expect(_tile('seed-1'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Escape dismisses a deletion dialog before clearing selection', (
+    tester,
+  ) async {
+    final fixture = await _prepare(tester, 2);
+    await tester.pumpWidget(fixture.host());
+    await _settle(tester);
+    await tester.tap(find.byTooltip('Select comics'));
+    await tester.pumpAndSettle();
+    await _chooseAction(tester, 'Select All');
+    await _chooseAction(tester, 'Delete Comic');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Delete 2 comics?'), findsNothing);
+    expect(find.text('Selected 2 comics'), findsOneWidget);
+    expect(fixture.manager.getFolderComics('B'), hasLength(2));
+  });
 
   for (final size in [
     const Size(375, 800),

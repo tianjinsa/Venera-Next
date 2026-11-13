@@ -357,7 +357,7 @@ class AndroidTvBuildTest(unittest.TestCase):
         self.assertNotIn("android_architecture", build + release)
         self.assertIn("quality_checked: true", release)
         self.assertIn("name: android_build", release)
-        self.assertLess(release.index("android_tv_build.py verify-release"), release.index("gh release create"))
+        self.assertLess(release.index("android_tv_build.py verify-release"), release.index("harmonyos_release.py prepare-draft"))
         smoke = (workflows / "pr_build.yml").read_text(encoding="utf-8")
         self.assertIn("for flavor in mobile tv; do", smoke)
         self.assertIn("--target-platform android-arm64", smoke)
