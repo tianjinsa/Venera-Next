@@ -121,8 +121,16 @@ void main() {
     CacheManager.instance = cache;
     requests.clear();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    server.listen((request) {
+    server.listen((request) async {
       requests.add(request.uri.path);
+      if (request.uri.path == '/chunks') {
+        request.response.contentLength = 6;
+        request.response.add([0, 128, 255]);
+        await request.response.flush();
+        request.response.add([3, 4, 5]);
+        await request.response.close();
+        return;
+      }
       request.response.statusCode = request.uri.path == '/fail'
           ? HttpStatus.serviceUnavailable
           : HttpStatus.ok;
@@ -152,6 +160,57 @@ void main() {
       'comic',
       'episode',
     ).toList();
+  }
+
+  for (final thumbnail in [false, true]) {
+    for (final transform in ['none', 'typed', 'list']) {
+      test(
+        'binary chunks preserve progress, callbacks and cache: thumbnail=$thumbnail transform=$transform',
+        () async {
+          const original = [0, 128, 255, 3, 4, 5];
+          final expected = transform == 'none'
+              ? original
+              : original.reversed.toList();
+          final response = _Callback((args) async {
+            expect(args.single, isA<Uint8List>());
+            expect(args.single, original);
+            return transform == 'typed'
+                ? Uint8List.fromList(expected)
+                : expected;
+          });
+          Map<String, dynamic> config() => {
+            'url': url('/chunks'),
+            if (transform != 'none') 'onResponse': response,
+          };
+          ImageDownloader.configureSourceImageLoading(
+            comicImageLoadingConfig: (_, _, _, _) => config(),
+            thumbnailLoadingConfig: (_, _) => config(),
+          );
+          final events =
+              await (thumbnail
+                      ? ImageDownloader.loadThumbnail('binary-image', 'source')
+                      : ImageDownloader.loadComicImage(
+                          'binary-image',
+                          'source',
+                          'comic',
+                          'episode',
+                        ))
+                  .toList();
+          expect(events.last.imageBytes, isA<Uint8List>());
+          expect(events.last.imageBytes, expected);
+          expect(events.last.currentBytes, 6);
+          expect(events.last.totalBytes, 6);
+          expect(events.where((event) => event.imageBytes == null), isNotEmpty);
+          expect(response.calls, transform == 'none' ? 0 : 1);
+          expect(response.releases, transform == 'none' ? 0 : 1);
+          final key = thumbnail
+              ? 'binary-image@source'
+              : 'binary-image@source@comic@episode';
+          expect(await (await cache.findCache(key))!.readAsBytes(), expected);
+          expect(requests, ['/chunks']);
+        },
+      );
+    }
   }
 
   test(

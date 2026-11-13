@@ -70,6 +70,22 @@ void main() {
     expect(callback.destroyCount, 1);
   });
 
+  test('onResponse reuses its owned compact byte buffer', () async {
+    final bytes = Uint8List.fromList([0, 128, 255]);
+    final callback = _FakeJSInvokable((args) {
+      expect(args.single, same(bytes));
+      (args.single as Uint8List)[0] = 7;
+      return args.single;
+    });
+    final result = await ImageDownloader.debugApplyImageResponseCallback(
+      callback,
+      bytes,
+    );
+    expect(result, same(bytes));
+    expect(result, [7, 128, 255]);
+    expect(callback.destroyCount, 1);
+  });
+
   test('image onResponse callback is freed after future result', () async {
     final callback = _FakeJSInvokable((args) async => <int>[4, 5, 6]);
 

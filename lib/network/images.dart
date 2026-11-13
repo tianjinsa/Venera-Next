@@ -96,7 +96,8 @@ abstract class ImageDownloader {
     List<int> buffer,
     ImageLoadingConfigOwner owner,
   ) async {
-    dynamic result = onResponse([Uint8List.fromList(buffer)]);
+    final bytes = buffer is Uint8List ? buffer : Uint8List.fromList(buffer);
+    dynamic result = onResponse([bytes]);
     if (result is Future) result = await result;
     if (result is List<int>) {
       return result;
@@ -284,10 +285,10 @@ abstract class ImageDownloader {
         if (expectedBytes == -1) {
           expectedBytes = null;
         }
-        var buffer = <int>[];
+        final buffer = BytesBuilder();
         await for (var data in stream) {
           scope.check();
-          buffer.addAll(data);
+          buffer.add(data);
           if (expectedBytes != null) {
             yield ImageDownloadProgress(
               currentBytes: buffer.length,
@@ -296,21 +297,25 @@ abstract class ImageDownloader {
           }
         }
 
+        List<int> response = buffer.takeBytes();
         if (configs['onResponse'] is JSInvokable) {
-          buffer = await _applyImageResponseCallback(
+          response = await _applyImageResponseCallback(
             configs['onResponse'] as JSInvokable,
-            buffer,
+            response,
             owner,
           );
         }
+        final data = response is Uint8List
+            ? response
+            : Uint8List.fromList(response);
 
         scope.check();
-        await CacheManager().writeCache(cacheKey, buffer);
+        await CacheManager().writeCache(cacheKey, data);
         scope.check();
         yield ImageDownloadProgress(
-          currentBytes: buffer.length,
-          totalBytes: buffer.length,
-          imageBytes: Uint8List.fromList(buffer),
+          currentBytes: data.length,
+          totalBytes: data.length,
+          imageBytes: data,
         );
       })) {
         yield event;
@@ -431,31 +436,28 @@ abstract class ImageDownloader {
             if (expectedBytes == -1) {
               expectedBytes = null;
             }
-            var buffer = <int>[];
+            final buffer = BytesBuilder();
             await for (var data in stream) {
               scope?.check();
-              buffer.addAll(data);
+              buffer.add(data);
               yield ImageDownloadProgress(
                 currentBytes: buffer.length,
                 totalBytes: expectedBytes,
               );
             }
 
+            List<int> response = buffer.takeBytes();
             if (configs['onResponse'] is JSInvokable) {
-              buffer = await _applyImageResponseCallback(
+              response = await _applyImageResponseCallback(
                 configs['onResponse'] as JSInvokable,
-                buffer,
+                response,
                 owner,
               );
             }
 
-            Uint8List data;
-            if (buffer is Uint8List) {
-              data = buffer;
-            } else {
-              data = Uint8List.fromList(buffer);
-              buffer.clear();
-            }
+            var data = response is Uint8List
+                ? response
+                : Uint8List.fromList(response);
 
             if (configs['modifyImage'] != null) {
               var newData = await modifyImageWithScript(

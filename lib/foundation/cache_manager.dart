@@ -120,7 +120,9 @@ class CacheManager {
     List<int> data, [
     int duration = 7 * 24 * 60 * 60 * 1000,
   ]) {
-    final bytes = List<int>.of(data);
+    // Snapshot accepted writes without retaining a word-sized list per byte.
+    // The caller can reuse/mutate its buffer while this write is queued.
+    final bytes = Uint8List.fromList(data);
     return _enqueue(() => _writeCache(key, bytes, duration));
   }
 

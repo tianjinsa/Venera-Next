@@ -155,7 +155,10 @@
 - `ReaderImagePrecache` 改为每视图最多四个请求、一次一项，原生解码及清理结束后才换项；窗口替换取消旧任务，画廊优先下一页。压力和低预算通知撤下主动订阅和排队任务，不取消共享流的可见消费者。新会话继承当前预算，收到压力时不能将更小的 TV 预算扩大到 32 MiB。
 - `ComicImage` 首帧就绪独立通知视口，继续由已有帧后门禁合并：命中尺寸缓存时，即使布局大小没有变化，预热／当前页判定也能继续；后续动图帧不重复通知。`comic_image_progress_test.dart` 覆盖同尺寸重新加载及重复帧，避免仅依赖尺寸变化。
 - 回归入口：`image_precache_test.dart` 的串行／容量／去重、窗口替换、原生首帧清理和退出恢复；`image_precache_pressure_test.dart` 的低内存可见加载、压力下共享加载；`image_cache_policy_test.dart` 的继承预算。沿用既有滚动、缩放、裁剪及真实退出门禁。
-- 本地按启动／维护 Skill 只做格式、源码核对和轻量静态检查；不运行 Flutter／Python／原生测试或构建。完整验证使用 fork Actions `build.yml tests_only=true`，运行链接、准确 SHA 和结论在实际派发后追加。未进行 Android 真机 UI／raster／GC 测量，不能据本轮源码或宿主回归宣称设备卡顿全部消除。
+- 用户随后明确“非全量测试可以在云环境运行，只有全量测试要在 action 运行”；据此修正两份 Skill、根约定及中英文构建指南。本地已通过调度／首帧／压力 28 项，之后缓冲／缓存／网络所有权 83 项；原生库复用当前环境，未运行本地全量或安装包构建。
+- 继续核对发现下载成功前的同步字节分配热点：分块累计使用普通 `List<int>`，缓存准入又 `List<int>.of` 复制完整内容。网络改为 `BytesBuilder`，缓存保持独立的 `Uint8List` 快照，已有紧凑缓冲可以直接交给 `onResponse`；保留异步读写、原始字节、排队写入隔离和回调／取消所有权。真实分块二进制、无／TypedData／普通列表回调、调用方修改带偏移的输入视图均有回归。
+- 补跑阅读兼容回归 234 项通过、23 项按原条件跳过，包含连续／瀑布流锚点、滚动策略与缓存键、画廊续页与旋转、白边裁剪及真实退出；三轮共 345 项通过、23 项跳过。同步字节准备的可重复宿主对照及其测量边界见[性能记录](../experiments/webdav_reader_performance.zh.md#2026-11-13-agent-分支续修)；不把该合成对照当作设备帧率或全量验收。
+- 全量验证使用 fork Actions `build.yml tests_only=true`；首轮 [43398732298](https://github.com/tianjinsa/Venera-Next/actions/runs/43398732298) 的 head 为 `c0a80e3357a5978900bfb383fd45b323b8aee875`，不覆盖后续字节缓冲改动，最终源码需新一轮准确 SHA 的验证。未进行 Android 真机 UI／raster／GC 测量，不能据宿主回归宣称设备卡顿全部消除。
 
 ## 数据与代码回退
 

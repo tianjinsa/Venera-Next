@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "date": "2026-11-13",
+  "kind": "host-synchronous-byte-preparation",
+  "probe": "tool/reader_byte_buffer_probe.dart",
+  "dart": "3.11.1",
+  "limitations": [
+    "Synthetic byte buffering, queued snapshot and file-API byte conversion only.",
+    "No network, disk, image decoding, custom script, UI or GPU measurement.",
+    "Two warmup rounds, then seven alternating samples; validation is outside timing.",
+    "No process-memory peak, Android frame rate or original-device reproduction claim."
+  ],
+  "groups": [
+    {
+      "encodedBytes": 1048576,
+      "chunkBytes": 65536,
+      "samplesAfterWarmup": 7,
+      "beforeP50Us": 73828,
+      "afterP50Us": 3858
+    },
+    {
+      "encodedBytes": 4194304,
+      "chunkBytes": 65536,
+      "samplesAfterWarmup": 7,
+      "beforeP50Us": 211153,
+      "afterP50Us": 5923
+    }
+  ]
+}
