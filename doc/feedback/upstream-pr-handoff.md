@@ -99,4 +99,13 @@ git switch -c codex/upstream-reader-ui-fixes upstream/main
 - 产品修复：`0788c89380d8960db6647fe9b9acfb18609ddaf8`。
 - 反馈、Skill 与 tests_only 入口：`423e67a326d594e5f226005fe56e279dcfdd4135`。
 - 本轮 [Actions run 43364772554](https://github.com/tianjinsa/Venera-Next/actions/runs/43364772554)，验证 head SHA **`423e67a326d594e5f226005fe56e279dcfdd4135`**，tests_only=true / skip_tests=false，所有安装包开关 false。
-- 首次派发 HTTP 503，核对未创建运行后重试成功；不是创建了两轮。当前记录为运行中，最终结论会在完成后更新；不能据此声称全量通过。后续仅补文档的提交不自动当作另一个已验证源码 SHA。
+- 首次派发 HTTP 503，核对未创建运行后重试成功；不是创建了两轮。交付时仍在运行：元数据/脚本检查、analyze、Apple 目录授权与 iOS Rhttp 兼容检查 success；Android Provider 与 Rhttp 原生任务尚在运行，Flutter 完整回归等待原生库。后续会话先查询该 run 的最终结论，不能据此声称全量通过。后续仅补文档的提交不自动当作另一个已验证源码 SHA。
+
+读取本轮最终结果时只需先执行：
+
+```sh
+gh run view 43364772554 --repo tianjinsa/Venera-Next \
+  --json url,headSha,status,conclusion,jobs
+```
+
+若失败，只读取失败 job 的必要日志/堆栈；不重跑 Cloud 测试，不重新解析全部历史日志。先核对 headSha 是否为 `423e67a326d594e5f226005fe56e279dcfdd4135`。本轮后续仅文档/Skill 说明提交不意味着另一份产品源码已被验证。

@@ -164,4 +164,4 @@
 
 - 产品修复 `0788c893`，反馈与 CI 入口 `423e67a3` 均推送到 `origin/codex/agent-center-tab`。
 - 触发 [run 43364772554](https://github.com/tianjinsa/Venera-Next/actions/runs/43364772554)，head SHA `423e67a326d594e5f226005fe56e279dcfdd4135`，使用 tests_only=true、skip_tests=false 和六个平台安装包开关 false。
-- 首次派发返回 503，确认无新 run 后重试成功；当前运行中，尚未宣称通过。完整结果完成后更新；不把此前中断的 Cloud 全量或旧 head 的 CI 当作本次通过。
+- 首次派发返回 503，确认无新 run 后重试成功；交付时运行中，analyze、元数据/脚本、Apple 目录授权及 iOS Rhttp 检查已 success，其余未完成，尚未宣称全量通过。后续会话直接查询该 run 的最终结果；不把此前中断的 Cloud 全量或旧 head 的 CI 当作本次通过。
