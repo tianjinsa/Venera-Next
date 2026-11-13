@@ -65,7 +65,7 @@ flutter test --no-pub
 git diff --check
 ```
 
-CI runs `flutter test --coverage`, publishes line coverage in the workflow summary, and uploads `coverage/lcov.info`. Coverage is currently a visible baseline rather than a repository-wide hard threshold. Changes to critical behavior still require focused tests.
+CI runs `flutter test --no-pub --coverage`, publishes line coverage in the workflow summary, and uploads `coverage/lcov.info`. Coverage is currently a visible baseline rather than a repository-wide hard threshold. Changes to critical behavior still require focused tests.
 
 Pull requests also run `依赖安全审查` and `PR 平台冒烟构建`. Dependency review blocks newly introduced dependencies with high or critical vulnerabilities. Changes to Flutter code, native platform directories, dependencies, build scripts, or workflows run Android mobile/TV Debug and Windows Debug builds; documentation-only changes skip those platform jobs. Quality checks also run navigation, input, low-memory, and update regressions with the actual TV flavor. Dart formatting is checked only for Dart files changed by the current PR, so historical formatting differences do not block new contributions. The `main` branch requires code analysis, dependency review, and the platform smoke-build gate to pass, and direct force-pushes or branch deletion are disabled.
 
@@ -146,6 +146,12 @@ python .github/scripts/release_version.py --check --tag v1.2.3
 `pubspec.yaml`, the release tag, and the version section in `CHANGELOG.md` must match `release.json`. `alt_store.json` is not a version source. After a stable GitHub Release succeeds, workflows update it from release assets; RC prereleases do not update the AltStore source.
 
 The `代码分析` workflow runs version and structure checks, Python script tests, formatting checks for changed Dart files, `flutter analyze`, the full Dart test suite, and coverage reporting. `依赖安全审查` checks dependencies added or upgraded by a pull request, while `PR 平台冒烟构建` verifies Android and Windows compilation when the changed files can affect platform builds. Before starting multi-platform builds, `完整构建` reuses the same quality workflow. Manual platform builds and tag releases both reuse `.github/workflows/build.yml` so their build definitions cannot drift apart.
+
+CI resolves dependencies once with `flutter pub get --enforce-lockfile`, then uses `--no-pub` for analysis, tests, and builds. The Windows packaging script follows the same sequence internally, including when run locally. Rust preparation installs missing components and targets in place and reports installation or verification failures without uninstalling the toolchain or resetting the environment. It exports `RUSTUP_TOOLCHAIN` so host jobs do not automatically install unrelated platform targets from the repository toolchain file. Cargokit recognizes installed pinned versions and Windows line endings, avoiding repeated requests to install the same toolchain or targets for each ABI.
+
+The shared `.github/actions/cache-rust` caches Cargo dependencies by runner OS, architecture, build configuration, Rust toolchain, lockfiles, and relevant compiler environment. Android also keys on Gradle/NDK configuration and Cargokit scripts. Linux, Windows, and Android use their actual Cargokit target directories. Apple app builds cache downloads only, excluding Xcode products and the Rustup wrapper. HarmonyOS uses a separate API 26 cross-compilation cache. Caching does not skip compiling the project's own Rust code, tests, ABI checks, or release provenance checks; the first run still populates the cache.
+
+Normal native libraries, ASan/UBSan libraries, and Android Provider test APKs serve different tests and remain separate. Linux Flutter tests build only the Rhttp dynamic library, omitting the unused static archive. Android mobile and TV remain isolated matrix builds. Linux DEB, RPM, AppImage, and Arch packaging already share one Flutter release build instead of recompiling the application for each format.
 
 Android release workflows require these repository Secrets:
 

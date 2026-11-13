@@ -65,7 +65,7 @@ flutter test --no-pub
 git diff --check
 ```
 
-CI 会使用 `flutter test --coverage` 生成 `coverage/lcov.info`，在工作流摘要中显示行覆盖率，并上传报告产物。当前覆盖率用于建立可见基线，尚未设置统一硬阈值；涉及关键业务路径的改动仍必须增加针对性测试。
+CI 会使用 `flutter test --no-pub --coverage` 生成 `coverage/lcov.info`，在工作流摘要中显示行覆盖率，并上传报告产物。当前覆盖率用于建立可见基线，尚未设置统一硬阈值；涉及关键业务路径的改动仍必须增加针对性测试。
 
 PR 还会运行 `依赖安全审查` 和 `PR 平台冒烟构建`。依赖审查会阻止引入高危或严重漏洞依赖；当改动涉及 Flutter 代码、原生平台目录、依赖、构建脚本或工作流时，平台工作流会执行 Android 手机版／TV 版 Debug 和 Windows Debug 构建，文档等不影响构建的改动会跳过这些平台任务。质量流程另运行真实 TV flavor 的导航、输入、低内存和更新回归。Dart 格式检查只针对本次修改的 Dart 文件执行，避免历史格式差异阻塞后续贡献。`main` 分支要求 PR 通过代码分析、依赖审查和平台冒烟构建门禁，并禁止直接强推或删除分支。
 
@@ -146,6 +146,12 @@ python .github/scripts/release_version.py --check --tag v1.2.3
 `pubspec.yaml`、发布 tag 和 `CHANGELOG.md` 版本章节必须与 `release.json` 一致。`alt_store.json` 不是版本源；正式版 GitHub Release 成功后，工作流会根据发布资产更新它，RC 预发布不会更新 AltStore 源。
 
 `代码分析` 工作流会运行版本与结构检查、Python 脚本测试、修改文件的 Dart 格式检查、`flutter analyze`、完整 Dart 测试及覆盖率汇总。`依赖安全审查` 会检查 PR 新增或升级的依赖，`PR 平台冒烟构建` 会按改动范围验证 Android 和 Windows 编译。`完整构建` 在开始多平台构建前会复用同一质量工作流；手动平台构建和 tag 发布则共同复用 `.github/workflows/build.yml`，避免两套构建定义产生差异。
+
+CI 先执行一次 `flutter pub get --enforce-lockfile`，后续分析、测试与构建使用 `--no-pub`；Windows 打包脚本内部也遵循这一顺序，独立运行时仍会获取锁定依赖。Rust 初始化在原工具链上补齐组件和目标，安装或可执行文件校验失败时直接报错，不卸载重装或重置环境；通过 `RUSTUP_TOOLCHAIN` 避免宿主任务自动安装仓库中其他平台的 targets。Cargokit 同时识别已经安装的固定版本及 Windows 换行，避免各 ABI 再次请求安装相同工具链或目标。
+
+共享的 `.github/actions/cache-rust` 按运行系统、架构、构建配置、Rust 工具链、锁文件和相关编译环境缓存 Cargo 依赖；Android 还区分 Gradle／NDK 配置与 Cargokit 脚本。Linux、Windows 和 Android 使用各自实际的 Cargokit 编译目录，Apple 应用仅复用下载缓存，不缓存 Xcode 产物或 Rustup 包装器。鸿蒙使用其独立的 API 26 交叉编译缓存。缓存不跳过项目自身 Rust 编译、测试、ABI 校验或发布来源校验，首次运行仍需填充缓存。
+
+普通原生库、带 ASan／UBSan 的原生库和 Android Provider 测试 APK 分别服务于不同测试，不能合并删除。Linux Flutter 测试仅编译 Rhttp 动态库，不额外生成未使用的静态库；Android 手机版和 TV 版继续在独立矩阵任务中构建。Linux 的 DEB、RPM、AppImage 与 Arch 打包已经共用一次 Flutter release 构建，不会逐格式重新编译应用。
 
 Android release 工作流需要以下仓库 Secrets：
 

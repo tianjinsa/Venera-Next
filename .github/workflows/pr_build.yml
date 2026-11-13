@@ -32,13 +32,13 @@ jobs:
           changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" --)"
           printf '%s\n' "$changed_files"
           if printf '%s\n' "$changed_files" | grep -Eq \
-            '^(lib/|packages/|assets/|android/|apple/|windows/|ios/|macos/|linux/|debian/|patch/|\.github/workflows/|\.github/scripts/|pubspec\.yaml$|pubspec\.lock$|rust-toolchain\.toml$|analysis_options\.yaml$)'; then
+            '^(lib/|packages/|assets/|android/|apple/|windows/|ios/|macos/|linux/|debian/|patch/|\.github/(actions|workflows|scripts)/|pubspec\.yaml$|pubspec\.lock$|rust-toolchain\.toml$|analysis_options\.yaml$)'; then
             echo "platform=true" >> "$GITHUB_OUTPUT"
           else
             echo "platform=false" >> "$GITHUB_OUTPUT"
           fi
           if printf '%s\n' "$changed_files" | grep -Eq \
-            '^(packages/[^/]+/(linux|macos|windows|src)/|linux/|macos/|pubspec\.(yaml|lock)$)'; then
+            '^(packages/[^/]+/(linux|macos|windows|src)/|linux/|macos/|\.github/actions/cache-rust/|pubspec\.(yaml|lock)$)'; then
             echo "desktop=true" >> "$GITHUB_OUTPUT"
           else
             echo "desktop=false" >> "$GITHUB_OUTPUT"
@@ -68,6 +68,10 @@ jobs:
             --target aarch64-linux-android \
             --target armv7-linux-androideabi \
             --target x86_64-linux-android
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: android-debug-${{ hashFiles('android/**/*.gradle*', 'packages/rhttp/cargokit/**') }}
+          workspaces: packages/rhttp/rust -> ../../../build/rhttp/build
       - uses: actions/setup-java@v6
         with:
           distribution: oracle
@@ -98,7 +102,7 @@ jobs:
       - name: 构建 Android Debug APK
         env:
           ANDROID_FLAVOR: ${{ matrix.flavor }}
-        run: flutter build apk --debug --flavor "$ANDROID_FLAVOR" --target-platform android-arm,android-arm64,android-x64
+        run: flutter build apk --debug --flavor "$ANDROID_FLAVOR" --target-platform android-arm,android-arm64,android-x64 --no-pub
       - name: 验证 Android 原生编码包与第三方声明
         env:
           ANDROID_FLAVOR: ${{ matrix.flavor }}
@@ -126,9 +130,15 @@ jobs:
           flutter-version-file: pubspec.yaml
           architecture: x64
           cache: true
+      - name: 准备 Rust 工具链
+        run: python .github/scripts/prepare_rust_toolchain.py
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: windows-debug
+          workspaces: packages/rhttp/rust -> ../../../build/windows/x64/plugins/rhttp/cargokit_build
       - run: flutter pub get --enforce-lockfile
       - name: 构建 Windows Debug 应用
-        run: flutter build windows --debug
+        run: flutter build windows --debug --no-pub
       - name: 验证桌面 WebView 第三方声明随应用分发
         shell: pwsh
         run: |
@@ -248,13 +258,18 @@ jobs:
           echo "RUSTUP_REAL_BINARY=$RUNNER_TEMP/rustup" >> "$GITHUB_ENV"
           echo "RUSTUP_LOCK_FILE=$RUNNER_TEMP/venera-rustup.lock" >> "$GITHUB_ENV"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: desktop-${{ matrix.target }}-debug
+          workspaces: ${{ matrix.target == 'linux' && 'packages/rhttp/rust -> ../../../build/linux/x64/debug/plugins/rhttp/cargokit_build' || 'packages/rhttp/rust' }}
+          cache-targets: ${{ matrix.target == 'linux' }}
       - run: flutter pub get --enforce-lockfile
       - name: 编译桌面应用及全部原生插件
         if: ${{ matrix.target != 'ios' }}
-        run: flutter build ${{ matrix.target }} --debug
+        run: flutter build ${{ matrix.target }} --debug --no-pub
       - name: 编译 iOS 模拟器应用及全部原生插件
         if: ${{ matrix.target == 'ios' }}
-        run: flutter build ios --simulator --debug --no-codesign
+        run: flutter build ios --simulator --debug --no-codesign --no-pub
       - name: 验证原生编码导出与随包声明
         env:
           BUNDLE_PLATFORM: ${{ matrix.target }}

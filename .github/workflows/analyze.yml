@@ -26,16 +26,19 @@ jobs:
     name: Rhttp 原生回调生命周期
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      RUSTFLAGS: --cfg reqwest_unstable
     steps:
       - uses: actions/checkout@v7
+      - name: 准备宿主 Rust 工具链
+        run: python3 .github/scripts/prepare_rust_toolchain.py
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: linux-test-ubuntu-24.04
       - name: 验证锁定原生源码的取消与回调收尾
-        env:
-          RUSTFLAGS: --cfg reqwest_unstable
         run: cargo test --locked --manifest-path packages/rhttp/rust/Cargo.toml --lib
       - name: 编译 Flutter 测试使用的 Rhttp 库
-        env:
-          RUSTFLAGS: --cfg reqwest_unstable
-        run: cargo build --locked --manifest-path packages/rhttp/rust/Cargo.toml --lib
+        run: cargo rustc --locked --manifest-path packages/rhttp/rust/Cargo.toml --lib --crate-type cdylib
       - uses: actions/upload-artifact@v7
         with:
           name: linux-rhttp-test-library
@@ -47,14 +50,17 @@ jobs:
     name: iOS Rhttp 原生依赖兼容性
     runs-on: macos-15
     timeout-minutes: 20
+    env:
+      RUSTFLAGS: --cfg reqwest_unstable
     steps:
       - uses: actions/checkout@v7
       - run: sudo xcode-select --switch /Applications/Xcode_16.4.app
       - name: 准备 iOS Rust 工具链
         run: python3 .github/scripts/prepare_rust_toolchain.py --target aarch64-apple-ios
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: ios-check
       - name: 验证锁定原生依赖可用于 iOS
-        env:
-          RUSTFLAGS: --cfg reqwest_unstable
         run: |
           export SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
           cargo check --locked --manifest-path packages/rhttp/rust/Cargo.toml --target aarch64-apple-ios --lib
@@ -101,7 +107,7 @@ jobs:
             exit 0
           fi
           dart format --output=none --set-exit-if-changed "${dart_files[@]}"
-      - run: flutter analyze --fatal-infos --fatal-warnings
+      - run: flutter analyze --no-pub --fatal-infos --fatal-warnings
 
   flutter-tests:
     name: Flutter 测试与覆盖率
@@ -150,7 +156,7 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
           cmake --build build/saf-sanitizers --parallel 2
           ctest --test-dir build/saf-sanitizers --output-on-failure
-      - run: flutter test --coverage
+      - run: flutter test --no-pub --coverage
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/test-native/lib
       - name: 验证 TV 编译身份、遥控器与低内存策略

@@ -130,6 +130,13 @@ jobs:
           mkdir "$RUNNER_TEMP/sqlite"
           tar -xzf "$RUNNER_TEMP/sqlite.tar.gz" -C "$RUNNER_TEMP/sqlite" --strip-components=1
 
+      - name: Cache pinned Rust cross-compilation dependencies
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          key: harmonyos-api26-${{ hashFiles('harmonyos/tool/harmonyos/toolchain.json', 'harmonyos/tool/harmonyos/native_build.py') }}
+          workspaces: harmonyos/packages/rhttp/rust -> ../../../build/harmonyos/cargo
+          cache-bin: 'false'
+
       - name: Rebuild and audit core native libraries with API 26
         run: |
           python3 tool/harmonyos/native_build.py \

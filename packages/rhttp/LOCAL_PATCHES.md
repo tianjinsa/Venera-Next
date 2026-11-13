@@ -58,8 +58,8 @@ not modified. No formatting exclusions or changes to the check were added.
 Application-specific Rust source changes remain in `rust/src/api/http.rs`,
 including its callback-drain tests and Rust formatting normalization. Other
 local additions are this document, `.gitignore`, and `rust/cargokit.yaml`.
-Apart from the Cargo.lock dependency updates and Cargo.toml compatibility
-pins below, all remaining retained upstream files are byte-for-byte unchanged,
+Apart from the Cargo.lock dependency updates, Cargo.toml compatibility
+pins and Rustup discovery fix below, all remaining retained upstream files are byte-for-byte unchanged,
 including licenses, generated bridge code and platform build entry points.
 
 `git diff --check` reports inherited trailing spaces or final blank lines in
@@ -149,6 +149,17 @@ Flutter Rust Bridge 2.11.1 pin, libc 0.2.189 iOS compatibility pin and
 certificate-trust security updates remain unchanged. The locked native
 callback-drain tests and complete RustSec scan pass with this update; HTTP
 settings, streaming cancellation and generated bridge APIs are unchanged.
+
+## Reuse installed pinned toolchains (2026-11-13)
+
+Cargokit's `rustup.dart` now recognizes installed numeric Rust releases such as
+`1.92.0`, alongside stable, beta and nightly channels. Previously it omitted
+numeric versions from its inventory, so each platform/ABI build requested an
+installation even when CI had already prepared the exact toolchain and targets.
+Toolchain and target output is trimmed to handle Windows CRLF without redundant
+target installation. Linked custom toolchains remain excluded from target
+queries. `test/tool/cargokit_rustup_test.dart` covers pinned releases, repeated
+lookups, LF/CRLF, channel support, and linked custom toolchains.
 
 ## Building the patched source
 

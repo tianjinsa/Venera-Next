@@ -81,7 +81,7 @@ class IosReleaseMetadataTests(unittest.TestCase):
                             captured.read_text(encoding="utf-8").splitlines(),
                             [
                                 "build", "ios", "--release", "--no-codesign",
-                                "--build-name", native_version, "--build-number", build,
+                                "--build-name", native_version, "--build-number", build, "--no-pub",
                             ],
                         )
 

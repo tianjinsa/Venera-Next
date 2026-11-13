@@ -1,0 +1,24 @@
+name: 缓存 Rust 编译依赖
+description: 按运行平台、构建配置、工具链和锁文件缓存 Cargo 依赖，始终重编译项目自身源码。
+
+inputs:
+  key:
+    description: 区分平台、构建配置与原生工具链的缓存标识
+    required: true
+  workspaces:
+    description: Cargo 工作区与实际 target 目录的对应关系
+    default: packages/rhttp/rust
+  cache-targets:
+    description: 是否缓存编译依赖；Apple 应用构建仅缓存下载，避免缓存 Xcode 产物
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      with:
+        key: ${{ runner.os }}-${{ runner.arch }}-${{ inputs.key }}-${{ hashFiles('packages/rhttp/cargokit/**', 'packages/rhttp/rust/cargokit.yaml') }}
+        workspaces: ${{ inputs.workspaces }}
+        cache-targets: ${{ inputs.cache-targets }}
+        # Apple jobs install a runner-specific rustup wrapper in this directory.
+        cache-bin: 'false'

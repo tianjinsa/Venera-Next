@@ -129,6 +129,10 @@ jobs:
             --target aarch64-linux-android \
             --target armv7-linux-androideabi \
             --target x86_64-linux-android
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: android-release-${{ hashFiles('android/**/*.gradle*', 'packages/rhttp/cargokit/**') }}
+          workspaces: packages/rhttp/rust -> ../../../build/rhttp/build
       - name: 配置 Gradle 插件仓库
         run: |
           mkdir -p ~/.gradle/init.d
@@ -152,10 +156,11 @@ jobs:
         run: |
           if [[ "$ANDROID_FLAVOR" == "tv" ]]; then
             flutter build apk --release --flavor tv \
+              --no-pub \
               --dart-define="TV_BUILD=$TV_BUILD_LABEL" \
               --dart-define="TV_REVISION=$TV_REVISION"
           else
-            flutter build apk --release --flavor mobile
+            flutter build apk --release --flavor mobile --no-pub
           fi
       - name: 验证 Android 分享文件与回调归属
         working-directory: android
@@ -217,10 +222,14 @@ jobs:
           flutter-version-file: pubspec.yaml
           architecture: x64
           cache: true
+      - name: 准备 Rust 工具链
+        run: python .github/scripts/prepare_rust_toolchain.py
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: windows-release
+          workspaces: packages/rhttp/rust -> ../../../build/windows/x64/plugins/rhttp/cargokit_build
       - name: 构建 Windows 安装包
-        run: |
-          flutter pub get --enforce-lockfile
-          python windows/build.py
+        run: python windows/build.py
       - name: 验证 Windows 分享请求与 COM 归属
         shell: pwsh
         run: |
@@ -309,6 +318,10 @@ jobs:
           python3 .github/scripts/prepare_rust_toolchain.py \
             --target aarch64-apple-darwin \
             --target x86_64-apple-darwin
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: macos-release
+          cache-targets: 'false'
       - name: 串行化 Rustup 安装操作
         run: |
           install "$(command -v rustup)" "$RUNNER_TEMP/rustup"
@@ -323,7 +336,7 @@ jobs:
       - name: 检查 rust-toolchain.toml
         run: rustup show
       - name: 构建 Flutter macOS 应用
-        run: flutter build macos --release
+        run: flutter build macos --release --no-pub
       - name: 创建 DMG
         run: |
           mkdir -p dist
@@ -363,6 +376,10 @@ jobs:
             --target aarch64-apple-darwin \
             --target x86_64-apple-darwin \
             --target aarch64-apple-ios
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: ios-release
+          cache-targets: 'false'
       - name: 串行化 Rustup 安装操作
         run: |
           install "$(command -v rustup)" "$RUNNER_TEMP/rustup"
@@ -385,7 +402,7 @@ jobs:
           IOS_VERSION="${IOS_VERSION%%-*}"
           echo "正在根据 ${APP_VERSION} 构建 iOS 包版本 ${IOS_VERSION}+${IOS_BUILD}"
           flutter build ios --release --no-codesign \
-            --build-name "$IOS_VERSION" --build-number "$IOS_BUILD"
+            --build-name "$IOS_VERSION" --build-number "$IOS_BUILD" --no-pub
       - name: 校验 iOS 原生版本与应用更新渠道
         run: |
           APP_VERSION=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '\r\n')
@@ -429,6 +446,10 @@ jobs:
           cache: true
       - name: 准备 Rust 工具链
         run: python3 .github/scripts/prepare_rust_toolchain.py
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: linux-release-ubuntu-22.04
+          workspaces: packages/rhttp/rust -> ../../../build/linux/x64/release/plugins/rhttp/cargokit_build
       - run: flutter pub get --enforce-lockfile
       - name: 安装 Linux 构建依赖
         run: |
@@ -479,6 +500,10 @@ jobs:
           cache: true
       - name: 准备 Rust 工具链
         run: python3 .github/scripts/prepare_rust_toolchain.py
+      - uses: ./.github/actions/cache-rust
+        with:
+          key: linux-release-ubuntu-22.04
+          workspaces: packages/rhttp/rust -> ../../../build/linux/arm64/release/plugins/rhttp/cargokit_build
       - run: flutter pub get --enforce-lockfile
       - name: 安装 Linux 构建依赖
         run: |

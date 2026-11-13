@@ -150,8 +150,9 @@ def main(arch="x64"):
     architecture_paths(arch)
     version = read_version()
     validate_icon_resources()
+    run(["flutter", "pub", "get", "--enforce-lockfile"])
     clean_windows_runner_build(arch)
-    command = ["flutter", "build", "windows"]
+    command = ["flutter", "build", "windows", "--no-pub"]
     if arch == "arm64":
         command += ["--target-platform", "windows-arm64"]
     run(command)

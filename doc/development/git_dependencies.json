@@ -121,7 +121,7 @@
       "path": "packages/rhttp",
       "version": "0.15.1",
       "status": "maintained-local",
-      "reason": "Cancellation-safe Rust/Dart callback draining and locked native dependency security fixes are maintained with the application.",
+      "reason": "Cancellation-safe Rust/Dart callback draining, locked native dependency security fixes and reuse of installed pinned Cargokit toolchains are maintained with the application.",
       "upstream": "https://codeberg.org/Tienisto/rhttp",
       "source": {
         "type": "archive",
@@ -140,7 +140,8 @@
         "required_patches": [
           "Locked Rust dependency security versions",
           "OHOS explicit external-library loading",
-          "Cancellation-safe callback completion for the current bridge"
+          "Cancellation-safe callback completion for the current bridge",
+          "Pinned toolchain discovery in Cargokit"
         ],
         "validation": "Official 0.18.0 lock matches 10 package versions with advisories; latest official Git lock is byte-identical. Official bridge removes old send panic, but strict OHOS loading adaptation is still pending.",
         "exit_condition": "Adopt official release/commit only after secure Cargo lock, matched FRB/generated code, strict OHOS loading and newly compiled native cancellation/TLS/platform acceptance.",
