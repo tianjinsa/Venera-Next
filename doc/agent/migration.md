@@ -160,6 +160,10 @@
 - 补跑阅读兼容回归 234 项通过、23 项按原条件跳过，包含连续／瀑布流锚点、滚动策略与缓存键、画廊续页与旋转、白边裁剪及真实退出；三轮共 345 项通过、23 项跳过。同步字节准备的可重复宿主对照及其测量边界见[性能记录](../experiments/webdav_reader_performance.zh.md#2026-11-13-agent-分支续修)；不把该合成对照当作设备帧率或全量验收。
 - 全量验证使用 fork Actions `build.yml tests_only=true`；首轮 [43398732298](https://github.com/tianjinsa/Venera-Next/actions/runs/43398732298) 的 head 为 `c0a80e3357a5978900bfb383fd45b323b8aee875`，不覆盖后续字节缓冲改动，最终源码需新一轮准确 SHA 的验证。未进行 Android 真机 UI／raster／GC 测量，不能据宿主回归宣称设备卡顿全部消除。
 
+## 反馈稿与 CI 等待（2026-11-13）
+
+本轮后续仅补反馈／维护文档，不改变 `a5222bca` 的产品源码与测试：新增第一人称 [U12](../feedback/U12-reader-image-completion-stutter.md)，索引更新为 12 份缺陷／组件稿和 6 份建议；直接说明现象并链接当前仓库，未实际发布上游。用户要求避免频繁轮询，已停止本地每分钟 watcher，远端 [43401061170](https://github.com/tianjinsa/Venera-Next/actions/runs/43401061170) 继续验证 head `a5222bcab780c58e4ea3097c1f0c8a3a51eb4b80`，运行满 20 分钟再查结果，未结束至少间隔 10 分钟。旧 [43398732298](https://github.com/tianjinsa/Venera-Next/actions/runs/43398732298) 已被新任务的并发策略取消，不记为通过。
+
 ## 数据与代码回退
 
 - 历史表原单 ID 主键在事务内迁移为 `(id, type)`，保留全部 Next 扩展列；增加分页索引和每日时长表。其他数据库保持 Next 原有日志策略。
