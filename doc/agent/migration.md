@@ -159,3 +159,9 @@
 2. 按[长期登记表](branch-change-register.md)的 A01–A16、O01–O10、R00–R12、C01–C06、M01–M02 和 Next 新增行为同时核对，特别检查导航索引、收藏层级、源编辑事务、阅读退出、历史主键/列、备份生命周期和构建签名。上游等价实现需登记替代提交与验证，不能静默删除行为或测试。
 3. 运行 `CONTRIBUTING.md` 的门禁，检查受影响的真实业务契约；同步本表、使用说明和 `CHANGELOG.md`。
 4. 不用整文件覆盖解决跨版本差异，不把旧设备性能记录当成本次验证，不自动发布版本或合入 `main`。
+
+## Actions 验证交接（2026-11-13）
+
+- 产品修复 `0788c893`，反馈与 CI 入口 `423e67a3` 均推送到 `origin/codex/agent-center-tab`。
+- 触发 [run 43364772554](https://github.com/tianjinsa/Venera-Next/actions/runs/43364772554)，head SHA `423e67a326d594e5f226005fe56e279dcfdd4135`，使用 tests_only=true、skip_tests=false 和六个平台安装包开关 false。
+- 首次派发返回 503，确认无新 run 后重试成功；当前运行中，尚未宣称通过。完整结果完成后更新；不把此前中断的 Cloud 全量或旧 head 的 CI 当作本次通过。

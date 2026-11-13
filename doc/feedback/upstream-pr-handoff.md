@@ -91,9 +91,12 @@ git switch -c codex/upstream-reader-ui-fixes upstream/main
 2. 核对已有 Actions run 结论，只读必要失败摘要；未完成不当作通过。
 3. 用户明确启动上游 PR 工作后，从最新 upstream/main 建上面那个单独分支，按映射逐项回移/适配。先处理确定缺陷，再把 E 项作为明确的交互扩展纳入同一 PR；不夹带 fork 专属功能。
 4. 每项带最小、有效业务回归，保留原生命周期/持久化门禁；更新上游 CHANGELOG，格式/结构/依赖及质量门禁按其当前规则执行。
-5. 在 fork 对应 PR 分支使用 GitHub Actions 验证。默认仓库 Skill 的分支名需按这次用户明确授权的上游分支替换，不能误推 Agent/main。记录 SHA/run/job，失败修正后核对新 SHA。
+5. 在 fork 对应 PR 分支使用 GitHub Actions 验证。`tests_only` 是本轮 fork/Agent 分支新增入口，从 upstream/main 创建的纯净 PR 分支未必包含它，不能机械传入未知参数或为了测试把 fork CI 改动混进上游 PR。可以在修复可审查后创建下面那个同一草稿 PR，使用上游现有 pull_request 质量门禁，验证通过后再标 ready；不要另开测试 PR。默认 Skill 的分支名服从新会话明确授权，不能误推 Agent/main。记录 SHA/run/job，失败修正后核对新 SHA。
 6. 按授权一次性创建一个上游 PR，描述问题→行为→验证及原生/真机限制。各 Issue 分别提交，并把编号链接回 PR；不要把本轮的“未发布稿件”说成已有线上 Issue。
 
 ## 本轮 CI 与交付记录
 
-GitHub Actions 的实际 run、head SHA、结论和 fork 修复提交将在本轮完成时补入。源码/草稿存在不等于 CI 已通过；后续会话先看这里的最终追加记录。
+- 产品修复：`0788c89380d8960db6647fe9b9acfb18609ddaf8`。
+- 反馈、Skill 与 tests_only 入口：`423e67a326d594e5f226005fe56e279dcfdd4135`。
+- 本轮 [Actions run 43364772554](https://github.com/tianjinsa/Venera-Next/actions/runs/43364772554)，验证 head SHA **`423e67a326d594e5f226005fe56e279dcfdd4135`**，tests_only=true / skip_tests=false，所有安装包开关 false。
+- 首次派发 HTTP 503，核对未创建运行后重试成功；不是创建了两轮。当前记录为运行中，最终结论会在完成后更新；不能据此声称全量通过。后续仅补文档的提交不自动当作另一个已验证源码 SHA。
