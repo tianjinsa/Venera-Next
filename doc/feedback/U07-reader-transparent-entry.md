@@ -1,16 +1,34 @@
-# [Bug]: 进入阅读器的初始过场透明，短暂露出上一页内容
+# [Bug]: 点击阅读后，入场最初透明，短暂露出漫画详情页
 
 <!-- feedback-id: U07; upstream: 482810df369d126e4011be31d64408e33aede76f; template: 05-bug.yaml -->
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=05-bug.yaml)
 
-### 问题类型 / Issue type
+### 问题说明
 
-界面、导航与交互 / UI and interaction
+我在原版 1.18.4-rc.1 中确认，点击阅读或继续阅读后，阅读器刚开始进入时会短暂透明，露出刚才的漫画详情页，随后才显示阅读背景或内容。
+
+### 实际行为 / Actual behavior
+
+阅读页面入场的最初一段画面会透出上一级详情页，背景没有从进入时就盖住详情页；内容加载起来后才恢复正常。
+
+### 对我的影响
+
+我会看到详情页和阅读器画面在切换中短暂混在一起，容易感觉页面没有切换完整，阅读开始时有明显的不连贯感。
+
+### 预期行为 / Expected behavior
+
+进入阅读器时就显示不透明的阅读背景或加载画面，随后再出现图片，不短暂透出上一级页面。
+
+### 复现步骤 / Steps to reproduce
+
+1. 使用原版 1.18.4-rc.1，打开一本漫画的详情页。
+2. 点击“阅读”或“继续阅读”。
+3. 观察阅读器刚开始入场、内容尚未完全出现时，是否会短暂透出详情页。
 
 ### 应用版本 / App version
 
-1.18.4-rc.1（官方原版，报告者已确认复现）；源码复核 482810df369d126e4011be31d64408e33aede76f
+1.18.4-rc.1（我使用的官方原版）。
 
 ### 平台 / Platform
 
@@ -18,56 +36,55 @@ Android 手机／平板 / Android phone or tablet
 
 ### 设备与系统 / Device and OS
 
-骁龙 7gen2+，12 GB 内存，Android 15。设备型号由报告者提交时手动填写。
-
-### 复现步骤 / Steps to reproduce
-
-1. 在原版 1.18.4-rc.1 的漫画详情点击阅读/继续阅读。
-2. 观察阅读路由刚开始入场、内容仍在加载时的最初画面。
-3. 比较详情页背景和阅读器表面是否从第一帧连续绘制。
-
-### 预期行为 / Expected behavior
-
-阅读器和阅读加载页从路由过场第一帧绘制主题表面背景，内容尚未准备好也保持不透明。
-
-### 实际行为 / Actual behavior
-
-报告者已在原版确认阅读入场初期透明、露出上级页面的现象。这是原用户编号 4 的原版确认，不等于已证明所有平台或所有转场都必现。
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
 
 ### 问题位置与操作方式 / Affected screen and input
 
-Android 15，原版 1.18.4-rc.1。设备型号由报告者提交时补填；问题在进入阅读器时，不是 fork 后台保存改造造成的退场画面清空。
+我已在原版 Android 设备确认此现象；发生在进入阅读器时。
+
+### 问题类型 / Issue type
+
+界面、导航与交互 / UI and interaction
 
 ### 诊断提供方式 / Diagnostic source
 
-界面类日志选填；下方提供源码/组件证据。
+我暂未附设备日志，提供下方源码和已有验证线索。
 
 ### 日志或诊断报告 / Logs or diagnostic report
 
-[lib/features/reader/reader_page.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/reader_page.dart#L1910)；[lib/features/reader/loading.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/loading.dart#L55)
-
-原版加载页和 Reader 顶层没有 fork 为此加入的首帧主题背景；转场仍与 AppPageRoute/平台有关，不泛化为全平台实测。
+我暂未附设备运行日志；下面附已有的排查线索。
 
 ### 日志无法取得的原因 / Why diagnostics are unavailable
 
-界面/布局/导航报告按上游表单可不附日志；没有编造错误日志或设备性能数据。
+这项是界面/交互反馈，我暂未附运行日志。
 
 ### 替代证据 / Alternative evidence
 
-最小验证/回归入口：[test/features/reader/reader_exit_integration_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/reader_exit_integration_test.dart) 的加载/首帧背景与过场回归；Android 原设备再核验首个可见过场帧。
+<details>
+<summary>源码定位与最小验证（供维护者参考）</summary>
 
-已区分源码核对、fork 组件验证和原版用户实测；未附原设备数据不表示测得零卡顿。
+Reader 与阅读加载入口的顶层背景需要一起检查。转场还受 AppPageRoute 和平台影响；没有据此宣称所有平台都必现。
+
+源码定位：
+
+- [lib/features/reader/reader_page.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/reader_page.dart#L1910)
+- [lib/features/reader/loading.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/loading.dart#L55)
+
+已有最小验证入口：
+
+- [test/features/reader/reader_exit_integration_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/reader_exit_integration_test.dart)
+
+</details>
 
 ### 截图或录屏 / Screenshots or video
 
-本稿未附录屏或图片。已有的可控复现及已确认的原版现场如上，不虚构附件。
-
-### 相关讨论与范围
-
-已检索上游收藏、阅读和关键词相关讨论；本稿聚焦这一项独立行为。发布时可再核对新增讨论。
+我暂未附截图或录屏。
 
 ### 提交前确认 / Checklist
 
-- [x] 已检索相关 Issue，并将独立问题分开整理。
-- [x] 本报告针对应用本体，不要求维护第三方源内容。
-- [x] 文本未包含账号、Cookie、Token、签名链接、私人漫画或数据库。
+- [x] 我已检索相关 Issue，并把不同问题分开说明。
+- [x] 我反馈的是应用本体的问题。
+- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。

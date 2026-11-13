@@ -1,8 +1,35 @@
-# [Enhancement]: 用户主动收藏、导入和追更的列表可保持完整，关键词屏蔽主要用于发现与搜索
+# [Enhancement]: 希望已收藏、导入和追更的漫画保持可见，关键词主要过滤发现和搜索
 
 <!-- feedback-id: E01; upstream: 482810df369d126e4011be31d64408e33aede76f; template: 06-enhancement.yaml -->
 
 [对应上游功能建议表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=06-enhancement.yaml)
+
+### 需求场景 / Use case
+
+我希望自己主动收藏、导入或加入追更的漫画能一直在对应列表里找到。现在只要名字等信息命中全局关键词，这些我已经选过的漫画仍可能被隐藏。
+
+### 当前不便与对我的影响
+
+从我的角度看，就是收藏过或导入过的漫画又找不到了，容易误以为没有保存成功。我需要临时关掉规则或来回检查，才能区分是被隐藏还是确实没存下来。
+
+### 建议方案 / Proposed solution
+
+我希望发现、搜索和推荐结果继续按关键词过滤；收藏、本地、历史、稍后阅读和追更这些由我主动管理的列表，能保持完整或提供独立开关。列表内的搜索、阅读状态筛选和多选仍按我的当前选择工作。
+
+### 验收标准 / Acceptance criteria
+
+- 命中关键词的已收藏/导入漫画仍能在对应管理列表找到。
+- 发现、搜索和分类继续遵守屏蔽规则。
+- 修改屏蔽词不会意外改变我已选中的收藏项。
+- 不会删除、移动漫画或改变已有备份、同步与规则选项。
+
+### 我的使用环境
+
+- 应用：1.18.4-rc.1（官方原版）
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
 
 ### 问题类型 / Issue type
 
@@ -14,35 +41,26 @@
 
 ### 平台 / Platform
 
-所有支持的平台 / All supported platforms（建议适用范围，不代表所有平台已完成实现/验收）
-
-### 需求场景 / Use case
-
-用户已经主动选择收藏/导入/稍后阅读/追更的漫画，仍可能因全局关键词规则在这些列表不可见；这容易与数据未保存混淆。发现/搜索的推荐过滤仍有价值。
-
-### 建议方案 / Proposed solution
-
-为用户主动管理的本地漫画、收藏、历史、稍后阅读与追更列表提供不应用关键词过滤的行为或独立控制，发现/搜索保持原过滤。搜索、已读筛选和多选只遵守用户当前条件，不删除、隐藏持久数据。
-
-### 验收标准 / Acceptance criteria
-
-- 命中屏蔽词的已收藏/导入漫画仍可在对应管理列表找到。
-- 发现、搜索和分类仍按原规则过滤。
-- 全选、反选、范围选择与当前搜索/阅读状态一致，修改屏蔽词不意外清空选择。
-- 备份、同步及关键词匹配方式保持兼容。
+Android 手机／平板 / Android phone or tablet（我的使用平台；也欢迎其他平台提供同样体验）。
 
 ### 截图或录屏 / Screenshots or video
 
-本稿未附附件；可用普通测试数据验证上述完成条件。
+我暂未附截图或录屏。
 
 ### 实现参考与已有讨论
 
-参考 [test/features/comic_widgets/keyword_filter_consumers_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/comic_widgets/keyword_filter_consumers_test.dart)、[test/features/local_comics/local_archive_visibility_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/local_comics/local_archive_visibility_test.dart)。上游没有 fork 的作者独立屏蔽/Agent，不将它们带入此建议。#115 已按关键词实际命中关闭，本建议不是“导入丢数据”的缺陷报告。
+<details>
+<summary>已有实现参考与相关讨论（供维护者参考）</summary>
 
-源码核对基线：`482810df369d126e4011be31d64408e33aede76f`。这是功能/交互建议，不将现有设计冒称为已确认的数据损坏或崩溃。
+这是对过滤范围的交互建议。#115 的关键词命中行为已有结论，我希望补充的是已选内容的可见性控制，不把它说成导入丢失数据。
+
+- [test/features/comic_widgets/keyword_filter_consumers_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/comic_widgets/keyword_filter_consumers_test.dart)
+- [test/features/local_comics/local_archive_visibility_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/local_comics/local_archive_visibility_test.dart)
+
+</details>
 
 ### 提交前确认 / Checklist
 
-- [x] 已检索相关建议，一稿聚焦一个目标。
-- [x] 建议针对应用本体。
-- [x] 文本未包含私人内容或凭据。
+- [x] 我已检索相关建议，这一条聚焦一个使用需求。
+- [x] 我希望改进的是应用本体的操作体验。
+- [x] 我已检查正文，没有包含私人内容或凭据。

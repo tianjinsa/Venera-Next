@@ -8,24 +8,26 @@
 - [集中 PR 交接](../feedback/upstream-pr-handoff.md)：基线、用户原版验证、实现/回归映射、一个新分支/一个 PR 的方案、已验证和中断范围。
 - [分支保留登记](branch-change-register.md) / [迁移记录](migration.md)：保留二次开发功能，不等同于所有项目都适合回移上游。
 
-用户本轮所称“2/4”对应旧待原版验证表中的 **用户编号 2（U06 收藏详情过场）/4（U07 阅读初帧透明）**。用户已确认原版 **1.18.4-rc.1、Android 15、骁龙 7gen2+、12 GB 内存** 存在这两项，设备型号由用户提交时手动填。不得再写成“尚未原版复现”，也不要混为 U02/U04。
+用户本轮所称“2/4”对应旧待原版验证表中的 **用户编号 2（U06 收藏详情过场）/4（U07 阅读初帧透明）**。用户已确认原版 **1.18.4-rc.1、Android 15、骁龙 7gen2+、12 GB 内存** 存在这两项，设备型号统一占位符为 `【设备型号】`，提交前直接替换。不得再写成“尚未原版复现”，也不要混为 U02/U04。
+
+公开稿已按用户要求改为本人第一人称，并在开头说明现象、影响和预期；技术线索放在末尾折叠说明。口吻变化不扩大原版实机确认范围，设备型号不得改成第三人称“由报告者补填”的说明。
 
 ## 缺陷与有明确条件的组件问题
 
 | 编号 | 问题及证据范围 | 反馈稿 |
 | --- | --- | --- |
-| U01 | 收藏夹选择“全部”仍逐本查历史，无关设置更新反复遍历大列表；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U01](../feedback/U01-favorites-history-queries.md) |
-| U02 | 设置保存时移除原开关或选择器，导致控件宽度及文字布局变化；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U02](../feedback/U02-settings-control-layout.md) |
-| U03 | 夜间调光保存时快捷面板高度变化，预览又刷新整个阅读外壳；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U03](../feedback/U03-brightness-panel-rebuild.md) |
-| U04 | 阅读进度开启总数或紧凑显示后丢弃已保存的实际章节名称；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U04](../feedback/U04-history-chapter-title.md) |
-| U05a | 跨章瀑布流在章节和页码未变时反复通知阅读外壳；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U05a](../feedback/U05a-waterfall-shell-updates.md) |
-| U05b | 画廊在页面构建中重复执行同一位置的预取请求；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U05b](../feedback/U05b-gallery-prefetch-in-build.md) |
-| U06 | 从收藏封面进入漫画详情时，页面过场和封面衔接不一致；原版用户已确认 | [U06](../feedback/U06-favorite-detail-transition.md) |
-| U07 | 进入阅读器的初始过场透明，短暂露出上一页内容；原版用户已确认 | [U07](../feedback/U07-reader-transparent-entry.md) |
-| U08 | 图片下载进度逐分块刷新 ComicImage，滑动时产生密集重建；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U08](../feedback/U08-image-progress-rebuilds.md) |
-| U09 | 瀑布流上方图片加载为真实尺寸时，正在阅读的下方页面异常上移；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U09](../feedback/U09-waterfall-image-size-anchor.md) |
-| U10 | 瀑布流前章预取晚到时跳回旧页，并丢失当前页面的局部偏移；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U10](../feedback/U10-waterfall-prepend-stale-position.md) |
-| U11 | 详情位于根导航器时，标签或作者搜索错误进入下层主导航器；双导航器组件条件；原版没有原因封面新增入口 | [U11](../feedback/U11-detail-nested-navigation.md) |
+| U01 | 收藏夹选择“全部”仍逐本查历史，收藏多时进入和刷新增加无效开销；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U01](../feedback/U01-favorites-history-queries.md) |
+| U02 | 设置保存时开关变成转圈，文字和控件位置随之跳动；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U02](../feedback/U02-settings-control-layout.md) |
+| U03 | 阅读器调光滑条保存时面板高度变化，影响连续调节；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U03](../feedback/U03-brightness-panel-rebuild.md) |
+| U04 | 开启进度总数或紧凑显示后，“番外”等实际章节名变回章节编号；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U04](../feedback/U04-history-chapter-title.md) |
+| U05a | 瀑布流同一页内滚动时仍重复刷新阅读界面，增加滚动负担；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U05a](../feedback/U05a-waterfall-shell-updates.md) |
+| U05b | 画廊停在同一页时仍重复安排预加载，增加无效工作；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U05b](../feedback/U05b-gallery-prefetch-in-build.md) |
+| U06 | 从收藏打开漫画详情时，页面和封面转场不连贯；原版用户已确认 | [U06](../feedback/U06-favorite-detail-transition.md) |
+| U07 | 点击阅读后，入场最初透明，短暂露出漫画详情页；原版用户已确认 | [U07](../feedback/U07-reader-transparent-entry.md) |
+| U08 | 图片加载期间滑动翻页偶发卡顿，进度刷新可能增加额外负担；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U08](../feedback/U08-image-progress-rebuilds.md) |
+| U09 | 瀑布流向下阅读时，图片加载后把正在看的内容突然向上拉走；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U09](../feedback/U09-waterfall-image-size-anchor.md) |
+| U10 | 瀑布流前一章加载晚到时，画面回跳并把半页位置顶回页首；源码及组件/逻辑路径；不代称原版设备帧率实测 | [U10](../feedback/U10-waterfall-prepend-stale-position.md) |
+| U11 | 详情页点击标签或作者没有反应，退出后搜索页才出现在上一层；双导航器组件条件；原版没有原因封面新增入口 | [U11](../feedback/U11-detail-nested-navigation.md) |
 
 U05 保留原编号并拆为 U05a（瀑布流重复外壳通知）、U05b（画廊构建期预取）。U08–U10 是本轮新增的分块进度、图片尺寸及前章晚到路径，分别报告，不混称同一个已证实的卡顿根因。
 

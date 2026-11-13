@@ -1,71 +1,97 @@
-# [Reader]: 画廊在页面构建中重复执行同一位置的预取请求
+# [Reader]: 画廊停在同一页时仍重复安排预加载，增加无效工作
 
 <!-- feedback-id: U05b; upstream: 482810df369d126e4011be31d64408e33aede76f; template: 02-reader-performance.yaml -->
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=02-reader-performance.yaml)
 
+### 问题说明
+
+我想反馈画廊预加载的重复工作：当前页、漫画内容和阅读布局都没有变化，仅有其他界面更新时，程序仍会重新安排同一位置的预加载。
+
+我目前提供的是源码核对和已有的最小验证结果，尚未为这一项单独补充原版手机复测。
+
+### 实际行为 / Actual behavior
+
+停在同一页时，页面重新构建仍会进入同一轮预加载处理。缓存可能避免重复下载，但不能消除重复调用、遍历和配置创建。这里没有认定每次翻页都会重新下载图片。
+
+### 对我的影响
+
+我希望已经加载好的页面尽量直接复用。没有新内容时仍重复安排工作，会增加阅读期间的处理负担，可能影响翻页响应和顺畅程度；目前没有这项在我手机上的独立帧率测量。
+
+### 预期行为 / Expected behavior
+
+相同内容、布局和页码的预加载合并处理；真正翻页或更换内容后再安排必要的新任务，已有画面和缩放保持不变。
+
+### 复现步骤 / Steps to reproduce
+
+1. 使用普通本地或已缓存图片进入画廊模式。
+2. 停在同一页，保持布局和预加载数量不变。
+3. 打开/关闭阅读菜单等触发界面更新，检查是否反复执行同位置预加载；统计方式见后面的排查线索。
+
+### 应用版本 / App version
+
+1.18.4-rc.1（我使用的官方原版）。
+
+### 平台 / Platform
+
+Android 手机／平板 / Android phone or tablet
+
+### 设备与系统 / Device and OS
+
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
+
+### 阅读环境 / Reading context
+
+画廊模式，同位置重复界面更新；与瀑布流同页通知的问题分别报告。
+
 ### 问题类型 / Issue type
 
 阅读卡顿、慢加载或内存异常 / Reader performance
 
-### 应用版本 / App version
-
-源码对照：CyrilPeng/Venera-Next main@482810df369d126e4011be31d64408e33aede76f（版本元数据 1.18.4-rc.1+250）。组件复现运行于 fork 对应实现，不冒称官方安装包整体验证。
-
-### 平台 / Platform
-
-其他（请说明） / Other (please specify)：源码层核对；最小组件验证为 Linux 云端，不能据此声明各发行平台均实测。
-
-### 设备与系统 / Device and OS
-
-组件环境为 Linux、仓库锁定 Flutter 3.41.4；本项原版设备型号、系统/刷新率未单独采集。
-
-### 复现步骤 / Steps to reproduce
-
-1. 使用普通本地页面进入画廊阅读。
-2. 保持内容、布局、当前页与预取数量不变，触发与图像内容无关的重建。
-3. 统计 `_buildPhotoPage` 的 `cache(index)` 调用及实际重复工作。
-
-### 预期行为 / Expected behavior
-
-将预取移到帧后，按工作所有者、内容、布局、页码和预取数量合并；不丢掉必要的新预取，不重建 PhotoView 或丢弃解码画面。
-
-### 实际行为 / Actual behavior
-
-`_buildPhotoPage` 内直接调用 `cache(index)`；每次构建都进入预取路径。底层合并请求不等于调用、遍历及配置创建没有开销。
-
-### 阅读环境 / Reading context
-
-画廊重复构建；不声称当前主线每次翻页都销毁 PhotoView。
-
 ### 诊断提供方式 / Diagnostic source
 
-无法取得（需说明原因并提供替代证据） / Unavailable (explain and provide alternatives)
+`【诊断提供方式：粘贴报告／上传附件／无法取得】`
 
 ### 日志或诊断报告 / Logs or diagnostic report
 
-[lib/features/reader/gallery_view.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/gallery_view.dart#L346)
+`【手动阅读诊断报告或附件】`
+
+我目前提供的源码与组件线索见“替代证据”。
 
 ### 日志无法取得的原因 / Why diagnostics are unavailable
 
-当前排查在云端，没有连接原设备的原版阅读会话，无法从该会话导出手动阅读诊断；没有拿 Prime 的旧报告或其他用户报告冒充本项诊断。
+`【无法取得诊断的原因（如已提供报告，可删除本项）】`
 
 ### 替代证据 / Alternative evidence
 
-最小验证/回归入口：[test/features/reader/gallery_page_continuity_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/gallery_page_continuity_test.dart)、[test/features/reader/gallery_rotation_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/gallery_rotation_test.dart)、[test/features/reader/image_precache_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/image_precache_test.dart)
+<details>
+<summary>源码定位与最小验证（供维护者参考）</summary>
 
-已区分源码核对、fork 组件验证和原版用户实测；未附原设备数据不表示测得零卡顿。
+当前源码在 _buildPhotoPage 内直接调用 cache(index)。本条不声称主线每次翻页都会销毁 PhotoView。
+
+源码定位：
+
+- [lib/features/reader/gallery_view.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/gallery_view.dart#L346)
+
+已有最小验证入口：
+
+- [test/features/reader/gallery_page_continuity_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/gallery_page_continuity_test.dart)
+- [test/features/reader/gallery_rotation_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/gallery_rotation_test.dart)
+- [test/features/reader/image_precache_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/image_precache_test.dart)
+
+我查到 #118 的旧翻页闪屏问题已修复；本条针对仍存在的构建期重复预加载，不重复报告旧的 PhotoView 销毁问题。
+
+</details>
 
 ### 截图或录屏 / Screenshots or video
 
-本稿未附录屏或图片。已有的可控复现及已确认的原版现场如上，不虚构附件。
-
-### 相关讨论与范围
-
-#118 的 PhotoView 反复销毁/闪屏问题已修复并关闭；本报告只讨论仍存在的构建期预取路径。
+我暂未附截图或录屏。
 
 ### 提交前确认 / Checklist
 
-- [x] 已检索相关 Issue，并将独立问题分开整理。
-- [x] 本报告针对应用本体，不要求维护第三方源内容。
-- [x] 文本未包含账号、Cookie、Token、签名链接、私人漫画或数据库。
+- [x] 我已检索相关 Issue，并把不同问题分开说明。
+- [x] 我反馈的是应用本体的问题。
+- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。

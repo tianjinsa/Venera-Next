@@ -1,8 +1,35 @@
-# [Enhancement]: 封面进度提供可选的固定尺寸紧凑图标，保留完整进度说明
+# [Enhancement]: 希望封面阅读进度可以切换为小图标，减少对封面的遮挡
 
 <!-- feedback-id: E03; upstream: 482810df369d126e4011be31d64408e33aede76f; template: 06-enhancement.yaml -->
 
 [对应上游功能建议表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=06-enhancement.yaml)
+
+### 需求场景 / Use case
+
+我希望封面上的阅读进度能选用更紧凑的小图标。完整进度文字有用，但在小封面上会挡住一部分画面，我更想先快速看出当前页和总页数。
+
+### 当前不便与对我的影响
+
+我在浏览很多小封面时，既想认出漫画，也想知道读到哪里。较大的进度文字块会与封面争位置，只关闭进度又不方便继续阅读。
+
+### 建议方案 / Proposed solution
+
+我希望保留现有详细显示，再增加一个可选的固定小图标：当前页左上、总页数右下，各自分行；读完显示勾。长按提示、鼠标提示或无障碍说明里仍保留完整章节和进度。
+
+### 验收标准 / Acceptance criteria
+
+- 我可以在现有详细显示和紧凑图标之间选择。
+- 3/30、162/233、1001/1200 在窄封面和大字号下仍能区分，不重叠溢出。
+- 没有总页数时正常显示，读完时有明确完成标记。
+- 完整进度仍可查看，图标不会盖到封面之外的标题。
+
+### 我的使用环境
+
+- 应用：1.18.4-rc.1（官方原版）
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
 
 ### 问题类型 / Issue type
 
@@ -14,35 +41,26 @@
 
 ### 平台 / Platform
 
-所有支持的平台 / All supported platforms（建议适用范围，不代表所有平台已完成实现/验收）
-
-### 需求场景 / Use case
-
-用户希望小封面少被完整进度文本遮挡，同时仍能快速看到当前页和总页数。上游详细进度本身是已有需求，不应被直接移除。
-
-### 建议方案 / Proposed solution
-
-增加可选紧凑进度图标：固定小尺寸，当前页左上、总页数右下并各占独立行；多位数按需缩小，完成时显示勾。完整章节和进度继续放入 Tooltip/无障碍标签，保留现有详细模式。
-
-### 验收标准 / Acceptance criteria
-
-- 3/30、162/233、1001/1200 在普通/大字号、窄网格中无重叠溢出。
-- 缺总数居中、完成时显示勾。
-- 完整章节名和进度对辅助技术仍可读。
-- 图标限制在封面范围内，不覆盖标题；既有详细显示可继续选择。
+Android 手机／平板 / Android phone or tablet（我的使用平台；也欢迎其他平台提供同样体验）。
 
 ### 截图或录屏 / Screenshots or video
 
-本稿未附附件；可用普通测试数据验证上述完成条件。
+我暂未附截图或录屏。
 
 ### 实现参考与已有讨论
 
-参考 [test/features/comic_widgets/reading_progress_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/comic_widgets/reading_progress_test.dart)、[test/features/comic_widgets/reading_status_layout_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/comic_widgets/reading_status_layout_test.dart)。#93 已交付详细进度，本建议为显示偏好，不重复报告已修复的 #158 大字号溢出。
+<details>
+<summary>已有实现参考与相关讨论（供维护者参考）</summary>
 
-源码核对基线：`482810df369d126e4011be31d64408e33aede76f`。这是功能/交互建议，不将现有设计冒称为已确认的数据损坏或崩溃。
+这是显示偏好建议，不是要求移除 #93 的详细进度，也不重复报告已经修过的大字号布局问题。
+
+- [test/features/comic_widgets/reading_progress_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/comic_widgets/reading_progress_test.dart)
+- [test/features/comic_widgets/reading_status_layout_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/comic_widgets/reading_status_layout_test.dart)
+
+</details>
 
 ### 提交前确认 / Checklist
 
-- [x] 已检索相关建议，一稿聚焦一个目标。
-- [x] 建议针对应用本体。
-- [x] 文本未包含私人内容或凭据。
+- [x] 我已检索相关建议，这一条聚焦一个使用需求。
+- [x] 我希望改进的是应用本体的操作体验。
+- [x] 我已检查正文，没有包含私人内容或凭据。

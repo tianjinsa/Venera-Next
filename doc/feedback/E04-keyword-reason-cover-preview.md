@@ -1,8 +1,35 @@
-# [Enhancement]: 关键词屏蔽原因窗口提供可选封面预览和详情入口
+# [Enhancement]: 希望查看关键词屏蔽原因时，可以按需看封面并打开漫画详情
 
 <!-- feedback-id: E04; upstream: 482810df369d126e4011be31d64408e33aede76f; template: 06-enhancement.yaml -->
 
 [对应上游功能建议表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=06-enhancement.yaml)
+
+### 需求场景 / Use case
+
+我查看被关键词隐藏的漫画时，只有标题和命中原因，有时很难判断是不是我想找的那一本。我希望在这个窗口里能按需看看封面，再决定是否调整规则。
+
+### 当前不便与对我的影响
+
+只看文字不容易认出漫画，我需要离开原因窗口再去找这本漫画，确认封面后又回来修改规则，操作比较绕。
+
+### 建议方案 / Proposed solution
+
+我希望增加一个可选的封面预览或“查看封面”操作。点封面打开漫画详情，点原因文字编辑规则；从详情返回后保留刚才的原因列表，不必重新找。
+
+### 验收标准 / Acceptance criteria
+
+- 我明确选择查看时才加载预览，原来的不显示图片行为仍可保留。
+- 点封面进入对应漫画，不误触规则编辑。
+- 详情里的标签、作者和后续封面跳转位置正确。
+- 返回后仍是刚才的原因列表，方便继续检查和调整规则。
+
+### 我的使用环境
+
+- 应用：1.18.4-rc.1（官方原版）
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
 
 ### 问题类型 / Issue type
 
@@ -14,35 +41,26 @@
 
 ### 平台 / Platform
 
-所有支持的平台 / All supported platforms（建议适用范围，不代表所有平台已完成实现/验收）
-
-### 需求场景 / Use case
-
-只读标题和命中原因有时难以判断是否误伤；希望在主动查看原因时按需查看封面并进入详情。原版明确选择不显示图片，这是交互扩展而非原有功能故障。
-
-### 建议方案 / Proposed solution
-
-原因窗口提供可选封面预览；封面单独点击打开该漫画详情，原因文字继续编辑规则。返回详情后保留原原因列表，导航沿用当前窗口上下文。默认行为保留原有设计意图，由明确开关/操作启用预览。
-
-### 验收标准 / Acceptance criteria
-
-- 预览只在用户明确开启/查看时加载对应封面。
-- 封面进入正确 ID、来源、标题与封面的详情，不触发编辑规则。
-- 详情标签/作者及后续封面走正确导航器，返回仍保留原因列表。
-- 不增加作者独立规则、Agent 或图源私有实现。
+Android 手机／平板 / Android phone or tablet（我的使用平台；也欢迎其他平台提供同样体验）。
 
 ### 截图或录屏 / Screenshots or video
 
-本稿未附附件；可用普通测试数据验证上述完成条件。
+我暂未附截图或录屏。
 
 ### 实现参考与已有讨论
 
-现有设计：[lib/features/comic_widgets/keyword_hidden_notice.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/comic_widgets/keyword_hidden_notice.dart#L102) 的 `Images stay hidden.`。参考 fork 的 `keyword_rules_widget_test.dart`；与 U11 的双导航器健壮性配套，不能倒称原版已有原因封面按钮。
+<details>
+<summary>已有实现参考与相关讨论（供维护者参考）</summary>
 
-源码核对基线：`482810df369d126e4011be31d64408e33aede76f`。这是功能/交互建议，不将现有设计冒称为已确认的数据损坏或崩溃。
+原版写明了 Images stay hidden，我理解这是现有设计。因此我提的是可选预览功能，不把未显示封面当成原有按钮坏了。
+
+- [lib/features/comic_widgets/keyword_hidden_notice.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/comic_widgets/keyword_hidden_notice.dart#L102)
+- [test/features/settings/keyword_rules_widget_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/settings/keyword_rules_widget_test.dart)
+
+</details>
 
 ### 提交前确认 / Checklist
 
-- [x] 已检索相关建议，一稿聚焦一个目标。
-- [x] 建议针对应用本体。
-- [x] 文本未包含私人内容或凭据。
+- [x] 我已检索相关建议，这一条聚焦一个使用需求。
+- [x] 我希望改进的是应用本体的操作体验。
+- [x] 我已检查正文，没有包含私人内容或凭据。

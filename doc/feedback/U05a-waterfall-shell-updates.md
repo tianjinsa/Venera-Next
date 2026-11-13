@@ -1,71 +1,96 @@
-# [Reader]: 跨章瀑布流在章节和页码未变时反复通知阅读外壳
+# [Reader]: 瀑布流同一页内滚动时仍重复刷新阅读界面，增加滚动负担
 
 <!-- feedback-id: U05a; upstream: 482810df369d126e4011be31d64408e33aede76f; template: 02-reader-performance.yaml -->
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=02-reader-performance.yaml)
 
+### 问题说明
+
+我想反馈瀑布流同页滚动中的重复刷新：章节和页码没有变化，程序仍反复更新与阅读位置有关的界面。没有新的进度需要显示，却持续做额外工作。
+
+我目前提供的是源码核对和已有的最小验证结果，尚未为这一项单独补充原版手机复测。
+
+### 实际行为 / Actual behavior
+
+同一张已加载图片内滚动时，显示的章节和页码保持不变，但跨章瀑布流的每次位置检查仍会通知外层界面更新。这个重复路径已确认；是否造成我原版手机上的可见卡顿，还没有单独量化。
+
+### 对我的影响
+
+这类额外工作会占用滚动时的处理时间，可能让已经加载好的页面也不够顺滑。我希望减少与实际页码变化无关的刷新，把处理时间留给滚动。
+
+### 预期行为 / Expected behavior
+
+只有章节或页码真正改变时，才更新对应的阅读进度界面；正常滚动、图片预加载和跨章阅读继续工作。
+
+### 复现步骤 / Steps to reproduce
+
+1. 使用普通本地或已缓存图片，进入跨章瀑布流模式。
+2. 在一张较长的图片内缓慢上下滚动，保持章节和页码不变。
+3. 观察滚动是否顺畅；维护者可用后面的定位信息统计同页滚动产生的更新次数。
+
+### 应用版本 / App version
+
+1.18.4-rc.1（我使用的官方原版）。
+
+### 平台 / Platform
+
+Android 手机／平板 / Android phone or tablet
+
+### 设备与系统 / Device and OS
+
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
+
+### 阅读环境 / Reading context
+
+跨章瀑布流，同一张已加载页面内滚动。图片尺寸和刷新率未为本条单独记录。
+
 ### 问题类型 / Issue type
 
 阅读卡顿、慢加载或内存异常 / Reader performance
 
-### 应用版本 / App version
-
-源码对照：CyrilPeng/Venera-Next main@482810df369d126e4011be31d64408e33aede76f（版本元数据 1.18.4-rc.1+250）。组件复现运行于 fork 对应实现，不冒称官方安装包整体验证。
-
-### 平台 / Platform
-
-其他（请说明） / Other (please specify)：源码层核对；最小组件验证为 Linux 云端，不能据此声明各发行平台均实测。
-
-### 设备与系统 / Device and OS
-
-组件环境为 Linux、仓库锁定 Flutter 3.41.4；本项原版设备型号、系统/刷新率未单独采集。
-
-### 复现步骤 / Steps to reproduce
-
-1. 使用已缓存的普通本地图片，选择跨章瀑布流。
-2. 在一张足够长的页面内缓慢滚动，保持同章同页。
-3. 统计 `onPositionChanged` 中向外壳发送的 `onUpdate`，比较普通连续模式。
-
-### 预期行为 / Expected behavior
-
-同章节同页只处理视口、预取等必要工作；位置真正变化时才通知外壳，保留跨章选择、自动阅读与进度保存。
-
-### 实际行为 / Actual behavior
-
-跨章分支每次位置检查均 `_setReaderLocation(imageRef)` 并 `widget.onUpdate()`；普通连续分支会先比较页码。反复通知路径已由上游源码确认，但不能据此认定它是全部设备卡顿的唯一原因。
-
-### 阅读环境 / Reading context
-
-跨章瀑布流，本地普通已缓存 PNG/JPEG 即可，不需要特定作品或源；原设备刷新率/图片尺寸未记录，本报告没有设备帧率结论。
-
 ### 诊断提供方式 / Diagnostic source
 
-无法取得（需说明原因并提供替代证据） / Unavailable (explain and provide alternatives)
+`【诊断提供方式：粘贴报告／上传附件／无法取得】`
 
 ### 日志或诊断报告 / Logs or diagnostic report
 
-[lib/features/reader/continuous_view.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/continuous_view.dart#L554)
+`【手动阅读诊断报告或附件】`
+
+我目前提供的源码与组件线索见“替代证据”。
 
 ### 日志无法取得的原因 / Why diagnostics are unavailable
 
-当前排查在云端，没有连接原设备的原版阅读会话，无法从该会话导出手动阅读诊断；没有拿 Prime 的旧报告或其他用户报告冒充本项诊断。
+`【无法取得诊断的原因（如已提供报告，可删除本项）】`
 
 ### 替代证据 / Alternative evidence
 
-最小验证/回归入口：[test/features/reader/continuous_owner_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/continuous_owner_test.dart)、[test/features/reader/reader_exit_integration_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/reader_exit_integration_test.dart)
+<details>
+<summary>源码定位与最小验证（供维护者参考）</summary>
 
-已区分源码核对、fork 组件验证和原版用户实测；未附原设备数据不表示测得零卡顿。
+跨章分支每次位置检查都调用 _setReaderLocation 和 onUpdate，普通连续模式会先比较页码。本条确认重复工作，不认定它解释所有卡顿。
+
+源码定位：
+
+- [lib/features/reader/continuous_view.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/continuous_view.dart#L554)
+
+已有最小验证入口：
+
+- [test/features/reader/continuous_owner_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/continuous_owner_test.dart)
+- [test/features/reader/reader_exit_integration_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/reader_exit_integration_test.dart)
+
+我查到 #125 讨论过阅读卡顿；本条聚焦同页重复刷新的路径，没有把两者的全部原因视为相同。
+
+</details>
 
 ### 截图或录屏 / Screenshots or video
 
-本稿未附录屏或图片。已有的可控复现及已确认的原版现场如上，不虚构附件。
-
-### 相关讨论与范围
-
-#125 当前 closed 且仍带 investigating 标签，不能仅凭症状相似认为本路径解决了其全部问题。
+我暂未附截图或录屏。
 
 ### 提交前确认 / Checklist
 
-- [x] 已检索相关 Issue，并将独立问题分开整理。
-- [x] 本报告针对应用本体，不要求维护第三方源内容。
-- [x] 文本未包含账号、Cookie、Token、签名链接、私人漫画或数据库。
+- [x] 我已检索相关 Issue，并把不同问题分开说明。
+- [x] 我反馈的是应用本体的问题。
+- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。

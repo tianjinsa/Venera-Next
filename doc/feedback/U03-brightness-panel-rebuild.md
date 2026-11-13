@@ -1,71 +1,95 @@
-# [Bug]: 夜间调光保存时快捷面板高度变化，预览又刷新整个阅读外壳
+# [Bug]: 阅读器调光滑条保存时面板高度变化，影响连续调节
 
 <!-- feedback-id: U03; upstream: 482810df369d126e4011be31d64408e33aede76f; template: 05-bug.yaml -->
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=05-bug.yaml)
 
-### 问题类型 / Issue type
+### 问题说明
 
-界面、导航与交互 / UI and interaction
+我想反馈夜间调光面板的交互：拖动滑条并松手保存时，面板会因为保存提示改变高度，保存完成后又变回来。调节画面时还存在范围较大的界面刷新。
 
-### 应用版本 / App version
+我目前提供的是源码核对和已有的最小验证结果，尚未为这一项单独补充原版手机复测。
 
-源码对照：CyrilPeng/Venera-Next main@482810df369d126e4011be31d64408e33aede76f（版本元数据 1.18.4-rc.1+250）。组件复现运行于 fork 对应实现，不冒称官方安装包整体验证。
+### 实际行为 / Actual behavior
 
-### 平台 / Platform
+保存开始和结束时，面板多出或收回一行状态，内容会上下挪动。亮度预览还会刷新整个阅读外壳，而不只是调光遮罩。
 
-其他（请说明） / Other (please specify)：源码层核对；最小组件验证为 Linux 云端，不能据此声明各发行平台均实测。
+### 对我的影响
 
-### 设备与系统 / Device and OS
+我正在细调亮度时，面板位置变化会打断对滑条位置的判断；额外刷新也可能影响调节时的顺畅程度。我希望只看到亮度变化，不必跟着追面板的位置。
 
-组件环境为 Linux、仓库锁定 Flutter 3.41.4；本项原版设备型号、系统/刷新率未单独采集。
+### 预期行为 / Expected behavior
+
+面板高度和滑条位置保持稳定；预览只更新亮度遮罩，保存结束后显示正确的亮度，不重置阅读位置或缩放。
 
 ### 复现步骤 / Steps to reproduce
 
 1. 进入阅读器，打开夜间调光快捷面板并启用调光。
-2. 连续拖动滑条、松手，在较慢保存或大字号下比较面板高度。
-3. 在组件夹具中延迟保存，并统计亮度遮罩和无关阅读子树的 build。
+2. 拖动滑条，松手保存，然后继续调整。
+3. 观察保存开始、结束时面板高度和滑条位置是否变化；可在大字号或较慢保存时比较。
 
-### 预期行为 / Expected behavior
+### 应用版本 / App version
 
-预览只刷新亮度遮罩；保存状态保持固定占位；保存完成/预览释放后读取正确作用域的已提交值，不重置图像、缩放或进度。
+1.18.4-rc.1（我使用的官方原版）。
 
-### 实际行为 / Actual behavior
+### 平台 / Platform
 
-快捷面板动态插入 `settingsSaveStatus` 行；亮度预览监听调用外壳 `update`，亮度设置提交又发出 rebuildShell/rebuildReader。高度变化和重建路径可从源码确认，原设备闪烁幅度尚未量化。
+Android 手机／平板 / Android phone or tablet
+
+### 设备与系统 / Device and OS
+
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
 
 ### 问题位置与操作方式 / Affected screen and input
 
-仅报告原版已有的调光；不要求加入 fork 的线条增强、夜览模式或其快捷菜单。
+阅读器已有的夜间调光快捷面板。本条不要求新增线条增强或夜览功能。
+
+### 问题类型 / Issue type
+
+界面、导航与交互 / UI and interaction
 
 ### 诊断提供方式 / Diagnostic source
 
-界面类日志选填；下方提供源码/组件证据。
+我暂未附设备日志，提供下方源码和已有验证线索。
 
 ### 日志或诊断报告 / Logs or diagnostic report
 
-[lib/features/settings/reader_brightness.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/settings/reader_brightness.dart#L123)；[lib/components/settings_save_state.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/components/settings_save_state.dart#L283)；[lib/features/reader/scaffold.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/scaffold.dart#L139)；[lib/features/reader/settings_effects.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/settings_effects.dart#L85)
+我暂未附设备运行日志；下面附已有的排查线索。
 
 ### 日志无法取得的原因 / Why diagnostics are unavailable
 
-界面/布局/导航报告按上游表单可不附日志；没有编造错误日志或设备性能数据。
+这项是界面/交互反馈，我暂未附运行日志。
 
 ### 替代证据 / Alternative evidence
 
-最小验证/回归入口：[test/features/reader/brightness_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/brightness_test.dart)、[test/features/reader/settings_effects_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/settings_effects_test.dart) 和阅读退出集成中的全局/设备/单漫画亮度回归。
+<details>
+<summary>源码定位与最小验证（供维护者参考）</summary>
 
-已区分源码核对、fork 组件验证和原版用户实测；未附原设备数据不表示测得零卡顿。
+源码可确认保存状态行动态插入，以及预览监听触发外壳更新的路径；没有提供我原版设备上闪烁幅度或帧率的独立测量。
+
+源码定位：
+
+- [lib/features/settings/reader_brightness.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/settings/reader_brightness.dart#L123)
+- [lib/components/settings_save_state.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/components/settings_save_state.dart#L283)
+- [lib/features/reader/scaffold.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/scaffold.dart#L139)
+- [lib/features/reader/settings_effects.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/reader/settings_effects.dart#L85)
+
+已有最小验证入口：
+
+- [test/features/reader/brightness_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/brightness_test.dart)
+- [test/features/reader/settings_effects_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/reader/settings_effects_test.dart)
+
+</details>
 
 ### 截图或录屏 / Screenshots or video
 
-本稿未附录屏或图片。已有的可控复现及已确认的原版现场如上，不虚构附件。
-
-### 相关讨论与范围
-
-已检索上游收藏、阅读和关键词相关讨论；本稿聚焦这一项独立行为。发布时可再核对新增讨论。
+我暂未附截图或录屏。
 
 ### 提交前确认 / Checklist
 
-- [x] 已检索相关 Issue，并将独立问题分开整理。
-- [x] 本报告针对应用本体，不要求维护第三方源内容。
-- [x] 文本未包含账号、Cookie、Token、签名链接、私人漫画或数据库。
+- [x] 我已检索相关 Issue，并把不同问题分开说明。
+- [x] 我反馈的是应用本体的问题。
+- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。

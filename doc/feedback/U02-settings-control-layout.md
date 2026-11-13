@@ -1,71 +1,91 @@
-# [Bug]: 设置保存时移除原开关或选择器，导致控件宽度及文字布局变化
+# [Bug]: 设置保存时开关变成转圈，文字和控件位置随之跳动
 
 <!-- feedback-id: U02; upstream: 482810df369d126e4011be31d64408e33aede76f; template: 05-bug.yaml -->
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=05-bug.yaml)
 
+### 问题说明
+
+我想反馈设置页保存时的布局变化：点击开关或选择器后，原控件会先被小转圈替换，保存结束再出现。右侧占用宽度改变时，左侧文字也可能重新换行。
+
+我目前提供的是源码核对和已有的最小验证结果，尚未为这一项单独补充原版手机复测。
+
+### 实际行为 / Actual behavior
+
+保存期间，刚才操作的开关/选择器暂时看不见，只剩进度圈；保存完成后控件恢复。在窄屏、大字号或标题接近换行边界时，文字和右侧控件的位置可能跟着变化。
+
+### 对我的影响
+
+保存时我无法继续看见刚选的开关状态；文字或控件的位置变化也会干扰连续操作，让设置界面显得一闪一跳。
+
+### 预期行为 / Expected behavior
+
+保存时保持原控件、状态和占位宽度，可以暂时禁用操作或叠加小提示；保存失败时仍能看到错误并重试。
+
+### 复现步骤 / Steps to reproduce
+
+1. 打开设置页，选择一个开关或选择器。
+2. 修改选项，观察保存期间的右侧控件。
+3. 在大字号或较窄屏幕下，比较保存前后的标题换行和控件位置；保存较慢时更容易看清。
+
+### 应用版本 / App version
+
+1.18.4-rc.1（我使用的官方原版）。
+
+### 平台 / Platform
+
+Android 手机／平板 / Android phone or tablet
+
+### 设备与系统 / Device and OS
+
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
+
+### 问题位置与操作方式 / Affected screen and input
+
+设置列表的开关/选择器；窄屏、大字号、较慢保存时更容易受到影响。
+
 ### 问题类型 / Issue type
 
 界面、导航与交互 / UI and interaction
 
-### 应用版本 / App version
-
-源码对照：CyrilPeng/Venera-Next main@482810df369d126e4011be31d64408e33aede76f（版本元数据 1.18.4-rc.1+250）。组件复现运行于 fork 对应实现，不冒称官方安装包整体验证。
-
-### 平台 / Platform
-
-其他（请说明） / Other (please specify)：源码层核对；最小组件验证为 Linux 云端，不能据此声明各发行平台均实测。
-
-### 设备与系统 / Device and OS
-
-组件环境为 Linux、仓库锁定 Flutter 3.41.4；本项原版设备型号、系统/刷新率未单独采集。
-
-### 复现步骤 / Steps to reproduce
-
-1. 在窄屏、大字号设置页选择标题接近换行边界的开关/选择器。
-2. 点击保存，在写入较慢时观察右侧控件和左侧文字。
-3. 最小组件复现可阻塞 `AppDataOperations` 的写入准入，点击后检查保存前后的 Element 和文字矩形。
-
-### 预期行为 / Expected behavior
-
-保存期间保留原控件 Element 和布局尺寸，可禁用输入或叠加状态；失败可重试，持久化与退出等待仍有效。
-
-### 实际行为 / Actual behavior
-
-保存期间原 Switch/选择器被 18×18 进度圈替换，控件卸载、占位宽度改变。此前直接取上游组件的探针确认保存期间 Switch 不再存在；文字能否恰好换行取决于可用宽度和字号。
-
-### 问题位置与操作方式 / Affected screen and input
-
-设置列表右侧交互控件；原版源码仍有 `trailing: saving ? _savingIndicator : Switch(...)` 及选择器的对应分支。
-
 ### 诊断提供方式 / Diagnostic source
 
-界面类日志选填；下方提供源码/组件证据。
+我暂未附设备日志，提供下方源码和已有验证线索。
 
 ### 日志或诊断报告 / Logs or diagnostic report
 
-[lib/features/settings/setting_components.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/settings/setting_components.dart#L170)；同文件选择器保存分支约 404、540 行。
+我暂未附设备运行日志；下面附已有的排查线索。
 
 ### 日志无法取得的原因 / Why diagnostics are unavailable
 
-界面/布局/导航报告按上游表单可不附日志；没有编造错误日志或设备性能数据。
+这项是界面/交互反馈，我暂未附运行日志。
 
 ### 替代证据 / Alternative evidence
 
-最小验证/回归入口：[test/features/settings/setting_persistence_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/settings/setting_persistence_test.dart) 的原 Element、标题矩形、失败/重试及真实落盘断言。
+<details>
+<summary>源码定位与最小验证（供维护者参考）</summary>
 
-已区分源码核对、fork 组件验证和原版用户实测；未附原设备数据不表示测得零卡顿。
+已有组件验证确认保存期间 Switch 被移除。源码使用 saving 分支把控件替换为较小的进度圈；是否恰好触发文字换行取决于布局宽度和字号。
+
+源码定位：
+
+- [lib/features/settings/setting_components.dart](https://github.com/CyrilPeng/Venera-Next/blob/482810df369d126e4011be31d64408e33aede76f/lib/features/settings/setting_components.dart#L170)
+
+已有最小验证入口：
+
+- [test/features/settings/setting_persistence_test.dart](https://github.com/tianjinsa/Venera-Next/blob/codex/agent-center-tab/test/features/settings/setting_persistence_test.dart)
+
+</details>
 
 ### 截图或录屏 / Screenshots or video
 
-本稿未附录屏或图片。已有的可控复现及已确认的原版现场如上，不虚构附件。
-
-### 相关讨论与范围
-
-已检索上游收藏、阅读和关键词相关讨论；本稿聚焦这一项独立行为。发布时可再核对新增讨论。
+我暂未附截图或录屏。
 
 ### 提交前确认 / Checklist
 
-- [x] 已检索相关 Issue，并将独立问题分开整理。
-- [x] 本报告针对应用本体，不要求维护第三方源内容。
-- [x] 文本未包含账号、Cookie、Token、签名链接、私人漫画或数据库。
+- [x] 我已检索相关 Issue，并把不同问题分开说明。
+- [x] 我反馈的是应用本体的问题。
+- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。
