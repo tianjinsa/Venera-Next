@@ -134,6 +134,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 - Flutter 全量／TV 与 PR Windows 定向测试显式并发；消除原生编译固定两任务限制，共用 Cargo、CMake、CTest、Swift、Gradle 预算。Android flavors、Apple 平台及 Rustup 安装仍顺序／互斥；HarmonyOS 本地无预算时保留原默认值，冻结旧源码不修改。
 - 关键步骤记录墙钟耗时与退出码，POSIX 附已退出子进程 CPU 及最大单进程 RSS，明确不当作进程树总内存或满载保证。命令失败保留非零退出码；现有 Gradle 参数通过安全多行格式保留，不输出参数内容。
 - 本轮定向脚本回归与实际 Actions 验证见[迁移记录](migration.md#工作流计算资源调整2026-11-13)；全量仍仅在 Actions，按用户约定派发后至少 20 分钟再查询，不频繁轮询。
+- 定向回归共 212 项通过；资源源码 `b6a41d62` 的[独立全量批次](https://github.com/tianjinsa/Venera-Next/actions/runs/43411014938) 已确认准确 SHA，初始 `in_progress`，不记为通过。其后只补文档，不为记录本身重跑全量。
 
 ### 2026-11-13：独立全量测试入口与构建依赖优化
 
