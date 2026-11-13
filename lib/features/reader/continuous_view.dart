@@ -248,21 +248,61 @@ class ContinuousModeState extends State<ReaderContinuousView>
     final insertedCount = await waterfall.ensureBefore(
       current: current,
       threshold: math.max(preCacheCount, 1),
+      beforeInsert: _waitForScrollIdle,
     );
     if (!isCurrent() || insertedCount == 0) {
       return;
     }
+    // The user may have scrolled while the previous chapter was loading.
+    // Positions still describe the old list until its next layout.
+    ItemPosition? anchor;
+    for (final item in itemPositionsListener.itemPositions.value) {
+      if (item.index > 0 &&
+          item.itemTrailingEdge > 0 &&
+          item.itemLeadingEdge < 1 &&
+          (anchor == null || item.index < anchor.index)) {
+        anchor = item;
+      }
+    }
+    final anchorIndex = anchor?.index ?? current;
+    final anchorAlignment = anchor?.itemLeadingEdge ?? 0;
+    _scrollController?.resetLayoutAnchor();
     _isRestoringPrependedSegmentPosition = true;
     setState(() {});
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!isCurrent()) return;
-      itemScrollController.jumpTo(index: current + insertedCount);
+      itemScrollController.jumpTo(
+        index: anchorIndex + insertedCount,
+        alignment: anchorAlignment,
+      );
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (isCurrent()) {
           _isRestoringPrependedSegmentPosition = false;
         }
       });
     });
+  }
+
+  Future<void> _waitForScrollIdle(RequestScope scope) async {
+    final controller = _scrollController;
+    if (controller == null || !controller.hasClients) return;
+    final scrolling = controller.position.isScrollingNotifier;
+    while (scrolling.value) {
+      final idle = Completer<void>();
+      void changed() {
+        if (!scrolling.value && !idle.isCompleted) idle.complete();
+      }
+
+      scrolling.addListener(changed);
+      try {
+        // A late prepend must not cancel a drag or its ballistic movement.
+        // Recheck after transient idle during a change of scroll activity.
+        // Navigation/exit cancels the wait and releases the position listener.
+        await scope.run(() => idle.future);
+      } finally {
+        scrolling.removeListener(changed);
+      }
+    }
   }
 
   void _setReaderLocation(WaterfallImageRef imageRef) {
@@ -314,6 +354,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
     int chapter, {
     required bool toLastPage,
   }) async {
+    _scrollController?.resetLayoutAnchor();
     final waterfall = _waterfall;
     final needsLoading = _segmentOfChapter(chapter) == null;
     final releaseLoading = _holdWaterfallLoading(needsLoading);
@@ -364,6 +405,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
   void initState() {
     _scrollController = ContinuousScrollController(
       itemPositionsListener.itemPositions,
+      canAnchor: _isDecodedFlowImage,
       onPositionChanged: () {
         _smoothPosition = null;
         _smoothGeneration++;
@@ -384,9 +426,39 @@ class ContinuousModeState extends State<ReaderContinuousView>
     super.initState();
   }
 
+  bool _isDecodedFlowImage(int index) {
+    final ref = _imageRefAt(index);
+    // Initial placeholders must not pin an incidental neighbour in place of
+    // the page restored from history or explicitly requested by navigation.
+    if (ref == null ||
+        ref.position.chapter != currentChapter ||
+        ref.position.imageNumber != currentPage) {
+      return false;
+    }
+    for (final state in imageStates.whereType<ComicImageState>()) {
+      if (!state.mounted || !state.readyForAutoReading) continue;
+      final provider = state.widget.image;
+      if (provider is! ReaderDisplayImageProvider ||
+          !identical(provider.work, widget.imageWork)) {
+        continue;
+      }
+      final image = provider.image;
+      if (image.imageKey == ref.imageKey &&
+          image.eid == ref.position.chapterId &&
+          image.page == ref.position.imageNumber) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @override
   void didUpdateWidget(covariant ReaderContinuousView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.data.vertical != data.vertical ||
+        oldWidget.data.reverse != data.reverse) {
+      _scrollController?.resetLayoutAnchor();
+    }
     if (!identical(oldWidget.imageWork, widget.imageWork) ||
         oldWidget.data.comicId != data.comicId ||
         oldWidget.data.sourceKey != data.sourceKey) {
@@ -399,6 +471,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
         oldWidget.data.sourceKey != data.sourceKey ||
         oldWidget.data.maxChapter != data.maxChapter ||
         oldWidget.data.crossChapter != data.crossChapter) {
+      _scrollController?.resetLayoutAnchor();
       unawaited(_imageDownloads.dispose());
       _imageDownloads = ReaderImageDownloads(work: widget.imageWork);
       unawaited(_waterfall.dispose());
@@ -933,11 +1006,14 @@ class ContinuousModeState extends State<ReaderContinuousView>
       addSemanticIndexes: false,
       scrollDirection: data.vertical ? Axis.vertical : Axis.horizontal,
       reverse: data.reverse,
-      physics: isCTRLPressed || _isMouseScrolling || disableScroll
-          ? const NeverScrollableScrollPhysics()
-          : isZoomedIn
-          ? const ClampingScrollPhysics()
-          : const BouncingScrollPhysics(),
+      physics: ContinuousLayoutPhysics(
+        controller: _scrollController!,
+        parent: isCTRLPressed || _isMouseScrolling || disableScroll
+            ? const NeverScrollableScrollPhysics()
+            : isZoomedIn
+            ? const ClampingScrollPhysics()
+            : const BouncingScrollPhysics(),
+      ),
       itemBuilder: (context, index) {
         return ContinuousScrollAnchor(
           controller: _scrollController!,
@@ -989,7 +1065,8 @@ class ContinuousModeState extends State<ReaderContinuousView>
 
     var comicImage = SizeChangedLayoutNotifier(
       child: ComicImage(
-        filterQuality: FilterQuality.medium,
+        // Match Prime's bilinear filtering while large pages are moving.
+        filterQuality: FilterQuality.low,
         image: ReaderDisplayImageProvider(image, widget.imageWork),
         width: width,
         height: height,
@@ -1283,6 +1360,7 @@ class ContinuousModeState extends State<ReaderContinuousView>
   @override
   void toPage(int page) {
     if (_disposed || !mounted) return;
+    _scrollController?.resetLayoutAnchor();
     var index = _waterfallIndexOfChapterPage(currentChapter, page) ?? page;
     itemScrollController.jumpTo(index: index);
     _futurePosition = null;

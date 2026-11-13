@@ -152,6 +152,7 @@ class WaterfallController {
   Future<int> ensureBefore({
     required int current,
     required int threshold,
+    Future<void> Function(RequestScope scope)? beforeInsert,
   }) async {
     if (_disposed ||
         _navigating ||
@@ -164,6 +165,10 @@ class WaterfallController {
     try {
       final segment = await _load(_flow.firstChapter! - 1, scope);
       if (!_current(scope)) return 0;
+      if (beforeInsert != null) {
+        await beforeInsert(scope);
+        if (!_current(scope)) return 0;
+      }
       return _flow.addBefore(segment);
     } on RequestCancelled {
       return 0;

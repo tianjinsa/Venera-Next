@@ -9,16 +9,160 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 /// A distant item animation mounts two lists; published geometry then selects
 /// the owner of pixel scrolling and reader image visibility.
 class ContinuousScrollController extends ScrollController {
-  ContinuousScrollController(this.items, {required this.onPositionChanged})
-    : super(keepScrollOffset: false) {
+  ContinuousScrollController(
+    this.items, {
+    required this.onPositionChanged,
+    this.canAnchor,
+  }) : super(keepScrollOffset: false) {
     items.addListener(syncPosition);
   }
 
   final ValueListenable<Iterable<ItemPosition>> items;
   final VoidCallback onPositionChanged;
+  final bool Function(int index)? canAnchor;
   final _anchors = <_ContinuousScrollAnchorState>{};
   bool _scheduled = false;
   bool _disposed = false;
+  bool _layoutChanged = false;
+  ({
+    _ContinuousScrollAnchorState anchor,
+    ScrollPosition position,
+    RenderBox viewport,
+    double leading,
+    double pixels,
+    double extent,
+  })?
+  _layoutAnchor;
+
+  void resetLayoutAnchor() {
+    _layoutAnchor = null;
+    _layoutChanged = false;
+  }
+
+  void _onExtentChanged() {
+    final anchor = _layoutAnchor;
+    if (_disposed || anchor == null || !anchor.position.hasPixels) return;
+    _layoutChanged = true;
+    // Request dimension reconciliation even if two size changes cancel out
+    // in the list's total extent. This runs during child layout.
+    anchor.position.correctBy(0);
+  }
+
+  ({RenderBox viewport, double leading, double trailing, double extent})?
+  _geometry(_ContinuousScrollAnchorState anchor, ScrollPosition position) {
+    if (!anchor.mounted) return null;
+    final box = anchor.context.findRenderObject();
+    if (box is! _RenderAnchorLayout ||
+        !box.attached ||
+        box._previousSize == null) {
+      return null;
+    }
+    final RenderObject? viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport is! RenderBox || !viewport.hasSize) return null;
+    // The list wraps each item in equal-sized repaint/semantics proxies.
+    // Read its sliver layout offset instead of a box paint transform: flipped
+    // slivers' transforms read child.size, which is invalid during layout.
+    RenderBox item = box;
+    while (item.parent is RenderBox) {
+      item = item.parent! as RenderBox;
+    }
+    final sliver = item.parent;
+    if (sliver is! RenderSliverMultiBoxAdaptor || sliver.geometry == null) {
+      return null;
+    }
+    final layoutOffset = sliver.childScrollOffset(item);
+    if (layoutOffset == null) return null;
+    final size = box._previousSize!;
+    final vertical = sliver.constraints.axis == Axis.vertical;
+    var main = layoutOffset - sliver.constraints.scrollOffset;
+    if (axisDirectionIsReversed(
+      applyGrowthDirectionToAxisDirection(
+        sliver.constraints.axisDirection,
+        sliver.constraints.growthDirection,
+      ),
+    )) {
+      main =
+          sliver.geometry!.paintExtent -
+          main -
+          (vertical ? size.height : size.width);
+    }
+    // Positioned-list items fill their sliver's cross axis.
+    const cross = 0.0;
+    final bounds = MatrixUtils.transformRect(
+      sliver.getTransformTo(viewport),
+      (vertical ? Offset(cross, main) : Offset(main, cross)) & size,
+    );
+    if (!bounds.isFinite) return null;
+    final extent = vertical ? viewport.size.height : viewport.size.width;
+    final reversed = axisDirectionIsReversed(position.axisDirection);
+    return (
+      viewport: viewport,
+      extent: extent,
+      leading: reversed
+          ? extent - (vertical ? bounds.bottom : bounds.right)
+          : (vertical ? bounds.top : bounds.left),
+      trailing: reversed
+          ? extent - (vertical ? bounds.top : bounds.left)
+          : (vertical ? bounds.bottom : bounds.right),
+    );
+  }
+
+  void _captureLayoutAnchor(ScrollPosition? position) {
+    resetLayoutAnchor();
+    if (position == null) return;
+    for (final anchor in _anchors) {
+      if (anchor.widget.index <= 0 ||
+          !anchor.mounted ||
+          canAnchor?.call(anchor.widget.index) == false ||
+          !identical(Scrollable.maybeOf(anchor.context)?.position, position)) {
+        continue;
+      }
+      final geometry = _geometry(anchor, position);
+      if (geometry == null ||
+          geometry.trailing <= 0 ||
+          geometry.leading >= geometry.extent) {
+        continue;
+      }
+      if (_layoutAnchor != null &&
+          _layoutAnchor!.anchor.widget.index < anchor.widget.index) {
+        continue;
+      }
+      _layoutAnchor = (
+        anchor: anchor,
+        position: position,
+        viewport: geometry.viewport,
+        leading: geometry.leading,
+        pixels: position.pixels,
+        extent: geometry.extent,
+      );
+    }
+  }
+
+  double? _correctLayout(ScrollMetrics metrics) {
+    if (!_layoutChanged) return null;
+    _layoutChanged = false;
+    final anchor = _layoutAnchor;
+    if (anchor == null ||
+        !hasClients ||
+        !identical(position, anchor.position) ||
+        metrics.viewportDimension != anchor.extent) {
+      return null;
+    }
+    final geometry = _geometry(anchor.anchor, anchor.position);
+    if (geometry == null || !identical(geometry.viewport, anchor.viewport)) {
+      return null;
+    }
+    // Account for actual drag/ballistic travel since the previous layout.
+    // Reconcile geometry inside Flutter's layout retry, without jumpTo (which
+    // cancels the active gesture and paints an intermediate displaced frame).
+    final correction =
+        geometry.leading - anchor.leading + metrics.pixels - anchor.pixels;
+    if (!correction.isFinite || correction.abs() < 0.01) return null;
+    return (metrics.pixels + correction).clamp(
+      metrics.minScrollExtent,
+      metrics.maxScrollExtent,
+    );
+  }
 
   void _register(_ContinuousScrollAnchorState anchor) {
     _anchors.add(anchor);
@@ -87,6 +231,7 @@ class ContinuousScrollController extends ScrollController {
     // Item positions arrive after layout. A single live list has unambiguous
     // ownership even before that notification; two animated lists do not.
     if (selected == null && live.length == 1) selected = live.single;
+    _captureLayoutAnchor(selected);
     if (identical(selected, current)) return;
     if (current != null) detach(current);
     if (selected != null) attach(selected);
@@ -97,6 +242,7 @@ class ContinuousScrollController extends ScrollController {
   @override
   void dispose() {
     _disposed = true;
+    resetLayoutAnchor();
     items.removeListener(syncPosition);
     _anchors.clear();
     for (final position in positions.toList()) {
@@ -105,6 +251,34 @@ class ContinuousScrollController extends ScrollController {
     // The official list owns the positions. Retire only our subscriptions.
     super.dispose();
   }
+}
+
+/// Keep a visible item fixed when an asynchronously decoded image changes size.
+class ContinuousLayoutPhysics extends ScrollPhysics {
+  const ContinuousLayoutPhysics({required this.controller, super.parent});
+  final ContinuousScrollController controller;
+
+  @override
+  ContinuousLayoutPhysics applyTo(ScrollPhysics? ancestor) =>
+      ContinuousLayoutPhysics(
+        controller: controller,
+        parent: buildParent(ancestor),
+      );
+
+  @override
+  double adjustPositionForNewDimensions({
+    required ScrollMetrics oldPosition,
+    required ScrollMetrics newPosition,
+    required bool isScrolling,
+    required double velocity,
+  }) =>
+      controller._correctLayout(newPosition) ??
+      super.adjustPositionForNewDimensions(
+        oldPosition: oldPosition,
+        newPosition: newPosition,
+        isScrolling: isScrolling,
+        velocity: velocity,
+      );
 }
 
 class ContinuousScrollAnchor extends StatefulWidget {
@@ -147,5 +321,37 @@ class _ContinuousScrollAnchorState extends State<ContinuousScrollAnchor> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) =>
+      _AnchorLayout(controller: widget.controller, child: widget.child);
+}
+
+class _AnchorLayout extends SingleChildRenderObjectWidget {
+  const _AnchorLayout({required this.controller, required super.child});
+  final ContinuousScrollController controller;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderAnchorLayout(controller);
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderAnchorLayout renderObject,
+  ) {
+    renderObject.controller = controller;
+  }
+}
+
+class _RenderAnchorLayout extends RenderProxyBox {
+  _RenderAnchorLayout(this.controller);
+  ContinuousScrollController controller;
+  Size? _previousSize;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (_previousSize != null && _previousSize != size) {
+      controller._onExtentChanged();
+    }
+    _previousSize = size;
+  }
 }

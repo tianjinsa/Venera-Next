@@ -144,6 +144,32 @@ void main() {
   );
 
   test(
+    'navigation cancels a loaded previous chapter waiting for scroll idle',
+    () async {
+      final idle = Completer<void>();
+      var waiting = false;
+      final before = controller.ensureBefore(
+        current: 1,
+        threshold: 1,
+        beforeInsert: (scope) {
+          waiting = true;
+          return scope.run(() => idle.future);
+        },
+      );
+      await pumpEventQueue();
+      expect(waiting, isTrue);
+      expect(controller.flow.firstChapter, 3);
+      expect(await controller.ensureBefore(current: 1, threshold: 1), 0);
+      expect(await controller.navigate(7), isTrue);
+      expect(await before, 0);
+      idle.complete();
+      await pumpEventQueue();
+      expect(controller.flow.firstChapter, 7);
+      expect(errors, isEmpty);
+    },
+  );
+
+  test(
     'navigation cancels both prefetch directions and rejects late inserts',
     () async {
       final pending = <int, Completer<List<String>>>{};

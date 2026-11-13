@@ -386,7 +386,6 @@ abstract mixin class ComicPageActions {
 
   void onTapTag(String tag, String namespace) {
     var target = searchTargetForTag(tag, namespace);
-    var context = appNavigation.mainNavigatorKey!.currentContext!;
     target?.jump(context);
   }
 

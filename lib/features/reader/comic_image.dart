@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -125,6 +126,8 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
   ImageStream? _imageStream;
   ImageInfo? _imageInfo;
   ImageChunkEvent? _loadingProgress;
+  ImageChunkEvent? _pendingLoadingProgress;
+  Timer? _loadingProgressTimer;
   bool _isListeningToStream = false;
   late bool _invertColors;
   int? _frameNumber;
@@ -174,6 +177,7 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
   @override
   void dispose() {
     assert(_imageStream != null);
+    _clearPendingProgress();
     WidgetsBinding.instance.removeObserver(this);
     _stopListeningToStream();
     _completerHandle?.dispose();
@@ -270,6 +274,7 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
         _handleImageFrame,
         onChunk: _handleImageChunk,
         onError: (Object error, StackTrace? stackTrace) {
+          _clearPendingProgress();
           setState(() {
             _lastException = error;
           });
@@ -280,6 +285,7 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
   }
 
   void _handleImageFrame(ImageInfo imageInfo, bool synchronousCall) {
+    _clearPendingProgress();
     setState(() {
       _replaceImage(info: imageInfo);
       _loadingProgress = null;
@@ -336,10 +342,24 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
   }
 
   void _handleImageChunk(ImageChunkEvent event) {
-    setState(() {
-      _loadingProgress = event;
-      _lastException = null;
+    _pendingLoadingProgress = event;
+    // Match Prime's progress cadence without rebuilding on every network chunk.
+    _loadingProgressTimer ??= Timer(const Duration(milliseconds: 100), () {
+      _loadingProgressTimer = null;
+      final progress = _pendingLoadingProgress;
+      _pendingLoadingProgress = null;
+      if (!mounted || progress == null) return;
+      setState(() {
+        _loadingProgress = progress;
+        _lastException = null;
+      });
     });
+  }
+
+  void _clearPendingProgress() {
+    _loadingProgressTimer?.cancel();
+    _loadingProgressTimer = null;
+    _pendingLoadingProgress = null;
   }
 
   void _replaceImage({required ImageInfo? info}) {
@@ -368,6 +388,7 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
     if (_isListeningToStream) {
       _imageStream!.removeListener(_getListener());
     }
+    _clearPendingProgress();
 
     if (!widget.gaplessPlayback) {
       setState(() {
