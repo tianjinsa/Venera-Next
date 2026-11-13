@@ -388,6 +388,10 @@ def prepare_project(args):
          ROOT / "tool/check_git_dependencies.dart"),
         ("test/tool/resolved_git_dependencies_test.dart", "../../tool/check_git_dependencies.dart",
          ROOT / "tool/check_git_dependencies.dart"),
+        ("test/tool/cargokit_rustup_test.dart", "../../packages/rhttp/cargokit/build_tool/lib/src/rustup.dart",
+         ROOT / "packages/rhttp/cargokit/build_tool/lib/src/rustup.dart"),
+        ("test/tool/cargokit_rustup_test.dart", "../../packages/rhttp/cargokit/build_tool/lib/src/util.dart",
+         ROOT / "packages/rhttp/cargokit/build_tool/lib/src/util.dart"),
     ):
         path = project / name
         relocated = os.path.relpath(source, path.parent).replace("\\", "/")

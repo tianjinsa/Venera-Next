@@ -151,6 +151,8 @@ CI resolves dependencies once with `flutter pub get --enforce-lockfile`, then us
 
 The shared `.github/actions/cache-rust` caches Cargo dependencies by runner OS, architecture, build configuration, Rust toolchain, lockfiles, and relevant compiler environment. Android also keys on Gradle/NDK configuration and Cargokit scripts. Linux, Windows, and Android use their actual Cargokit target directories. Apple app builds cache downloads only, excluding Xcode products and the Rustup wrapper. HarmonyOS uses a separate API 26 cross-compilation cache. Caching does not skip compiling the project's own Rust code, tests, ABI checks, or release provenance checks; the first run still populates the cache.
 
+The dependency security workflow uses the runner's host stable toolchain and separately caches the `cargo-audit` executable by fixed version, build options, and runner platform. It saves the tool before scanning so vulnerability findings do not prevent caching the tool. Every run still updates the advisory database and scans the full lockfile; passing audit results are never cached or reused.
+
 Normal native libraries, ASan/UBSan libraries, and Android Provider test APKs serve different tests and remain separate. Linux Flutter tests build only the Rhttp dynamic library, omitting the unused static archive. Android mobile and TV remain isolated matrix builds. Linux DEB, RPM, AppImage, and Arch packaging already share one Flutter release build instead of recompiling the application for each format.
 
 Android release workflows require these repository Secrets:

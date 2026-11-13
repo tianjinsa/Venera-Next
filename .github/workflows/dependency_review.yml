@@ -38,10 +38,26 @@ jobs:
     name: Rust 锁定依赖漏洞扫描
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      # The audit executable needs the runner's host toolchain, not app targets.
+      RUSTUP_TOOLCHAIN: stable
     steps:
       - uses: actions/checkout@v7
+      - name: 恢复固定版本的审计工具
+        id: audit-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}-${{ runner.arch }}-ubuntu-24.04-0.22.2-no-default-features-v1
       - name: 安装固定版本的审计工具
+        if: steps.audit-cache.outputs.cache-hit != 'true'
         run: cargo install cargo-audit --version 0.22.2 --locked --no-default-features
+      - name: 保存已安装的审计工具
+        if: steps.audit-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ steps.audit-cache.outputs.cache-primary-key }}
       - name: 扫描完整 Rust 锁文件
         shell: bash
         run: |

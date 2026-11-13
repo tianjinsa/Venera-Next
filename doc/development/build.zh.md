@@ -151,6 +151,8 @@ CI 先执行一次 `flutter pub get --enforce-lockfile`，后续分析、测试�
 
 共享的 `.github/actions/cache-rust` 按运行系统、架构、构建配置、Rust 工具链、锁文件和相关编译环境缓存 Cargo 依赖；Android 还区分 Gradle／NDK 配置与 Cargokit 脚本。Linux、Windows 和 Android 使用各自实际的 Cargokit 编译目录，Apple 应用仅复用下载缓存，不缓存 Xcode 产物或 Rustup 包装器。鸿蒙使用其独立的 API 26 交叉编译缓存。缓存不跳过项目自身 Rust 编译、测试、ABI 校验或发布来源校验，首次运行仍需填充缓存。
 
+依赖安全工作流使用 runner 的宿主 stable 工具链，单独缓存固定版本、构建选项和运行平台下的 `cargo-audit` 可执行文件，在扫描前保存工具缓存，扫描发现漏洞也不会使工具缓存丢失。每次仍更新公告数据库并扫描完整锁文件，不缓存或复用审计通过结果。
+
 普通原生库、带 ASan／UBSan 的原生库和 Android Provider 测试 APK 分别服务于不同测试，不能合并删除。Linux Flutter 测试仅编译 Rhttp 动态库，不额外生成未使用的静态库；Android 手机版和 TV 版继续在独立矩阵任务中构建。Linux 的 DEB、RPM、AppImage 与 Arch 打包已经共用一次 Flutter release 构建，不会逐格式重新编译应用。
 
 Android release 工作流需要以下仓库 Secrets：
