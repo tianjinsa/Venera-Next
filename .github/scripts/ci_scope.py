@@ -24,7 +24,7 @@ def classify(paths, platforms="all"):
     for path in paths or ():
         parts = Path(path).parts
         if (path in GLOBAL or path.startswith((".github/workflows/", ".github/actions/"))
-                or path == ".github/scripts/ci_scope.py"):
+                or path in (".github/scripts/ci_scope.py", ".github/scripts/ci_resources.py")):
             flags.update(dict.fromkeys(FLAGS, True))
         elif (path.startswith(("doc/", "fastlane/", ".github/ISSUE_TEMPLATE/", ".github/data/"))
               or (len(parts) == 1 and (path.endswith(".md") or path in ("LICENSE", "sponsors.json")))):

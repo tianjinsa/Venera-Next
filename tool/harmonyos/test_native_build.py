@@ -4,6 +4,7 @@ import struct
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -14,6 +15,15 @@ SPEC.loader.exec_module(NATIVE)
 
 
 class NativeBuildTests(unittest.TestCase):
+    def test_ci_cpu_budget_reaches_the_cargo_build(self):
+        with patch.dict(NATIVE.os.environ, {"CI_BUILD_JOBS": "4"}), \
+                patch.object(NATIVE, "run") as command, \
+                patch.object(NATIVE.shutil, "copy2"):
+            NATIVE.build_rust(Path("/sdk/native"), Path("/output"))
+        args = command.call_args.args[0]
+        self.assertEqual(args[args.index("--jobs") + 1], "4")
+        self.assertEqual(command.call_args.kwargs["env"]["CI_BUILD_JOBS"], "4")
+
     def test_output_stays_in_experiment_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

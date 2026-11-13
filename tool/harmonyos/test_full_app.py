@@ -59,7 +59,8 @@ class FullAppTests(unittest.TestCase):
                         stack.enter_context(patch.object(ci_full_app, name, value))
                     stack.enter_context(patch.object(ci_full_app.subprocess, 'check_output', return_value='a' * 40))
                     stack.enter_context(patch.object(ci_full_app, 'check_real_source'))
-                    stack.enter_context(patch.dict(os.environ, {'LD_LIBRARY_PATH': 'existing-libraries'}))
+                    stack.enter_context(patch.dict(os.environ, {'LD_LIBRARY_PATH': 'existing-libraries',
+                                                               'CI_BUILD_JOBS': '4', 'CI_TEST_JOBS': '3'}))
                     commands = stack.enter_context(patch.object(ci_full_app, 'run_logged'))
                     audit = stack.enter_context(patch.object(ci_full_app, 'audit_full_hap', return_value={}))
                     stack.enter_context(patch('builtins.print'))
@@ -74,6 +75,11 @@ class FullAppTests(unittest.TestCase):
                 self.assertIn('full-app-build', stages)
                 for stage in ('full-app-host-prepare', 'full-app-host-build', 'full-app-test'):
                     self.assertEqual(stage in stages, not skip_tests)
+                if not skip_tests:
+                    by_stage = {call.args[1]: call.args[0] for call in commands.call_args_list}
+                    self.assertEqual(by_stage['full-app-host-build'][-2:], ['--parallel', '4'])
+                    test = by_stage['full-app-test']
+                    self.assertEqual(test[test.index('--concurrency') + 1], '3')
                 report = json.loads((base / 'ci/full-app-build.json').read_text())
                 exported = json.loads((base / 'ci/release-artifacts/harmonyos-manifest.json').read_text())
                 self.assertEqual(report['status'], 'packaging_pass')

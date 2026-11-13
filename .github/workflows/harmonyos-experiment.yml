@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - .github/actions/ci-resources/**
+      - .github/scripts/ci_resources.py
       - .github/workflows/harmonyos-*.yml
       - .github/workflows/main.yml
       - .github/scripts/harmonyos_release.py
@@ -25,6 +27,8 @@ on:
   push:
     branches: [main]
     paths:
+      - .github/actions/ci-resources/**
+      - .github/scripts/ci_resources.py
       - .github/workflows/harmonyos-*.yml
       - .github/workflows/main.yml
       - .github/scripts/harmonyos_release.py

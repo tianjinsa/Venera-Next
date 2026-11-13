@@ -19,7 +19,7 @@ def workflow(name):
 
 def jobs(text):
     body = text.split('\njobs:\n', 1)[1]
-    headings = list(re.finditer(r'^  (\w+):\n', body, re.M))
+    headings = list(re.finditer(r'^  ([\w-]+):\n', body, re.M))
     result = {}
     for index, match in enumerate(headings):
         end = headings[index + 1].start() if index + 1 < len(headings) else len(body)
@@ -105,6 +105,21 @@ class WorkflowEntrypointsTests(unittest.TestCase):
         for platform in ('android', 'windows', 'macos', 'ios', 'linux_x64', 'linux_arm64'):
             self.assertIn('${{ inputs.build_' + platform + ' }}', key)
         self.assertIn("${{ inputs.concurrency_key || 'default' }}", workflow('analyze.yml'))
+
+    def test_cpu_budget_changes_require_quality_and_platform_checks(self):
+        self.assertTrue(all(SCOPE.classify(['.github/scripts/ci_resources.py']).values()))
+
+    def test_test_and_package_jobs_configure_resources_before_heavy_work(self):
+        for name in ('analyze.yml', 'build.yml', 'pr_build.yml'):
+            for job_name, job in jobs(workflow(name)).items():
+                if 'uses: actions/checkout@' not in job:
+                    continue
+                with self.subTest(workflow=name, job=job_name):
+                    self.assertEqual(job.count('uses: ./.github/actions/ci-resources'), 1)
+                    tail = job.split('uses: ./.github/actions/ci-resources', 1)[1]
+                    for command in re.findall(r'^\s+(?:run: )?(?:python3? .+ run .+ -- )?((?:flutter|cargo|swift) .+)$', job, re.M):
+                        self.assertIn(command, tail)
+        self.assertIn('uses: ./release/.github/actions/ci-resources', workflow('harmonyos-release.yml'))
 
 
 if __name__ == '__main__':

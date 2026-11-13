@@ -49,6 +49,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - uses: ./release/.github/actions/ci-resources
+
       - name: Select the exact mainline commit or frozen legacy source
         id: pin
         working-directory: release
@@ -164,7 +166,8 @@ jobs:
         run: |
           options=()
           if [[ "$SKIP_TESTS" == true ]]; then options+=(--skip-tests); fi
-          python3 tool/harmonyos/ci_full_app.py --flutter-sdk "$FLUTTER_OH_SDK" "${options[@]}"
+          python3 ../release/.github/scripts/ci_resources.py run --label 'HarmonyOS 阅读器验证与构建' -- \
+            python3 tool/harmonyos/ci_full_app.py --flutter-sdk "$FLUTTER_OH_SDK" "${options[@]}"
 
       - name: Independently verify the required release assets and repository guides
         working-directory: release

@@ -50,6 +50,9 @@ class IosReleaseMetadataTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            scripts = root / ".github/scripts"
+            scripts.mkdir(parents=True)
+            shutil.copy2(ROOT / ".github/scripts/ci_resources.py", scripts / "ci_resources.py")
             flutter = root / "flutter"
             flutter.write_text(
                 '#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURE_ARGS"\n',
@@ -61,6 +64,7 @@ class IosReleaseMetadataTests(unittest.TestCase):
                 **os.environ,
                 "PATH": str(root) + os.pathsep + os.environ.get("PATH", ""),
                 "CAPTURE_ARGS": str(captured),
+                "GITHUB_STEP_SUMMARY": "",
             }
             pubspec = root / "pubspec.yaml"
             for version, native_version, build in fixtures:

@@ -184,11 +184,11 @@ def build(flutter_sdk, skip_tests=False):
                             "venera_native": ROOT / "packages/venera_native"}
             run_logged(["cmake", "-S", ROOT / ".github/scripts/native_test_libraries", "-B", host, "-G", "Ninja",
                         "-DCMAKE_BUILD_TYPE=Release", *[f"-D{name.upper()}_ROOT={path}" for name, path in host_sources.items()]], "full-app-host-prepare")
-            run_logged(["cmake", "--build", host, "--parallel", "2"], "full-app-host-build")
+            run_logged(["cmake", "--build", host, "--parallel", os.environ.get("CI_BUILD_JOBS", "2")], "full-app-host-build")
             previous_path = os.environ.get("LD_LIBRARY_PATH", "")
             os.environ["LD_LIBRARY_PATH"] = str(host / "lib") + (":" + previous_path if previous_path else "")
             try:
-                run_logged([flutter, "test", "--no-pub", "--concurrency", "2", "--reporter", "expanded", *TESTS], "full-app-test", PROJECT)
+                run_logged([flutter, "test", "--no-pub", "--concurrency", os.environ.get("CI_TEST_JOBS", "2"), "--reporter", "expanded", *TESTS], "full-app-test", PROJECT)
             finally:
                 if previous_path:
                     os.environ["LD_LIBRARY_PATH"] = previous_path

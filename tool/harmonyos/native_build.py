@@ -147,7 +147,7 @@ def build_rust(native, output):
     env["CXXFLAGS_aarch64_unknown_linux_ohos"] = flags
     target_dir = ROOT / "build/harmonyos/cargo"
     env["CARGO_TARGET_DIR"] = str(target_dir)
-    run(["cargo", "build", "--locked", "--release", "--lib", "--jobs", "2",
+    run(["cargo", "build", "--locked", "--release", "--lib", "--jobs", env.get("CI_BUILD_JOBS", "2"),
          "--target", TARGET, "--manifest-path", "packages/rhttp/rust/Cargo.toml"], env=env)
     shutil.copy2(target_dir / TARGET / "release/librhttp.so", output / "librhttp.so")
 

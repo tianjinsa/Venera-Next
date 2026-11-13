@@ -67,6 +67,12 @@ git diff --check
 
 CI 会使用 `flutter test --coverage` 生成 `coverage/lcov.info`，在工作流摘要中显示行覆盖率，并上传报告产物。当前覆盖率用于建立可见基线，尚未设置统一硬阈值；涉及关键业务路径的改动仍必须增加针对性测试。
 
+质量检查、平台构建及 PR 冒烟通过 `.github/actions/ci-resources` 共用资源配置。脚本读取 CPU 数、进程亲和性及标准 cgroup 限额，以可用核数作为并发上限；内存预留 2 GiB，每个测试进程按 1.5 GiB、编译任务按 1 GiB 限制。常见公开仓库 4 核／16 GiB runner 使用 4 个任务，3 核／7 GiB macOS runner 使用 3 个；未知内存显示 `unknown` 并沿用 CPU 上限，不假定固定硬件。
+
+Flutter 全量与 TV 测试使用 `CI_TEST_JOBS`；CMake、CTest、Cargo、Rust 测试、Swift 和 Gradle 读取同一预算，Gradle 启用项目并行。Flutter 内部直接调用的 Ninja、Xcode 继续使用工具自身的 CPU 调度；这两个工具不读取 `CMAKE_BUILD_PARALLEL_LEVEL`。Android 手机／TV 和 macOS／iOS 仍在共用目录中顺序构建，避免并发覆盖；HarmonyOS 主线脚本读取预算，冻结旧源码按其原脚本执行。
+
+关键步骤通过 `.github/scripts/ci_resources.py run --label 名称 -- 命令` 记录资源与耗时。Actions 摘要显示预算、墙钟耗时、退出码；POSIX 另显示已回收子进程及后代的平均 CPU 核数、占 CPU 预算比例和最大单进程 RSS，不含仍常驻的 Gradle 等守护进程，RSS 不是整个并行进程树的总峰值。Windows 当前只记录耗时和退出码。串行编译队列、同文件内串行测试和 I/O 仍会限制利用率，配置并发不表示所有阶段持续满载，也不预先声称提速比例。
+
 PR 还会运行 `依赖安全审查` 和 `PR 平台冒烟构建`。依赖审查会阻止引入高危或严重漏洞依赖；平台工作流按改动选择 Android、Windows、Linux、macOS 或 iOS 冒烟构建；Android 手机／TV 在同一 runner 上顺序验证 ARM64，文档等不影响构建的改动跳过平台任务。质量流程另运行真实 TV flavor 的导航、输入、低内存和更新回归。Dart 格式检查只针对本次修改的 Dart 文件执行，避免历史格式差异阻塞后续贡献。`main` 分支要求 PR 通过代码分析、依赖审查和平台冒烟构建门禁，并禁止直接强推或删除分支。
 
 涉及发布版本时再运行：

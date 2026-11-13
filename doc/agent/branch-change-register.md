@@ -89,7 +89,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | C01 | 独立 `tests.yml` 固定完整质量门禁，不经过构建、无打包／签名或跳过测试输入；替代旧 `build.yml tests_only`。构建保留默认关闭的 `skip_tests` 与平台开关，所选平台统一等待一次公共质量检查；按平台选择范围，发布调用通过 `quality_checked` 复用通过结果。跳过测试仍保留静态检查、编译、签名及产物校验（原 `00bdd61`，本轮分离入口） | `.github/workflows/tests.yml`、`build.yml`、`analyze.yml`、`main.yml`、`harmonyos-release.yml`、`tool/harmonyos/ci_full_app.py`；`test_workflow_entrypoints.py`、`test_android_signing.py`、`tool/harmonyos/test_full_app.py` |
 | C02 | Android 签名从 fork Secrets 写入 runner 临时目录，受限权限且结束清理；按配置的 keystore/alias 取得预期公开证书，所有 APK/发布校验匹配该身份，不硬编码上游证书或信任 APK 自报身份（`00bdd61`、`af00d83`） | `android/app/build.gradle`、`.github/scripts/AndroidSigningIdentity.java`、`android_tv_build.py`、工作流；`test_android_signing.py`、`test_android_signing_identity.py`、`test_android_tv_build.py` |
 | C03 | Android 选择后固定构建手机/TV 全部 8 个 APK 和两份清单；两种 flavor 顺序复用编译；单 ABI 拆包不与 Flutter/NDK 过滤互斥，PR ARM64 冒烟使用正确拆包参数（`49fbc67`、`1262aea`、`001a9cf`） | `.github/scripts/build_android.py`、`android_tv_build.py`、`android/app/build.gradle`；`test_android_tv_build.py`、`test_ci_optimization.py` |
-| C04 | PR 按变更范围选择重型检查和平台冒烟；同平台旧构建取消、跨平台保留，所选平台组合透传独立质量并发键；独立全量测试与构建不互相取消。Rust 使用已有工具链与真实编译缓存，分离恢复/保存，失败缓存显式保存，磁盘仅低空间时清理（`49fbc67`、`001a9cf`、`cefb7a3`） | `.github/scripts/ci_scope.py`、`prepare_rust_toolchain.py`、`prepare_android_space.py`、`.github/actions/rust-cache/`、`rust-cache-save/`；`test_workflow_entrypoints.py`、`test_ci_optimization.py`、`test_desktop_ci.py` |
+| C04 | PR 按变更范围选择重型检查和平台冒烟；同平台旧构建取消、跨平台保留，所选平台组合透传独立质量并发键；独立全量测试与构建不互相取消。各 runner 按 CPU／内存配置测试及编译并发，关键步骤记录资源和耗时；资源脚本变更触发全部范围。Rust 使用已有工具链与真实编译缓存，分离恢复/保存，失败缓存显式保存，磁盘仅低空间时清理（`49fbc67`、`001a9cf`、`cefb7a3`） | `.github/scripts/ci_scope.py`、`ci_resources.py`、`prepare_rust_toolchain.py`、`prepare_android_space.py`、`.github/actions/ci-resources/`、`rust-cache/`、`rust-cache-save/`；`test_ci_resources.py`、`test_workflow_entrypoints.py`、`test_ci_optimization.py`、`test_desktop_ci.py` |
 | C05 | Windows 保留中间文件、流式 ZIP/正确 Inno Setup 启动器及缓存；macOS/iOS 共用准备、按需 Rust targets/CocoaPods 缓存（`001a9cf`、`cefb7a3`） | `windows/build.py`、`windows/build.iss`、`windows/build_arm64.iss`、`.github/scripts/prepare_apple_build.py`、工作流；`test_windows_build.py`、`test_windows_installer.py`、`test_desktop_ci.py`、`test_apple_rustup_wrapper.py` |
 | C06 | Linux x64/ARM64 共用矩阵、C/C++ 缓存、依赖检测及可复用打包/冒烟容器；Arch 预编译打包不额外安装编译器/GTK/WebKit；兼容的快速压缩，上传避免重复压缩（`001a9cf`） | `.github/scripts/prepare_linux_build.py`、`build_linux_packages.py`、`build_arch_package.py`、相关 Dockerfile、`debian/build.py`；`test_linux_packages.py`、`test_arch_package.py`、`test_debian_package.py`、`test_desktop_ci.py` |
 
@@ -127,6 +127,13 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
 
 ## 最近验证与维护记录
+
+### 2026-11-13：按 runner 资源配置并发与测量
+
+- 用户明确恢复工作流资源优化；保留原测试耗时分析基线，夹具／文件拆分继续暂缓。新增无依赖资源脚本及 composite action，质量、构建、PR 平台和 HarmonyOS 入口共享 CPU／内存预算；Linux 支持亲和性及标准 cgroup 限额，macOS／Windows 读取系统内存。
+- Flutter 全量／TV 与 PR Windows 定向测试显式并发；消除原生编译固定两任务限制，共用 Cargo、CMake、CTest、Swift、Gradle 预算。Android flavors、Apple 平台及 Rustup 安装仍顺序／互斥；HarmonyOS 本地无预算时保留原默认值，冻结旧源码不修改。
+- 关键步骤记录墙钟耗时与退出码，POSIX 附已退出子进程 CPU 及最大单进程 RSS，明确不当作进程树总内存或满载保证。命令失败保留非零退出码；现有 Gradle 参数通过安全多行格式保留，不输出参数内容。
+- 本轮定向脚本回归与实际 Actions 验证见[迁移记录](migration.md#工作流计算资源调整2026-11-13)；全量仍仅在 Actions，按用户约定派发后至少 20 分钟再查询，不频繁轮询。
 
 ### 2026-11-13：独立全量测试入口与构建依赖优化
 

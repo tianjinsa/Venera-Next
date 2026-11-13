@@ -2,7 +2,6 @@
 
 import ctypes
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -55,7 +54,9 @@ def main() -> None:
         check=True,
     )
     subprocess.run(
-        ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 2)],
+        # In CI, use the CPU/memory budget shared with Cargo and Flutter. CMake
+        # also supplies an appropriate default outside CI when no level is set.
+        ["cmake", "--build", str(build)],
         check=True,
     )
     subprocess.run(["ctest", "--test-dir", str(build), "--output-on-failure"], check=True)

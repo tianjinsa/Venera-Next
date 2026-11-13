@@ -67,6 +67,12 @@ git diff --check
 
 CI runs `flutter test --coverage`, publishes line coverage in the workflow summary, and uploads `coverage/lcov.info`. Coverage is currently a visible baseline rather than a repository-wide hard threshold. Changes to critical behavior still require focused tests.
 
+Quality checks, platform builds and PR smoke builds share `.github/actions/ci-resources`. It detects CPUs, process affinity and standard cgroup limits. Concurrency is capped by available CPUs and a memory budget: reserve 2 GiB, then allow 1.5 GiB per test worker or 1 GiB per build task. Typical public 4-core/16-GiB runners use four workers; 3-core/7-GiB macOS runners use three. Unknown memory is reported as `unknown` and uses the CPU limit.
+
+Full Flutter and TV tests use `CI_TEST_JOBS`. CMake, CTest, Cargo, Rust tests, Swift and Gradle share the budget, with Gradle project parallelism enabled. Ninja and Xcode invoked directly by Flutter retain their own CPU scheduling; neither reads `CMAKE_BUILD_PARALLEL_LEVEL`. Android mobile/TV and macOS/iOS builds remain sequential within their shared directories. Mainline HarmonyOS scripts read the budget; frozen legacy sources retain their original scripts.
+
+Expensive steps use `.github/scripts/ci_resources.py run --label name -- command`. Actions summaries show the budget, elapsed time and exit code. POSIX runners also report average child/collected-descendant CPU cores, the share of the CPU budget and the largest individual process RSS. These exclude persistent daemons such as Gradle, and RSS is not the total process-tree memory peak. Windows currently reports only time and exit code. Serial compiler queues, tests within one file and I/O can still limit utilization; configured concurrency does not imply sustained full CPU usage or a measured speedup.
+
 Pull requests also run `依赖安全审查` and `PR 平台冒烟构建`. Dependency review blocks newly introduced dependencies with high or critical vulnerabilities. Affected paths select Android, Windows, Linux, macOS or iOS smoke builds. Android mobile and TV share one ARM64 runner; documentation-only changes skip platform jobs. Quality checks also run navigation, input, low-memory, and update regressions with the actual TV flavor. Dart formatting is checked only for Dart files changed by the current PR, so historical formatting differences do not block new contributions. The `main` branch requires code analysis, dependency review, and the platform smoke-build gate to pass, and direct force-pushes or branch deletion are disabled.
 
 For release-related changes, also run:

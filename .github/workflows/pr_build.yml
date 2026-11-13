@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/ci-resources
       - name: 判断是否需要平台构建
         id: changed
         run: python3 .github/scripts/ci_scope.py
@@ -39,6 +40,7 @@ jobs:
       ANDROID_BUILD_ABIS: arm64-v8a
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/ci-resources
       - name: 按需准备 Android 磁盘空间
         run: python3 .github/scripts/prepare_android_space.py
       - uses: ./.github/actions/rust-cache
@@ -86,7 +88,7 @@ jobs:
       - name: 顺序编译和验证 Android 手机版与 TV 版
         run: |
           for flavor in mobile tv; do
-            flutter build apk --debug --no-pub --flavor "$flavor" --target-platform android-arm64 --split-per-abi
+            python3 .github/scripts/ci_resources.py run --label "Android $flavor 冒烟构建" -- flutter build apk --debug --no-pub --flavor "$flavor" --target-platform android-arm64 --split-per-abi
             python3 .github/scripts/check_native_codec_bundle.py --platform android --root "build/app/outputs/apk/$flavor/debug"
             python3 .github/scripts/check_saf_bundle.py --root "build/app/outputs/apk/$flavor/debug"
           done
@@ -111,6 +113,7 @@ jobs:
       GIT_CONFIG_VALUE_0: 'true'
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/ci-resources
       - uses: ./.github/actions/rust-cache
         id: rust_cache
         with:
@@ -143,7 +146,7 @@ jobs:
           $env:VENERA_NATIVE_TEST_DIRECTORY = Join-Path $PWD 'build/windows/x64/runner/Debug'
           $env:PATH = $env:VENERA_NATIVE_TEST_DIRECTORY + ';' + $env:PATH
           $env:VENERA_NATIVE_TEST_LIBRARY = Join-Path $PWD 'build/windows/x64/runner/Debug/venera_native.dll'
-          flutter test --no-pub --reporter expanded `
+          flutter test --no-pub --concurrency $env:CI_TEST_JOBS --reporter expanded `
             test/foundation/native_codecs_test.dart `
             test/foundation/image_processing_native_test.dart `
             test/foundation/reader_image_processing_native_test.dart `
@@ -157,7 +160,7 @@ jobs:
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $env:PATH = (Join-Path $PWD 'build/windows/x64/runner/Debug') + ';' + $env:PATH
-          flutter test --no-pub --reporter expanded `
+          flutter test --no-pub --concurrency $env:CI_TEST_JOBS --reporter expanded `
             test/routing/windows_webview_environment_test.dart `
             test/routing/windows_webview_proxy_test.dart `
             test/routing/webview_menu_test.dart `
@@ -201,6 +204,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/ci-resources
       - uses: ./.github/actions/rust-cache
         id: rust_cache
         with:

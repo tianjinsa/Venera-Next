@@ -110,6 +110,7 @@ jobs:
       signer_sha256: ${{ steps.signing.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/ci-resources
       - name: 确认 Android 构建范围
         id: plan
         run: python3 .github/scripts/build_android.py plan
@@ -182,7 +183,7 @@ jobs:
         run: rustup show
       - run: flutter pub get --enforce-lockfile
       - name: 顺序构建并校验 Android 安装包
-        run: python3 .github/scripts/build_android.py build
+        run: python3 .github/scripts/ci_resources.py run --label 'Android 手机与 TV 构建' -- python3 .github/scripts/build_android.py build
       - name: 验证 Android 分享文件与回调归属
         if: ${{ !inputs.skip_tests }}
         working-directory: android
@@ -220,6 +221,7 @@ jobs:
       GIT_CONFIG_VALUE_0: 'true'
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/ci-resources
       - uses: ./.github/actions/rust-cache
         id: rust_cache
         with:
@@ -249,7 +251,7 @@ jobs:
       - name: 构建 Windows 安装包
         run: |
           flutter pub get --enforce-lockfile
-          python windows/build.py
+          python .github/scripts/ci_resources.py run --label 'Windows 安装包构建' -- python windows/build.py
       - name: 验证 Windows 分享请求与 COM 归属
         if: ${{ !inputs.skip_tests }}
         shell: pwsh
@@ -344,6 +346,7 @@ jobs:
       COCOAPODS_SKIP_UPDATE_MESSAGE: 'true'
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/ci-resources
       - uses: ./.github/actions/rust-cache
         id: rust_cache
         with:
@@ -381,7 +384,7 @@ jobs:
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
       - run: flutter pub get --enforce-lockfile
       - name: 构建 Flutter macOS 应用
-        run: flutter build macos --release --no-pub
+        run: python3 .github/scripts/ci_resources.py run --label 'macOS 应用构建' -- flutter build macos --release --no-pub
         if: ${{ inputs.build_macos }}
       - name: 创建 DMG
         run: |
@@ -419,7 +422,7 @@ jobs:
           fi
           IOS_VERSION="${IOS_VERSION%%-*}"
           echo "正在根据 ${APP_VERSION} 构建 iOS 包版本 ${IOS_VERSION}+${IOS_BUILD}"
-          flutter build ios --release --no-codesign --no-pub \
+          python3 .github/scripts/ci_resources.py run --label 'iOS 应用构建' -- flutter build ios --release --no-codesign --no-pub \
             --build-name "$IOS_VERSION" --build-number "$IOS_BUILD"
         if: ${{ inputs.build_ios }}
       - name: 校验 iOS 原生版本与应用更新渠道
@@ -481,6 +484,7 @@ jobs:
       DOCKER_BUILD_RECORD_UPLOAD: 'false'
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/ci-resources
       - uses: ./.github/actions/rust-cache
         id: rust_cache
         with:
@@ -548,7 +552,7 @@ jobs:
       - name: 编译一次并生成 DEB
         env:
           LINUX_ARCH: ${{ matrix.arch }}
-        run: python3 debian/build.py "$LINUX_ARCH"
+        run: python3 .github/scripts/ci_resources.py run --label 'Linux 应用与 deb 构建' -- python3 debian/build.py "$LINUX_ARCH"
       - name: 从同一应用目录构建 RPM 和 AppImage
         env:
           LINUX_ARCH: ${{ matrix.arch }}
