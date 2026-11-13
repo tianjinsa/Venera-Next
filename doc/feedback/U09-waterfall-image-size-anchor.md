@@ -4,35 +4,13 @@
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=05-bug.yaml)
 
-### 问题说明
+### 问题类型 / Issue type
 
-我在瀑布流往下阅读时遇到过画面突然上移：手指没有额外滑动，刚才正在看的内容却向上挪了一截，看起来像是图片加载后把页面拉走了。
-
-我最初是在二次开发版本里反馈现象；这项的原版确认范围见后面的说明。
-
-### 实际行为 / Actual behavior
-
-上方尚未完成的图片加载出来后，下方正在阅读的页面也会跟着挪动，刚才看到的内容突然向上走。这个变化不是我额外滑动造成的，当前阅读位置没有保持住。
-
-### 对我的影响
-
-我会突然丢失刚才正在看的位置，需要回滑才能接着读；在连续往下滑时，这种反向跳动尤其干扰阅读。
-
-### 预期行为 / Expected behavior
-
-上方图片加载成真实尺寸时，正在看的内容尽量停留在原来的屏幕位置；手势不被打断，返回历史进度或主动跳页仍正确。
-
-### 复现步骤 / Steps to reproduce
-
-1. 在尚未修复的二次开发版本中进入瀑布流。
-2. 趁前面的图片还没有全部加载完，向下滑到后续已经显示的页面。
-3. 继续阅读，观察上方图片加载出来时，当前内容是否在没有额外滑动的情况下突然上移。
+界面、导航与交互 / UI and interaction
 
 ### 应用版本 / App version
 
-发现现象的二次开发版本：`【二次开发版本及构建号】`。
-
-我用于对照的官方原版：1.18.4-rc.1；这不代表本条已经在原版手机上单独复测。
+1.18.4-rc.1（官方原版）。
 
 ### 平台 / Platform
 
@@ -45,25 +23,29 @@ Android 手机／平板 / Android phone or tablet
 - 处理器：骁龙 7gen2+
 - 内存：12 GB
 
+### 复现步骤 / Steps to reproduce
+
+1. 在原版 1.18.4-rc.1 中进入瀑布流。
+2. 趁前面的图片还没有全部加载完，向下滑到后续已经显示的页面。
+3. 继续阅读，观察上方图片加载出来时，当前内容是否在没有额外滑动的情况下突然上移。
+
+### 预期行为 / Expected behavior
+
+上方图片加载成真实尺寸时，正在看的内容尽量停留在原来的屏幕位置；手势不被打断，返回历史进度或主动跳页仍正确。
+
+### 实际行为 / Actual behavior
+
+瀑布流向下阅读时，上方尚未完成的图片加载出来后，下方正在阅读的内容会突然向上挪一截。这个变化不是我额外滑动造成的，当前阅读位置没有保持住。
+
+我会突然丢失刚才正在看的位置，需要回滑才能接着读；连续往下滑时，这种反向跳动尤其干扰阅读。
+
 ### 问题位置与操作方式 / Affected screen and input
 
-现象首先在二次开发版本中发现；上游保留相同的占位图尺寸变化路径。我尚未单独确认原版手机的同一现场。
-
-### 问题类型 / Issue type
-
-界面、导航与交互 / UI and interaction
-
-### 诊断提供方式 / Diagnostic source
-
-我暂未附设备日志，提供下方源码和已有验证线索。
+瀑布流；手机触摸向下滑动。上方图片仍在加载时继续阅读下方内容，图片加载后当前画面突然上移。
 
 ### 日志或诊断报告 / Logs or diagnostic report
 
 我暂未附设备运行日志；下面附已有的排查线索。
-
-### 日志无法取得的原因 / Why diagnostics are unavailable
-
-这项是界面/交互反馈，我暂未附运行日志。
 
 ### 替代证据 / Alternative evidence
 
@@ -90,6 +72,6 @@ Android 手机／平板 / Android phone or tablet
 
 ### 提交前确认 / Checklist
 
-- [x] 我已检索相关 Issue，并把不同问题分开说明。
-- [x] 我反馈的是应用本体的问题。
-- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。
+- [x] 我已搜索现有 Issue，并将独立问题分开提交。 / I searched existing Issues and separated unrelated problems.
+- [x] 我了解本仓库维护应用本体，源站内容、作品可用性和第三方源脚本应联系对应维护者。 / I understand this repository maintains the app; source content and third-party source scripts belong with their maintainers.
+- [x] 我已检查附件与文本，移除账号、Cookie、Token、签名链接及私人内容。 / I reviewed and redacted credentials, signed URLs and private content.

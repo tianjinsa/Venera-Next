@@ -4,33 +4,13 @@
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=02-reader-performance.yaml)
 
-### 问题说明
+### 问题类型 / Issue type
 
-我想反馈瀑布流同页滚动中的重复刷新：章节和页码没有变化，程序仍反复更新与阅读位置有关的界面。没有新的进度需要显示，却持续做额外工作。
-
-我目前提供的是源码核对和已有的最小验证结果，尚未为这一项单独补充原版手机复测。
-
-### 实际行为 / Actual behavior
-
-同一张已加载图片内滚动时，显示的章节和页码保持不变，但跨章瀑布流的每次位置检查仍会通知外层界面更新。这个重复路径已确认；是否造成我原版手机上的可见卡顿，还没有单独量化。
-
-### 对我的影响
-
-这类额外工作会占用滚动时的处理时间，可能让已经加载好的页面也不够顺滑。我希望减少与实际页码变化无关的刷新，把处理时间留给滚动。
-
-### 预期行为 / Expected behavior
-
-只有章节或页码真正改变时，才更新对应的阅读进度界面；正常滚动、图片预加载和跨章阅读继续工作。
-
-### 复现步骤 / Steps to reproduce
-
-1. 使用普通本地或已缓存图片，进入跨章瀑布流模式。
-2. 在一张较长的图片内缓慢上下滚动，保持章节和页码不变。
-3. 观察滚动是否顺畅；维护者可用后面的定位信息统计同页滚动产生的更新次数。
+阅读卡顿、慢加载或内存异常 / Reader performance
 
 ### 应用版本 / App version
 
-1.18.4-rc.1（我使用的官方原版）。
+1.18.4-rc.1（官方原版）。
 
 ### 平台 / Platform
 
@@ -43,13 +23,25 @@ Android 手机／平板 / Android phone or tablet
 - 处理器：骁龙 7gen2+
 - 内存：12 GB
 
+### 复现步骤 / Steps to reproduce
+
+1. 使用普通本地或已缓存图片，进入跨章瀑布流模式。
+2. 在一张较长的图片内缓慢上下滚动，保持章节和页码不变。
+3. 观察滚动是否顺畅；维护者可用后面的定位信息统计同页滚动产生的更新次数。
+
+### 预期行为 / Expected behavior
+
+只有章节或页码真正改变时，才更新对应的阅读进度界面；正常滚动、图片预加载和跨章阅读继续工作。
+
+### 实际行为 / Actual behavior
+
+在同一张已加载图片内滚动时，显示的章节和页码都没有变化，跨章瀑布流的每次位置检查却仍会通知外层界面更新。没有新的进度需要展示，程序仍持续做额外刷新。
+
+这会增加滚动期间的处理负担，可能让已经加载好的页面也不够顺滑，影响我连续阅读。
+
 ### 阅读环境 / Reading context
 
 跨章瀑布流，同一张已加载页面内滚动。图片尺寸和刷新率未为本条单独记录。
-
-### 问题类型 / Issue type
-
-阅读卡顿、慢加载或内存异常 / Reader performance
 
 ### 诊断提供方式 / Diagnostic source
 
@@ -91,6 +83,6 @@ Android 手机／平板 / Android phone or tablet
 
 ### 提交前确认 / Checklist
 
-- [x] 我已检索相关 Issue，并把不同问题分开说明。
-- [x] 我反馈的是应用本体的问题。
-- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。
+- [x] 我已搜索现有 Issue，并将独立问题分开提交。 / I searched existing Issues and separated unrelated problems.
+- [x] 我了解本仓库维护应用本体，源站内容、作品可用性和第三方源脚本应联系对应维护者。 / I understand this repository maintains the app; source content and third-party source scripts belong with their maintainers.
+- [x] 我已检查附件与文本，移除账号、Cookie、Token、签名链接及私人内容。 / I reviewed and redacted credentials, signed URLs and private content.

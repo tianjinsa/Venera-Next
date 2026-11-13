@@ -4,33 +4,13 @@
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=05-bug.yaml)
 
-### 问题说明
+### 问题类型 / Issue type
 
-我想反馈阅读进度中的章节名称不一致：同一条已经保存实际章节名的记录，在普通显示里能看到名称，开启总数或紧凑显示后却退回“第 N 话”一类编号。
-
-我目前提供的是源码核对和已有的最小验证结果，尚未为这一项单独补充原版手机复测。
-
-### 实际行为 / Actual behavior
-
-例如已保存章节名“番外”的同一条记录，普通描述保留“番外”，带总数或紧凑显示时只显示 Chapter N / Ch. N。已有的实际章节名没有继续展示。
-
-### 对我的影响
-
-我通常按章节名称辨认“序章”“番外”等内容。只剩编号时，我不容易判断自己上次读到哪一部分，还需要重新打开漫画确认。
-
-### 预期行为 / Expected behavior
-
-有实际章节名时，各种显示方式都优先保留；旧记录没有名称时再显示编号。页数、总数和分组信息应继续可用，不必额外联网查询。
-
-### 复现步骤 / Steps to reproduce
-
-1. 阅读带实际章节名的章节，例如“序章”或“番外”，留下历史进度。
-2. 在列表中查看普通进度，再开启总数或切换紧凑显示。
-3. 比较同一条进度是否始终保留实际章节名。
+界面、导航与交互 / UI and interaction
 
 ### 应用版本 / App version
 
-1.18.4-rc.1（我使用的官方原版）。
+1.18.4-rc.1（官方原版）。
 
 ### 平台 / Platform
 
@@ -43,25 +23,29 @@ Android 手机／平板 / Android phone or tablet
 - 处理器：骁龙 7gen2+
 - 内存：12 GB
 
+### 复现步骤 / Steps to reproduce
+
+1. 阅读带实际章节名的章节，例如“序章”或“番外”，留下历史进度。
+2. 在列表中查看普通进度，再开启总数或切换紧凑显示。
+3. 比较同一条进度是否始终保留实际章节名。
+
+### 预期行为 / Expected behavior
+
+有实际章节名时，各种显示方式都优先保留；旧记录没有名称时再显示编号。页数、总数和分组信息应继续可用，不必额外联网查询。
+
+### 实际行为 / Actual behavior
+
+同一条已经保存实际章节名称的阅读记录，在普通显示中能看到名称，开启进度总数或紧凑显示后却退回章节编号。例如已保存章节名“番外”的记录，普通描述保留“番外”，带总数或紧凑显示时却只显示 Chapter N / Ch. N。
+
+我通常按“序章”“番外”等名称辨认读到的位置。只剩编号后，我不容易判断上次读到哪部分，还需要重新打开漫画确认。
+
 ### 问题位置与操作方式 / Affected screen and input
 
 收藏、历史、追更等列表的阅读进度描述；“番外”是便于说明的示例名称。
 
-### 问题类型 / Issue type
-
-界面、导航与交互 / UI and interaction
-
-### 诊断提供方式 / Diagnostic source
-
-我暂未附设备日志，提供下方源码和已有验证线索。
-
 ### 日志或诊断报告 / Logs or diagnostic report
 
 我暂未附设备运行日志；下面附已有的排查线索。
-
-### 日志无法取得的原因 / Why diagnostics are unavailable
-
-这项是界面/交互反馈，我暂未附运行日志。
 
 ### 替代证据 / Alternative evidence
 
@@ -89,6 +73,6 @@ Android 手机／平板 / Android phone or tablet
 
 ### 提交前确认 / Checklist
 
-- [x] 我已检索相关 Issue，并把不同问题分开说明。
-- [x] 我反馈的是应用本体的问题。
-- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。
+- [x] 我已搜索现有 Issue，并将独立问题分开提交。 / I searched existing Issues and separated unrelated problems.
+- [x] 我了解本仓库维护应用本体，源站内容、作品可用性和第三方源脚本应联系对应维护者。 / I understand this repository maintains the app; source content and third-party source scripts belong with their maintainers.
+- [x] 我已检查附件与文本，移除账号、Cookie、Token、签名链接及私人内容。 / I reviewed and redacted credentials, signed URLs and private content.

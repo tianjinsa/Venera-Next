@@ -4,33 +4,6 @@
 
 [对应上游功能建议表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=06-enhancement.yaml)
 
-### 需求场景 / Use case
-
-我希望自己主动收藏、导入或加入追更的漫画能一直在对应列表里找到。现在只要名字等信息命中全局关键词，这些我已经选过的漫画仍可能被隐藏。
-
-### 当前不便与对我的影响
-
-从我的角度看，就是收藏过或导入过的漫画又找不到了，容易误以为没有保存成功。我需要临时关掉规则或来回检查，才能区分是被隐藏还是确实没存下来。
-
-### 建议方案 / Proposed solution
-
-我希望发现、搜索和推荐结果继续按关键词过滤；收藏、本地、历史、稍后阅读和追更这些由我主动管理的列表，能保持完整或提供独立开关。列表内的搜索、阅读状态筛选和多选仍按我的当前选择工作。
-
-### 验收标准 / Acceptance criteria
-
-- 命中关键词的已收藏/导入漫画仍能在对应管理列表找到。
-- 发现、搜索和分类继续遵守屏蔽规则。
-- 修改屏蔽词不会意外改变我已选中的收藏项。
-- 不会删除、移动漫画或改变已有备份、同步与规则选项。
-
-### 我的使用环境
-
-- 应用：1.18.4-rc.1（官方原版）
-- 设备型号：`【设备型号】`
-- 系统：Android 15
-- 处理器：骁龙 7gen2+
-- 内存：12 GB
-
 ### 问题类型 / Issue type
 
 功能建议 / Feature request
@@ -41,13 +14,25 @@
 
 ### 平台 / Platform
 
-Android 手机／平板 / Android phone or tablet（我的使用平台；也欢迎其他平台提供同样体验）。
+Android 手机／平板 / Android phone or tablet
 
-### 截图或录屏 / Screenshots or video
+### 需求场景 / Use case
 
-我暂未附截图或录屏。
+我希望自己主动收藏、导入或加入追更的漫画能一直在对应列表里找到。现在只要名字等信息命中全局关键词，这些我已经选过的漫画仍可能被隐藏。
 
-### 实现参考与已有讨论
+从我的角度看，就是收藏过或导入过的漫画又找不到了，容易误以为没有保存成功。我需要临时关掉规则或来回检查，才能区分是被隐藏还是确实没存下来。
+
+我的使用环境：
+
+- 应用：1.18.4-rc.1（官方原版）
+- 设备型号：`【设备型号】`
+- 系统：Android 15
+- 处理器：骁龙 7gen2+
+- 内存：12 GB
+
+### 建议方案 / Proposed solution
+
+我希望发现、搜索和推荐结果继续按关键词过滤；收藏、本地、历史、稍后阅读和追更这些由我主动管理的列表，能保持完整或提供独立开关。列表内的搜索、阅读状态筛选和多选仍按我的当前选择工作。
 
 <details>
 <summary>已有实现参考与相关讨论（供维护者参考）</summary>
@@ -59,8 +44,19 @@ Android 手机／平板 / Android phone or tablet（我的使用平台；也欢�
 
 </details>
 
+### 验收标准 / Acceptance criteria
+
+- 命中关键词的已收藏/导入漫画仍能在对应管理列表找到。
+- 发现、搜索和分类继续遵守屏蔽规则。
+- 修改屏蔽词不会意外改变我已选中的收藏项。
+- 不会删除、移动漫画或改变已有备份、同步与规则选项。
+
+### 截图或录屏 / Screenshots or video
+
+我暂未附截图或录屏。
+
 ### 提交前确认 / Checklist
 
-- [x] 我已检索相关建议，这一条聚焦一个使用需求。
-- [x] 我希望改进的是应用本体的操作体验。
-- [x] 我已检查正文，没有包含私人内容或凭据。
+- [x] 我已搜索现有 Issue，并将独立问题分开提交。 / I searched existing Issues and separated unrelated problems.
+- [x] 我了解本仓库维护应用本体，源站内容、作品可用性和第三方源脚本应联系对应维护者。 / I understand this repository maintains the app; source content and third-party source scripts belong with their maintainers.
+- [x] 我已检查附件与文本，移除账号、Cookie、Token、签名链接及私人内容。 / I reviewed and redacted credentials, signed URLs and private content.

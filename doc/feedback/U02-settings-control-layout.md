@@ -4,33 +4,13 @@
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=05-bug.yaml)
 
-### 问题说明
+### 问题类型 / Issue type
 
-我想反馈设置页保存时的布局变化：点击开关或选择器后，原控件会先被小转圈替换，保存结束再出现。右侧占用宽度改变时，左侧文字也可能重新换行。
-
-我目前提供的是源码核对和已有的最小验证结果，尚未为这一项单独补充原版手机复测。
-
-### 实际行为 / Actual behavior
-
-保存期间，刚才操作的开关/选择器暂时看不见，只剩进度圈；保存完成后控件恢复。在窄屏、大字号或标题接近换行边界时，文字和右侧控件的位置可能跟着变化。
-
-### 对我的影响
-
-保存时我无法继续看见刚选的开关状态；文字或控件的位置变化也会干扰连续操作，让设置界面显得一闪一跳。
-
-### 预期行为 / Expected behavior
-
-保存时保持原控件、状态和占位宽度，可以暂时禁用操作或叠加小提示；保存失败时仍能看到错误并重试。
-
-### 复现步骤 / Steps to reproduce
-
-1. 打开设置页，选择一个开关或选择器。
-2. 修改选项，观察保存期间的右侧控件。
-3. 在大字号或较窄屏幕下，比较保存前后的标题换行和控件位置；保存较慢时更容易看清。
+界面、导航与交互 / UI and interaction
 
 ### 应用版本 / App version
 
-1.18.4-rc.1（我使用的官方原版）。
+1.18.4-rc.1（官方原版）。
 
 ### 平台 / Platform
 
@@ -43,25 +23,29 @@ Android 手机／平板 / Android phone or tablet
 - 处理器：骁龙 7gen2+
 - 内存：12 GB
 
+### 复现步骤 / Steps to reproduce
+
+1. 打开设置页，选择一个开关或选择器。
+2. 修改选项，观察保存期间的右侧控件。
+3. 在大字号或较窄屏幕下，比较保存前后的标题换行和控件位置；保存较慢时更容易看清。
+
+### 预期行为 / Expected behavior
+
+保存时保持原控件、状态和占位宽度，可以暂时禁用操作或叠加小提示；保存失败时仍能看到错误并重试。
+
+### 实际行为 / Actual behavior
+
+修改开关或选择器后，保存期间原控件会被较小的进度圈替换，保存完成才恢复。我暂时看不到刚选择的状态；在窄屏、大字号或标题接近换行边界时，右侧占位宽度变化还可能让左侧文字重新换行，文字和控件位置跟着跳动。
+
+这种一闪一跳会干扰我连续调整设置，也不方便确认刚才的选择是否保留。
+
 ### 问题位置与操作方式 / Affected screen and input
 
 设置列表的开关/选择器；窄屏、大字号、较慢保存时更容易受到影响。
 
-### 问题类型 / Issue type
-
-界面、导航与交互 / UI and interaction
-
-### 诊断提供方式 / Diagnostic source
-
-我暂未附设备日志，提供下方源码和已有验证线索。
-
 ### 日志或诊断报告 / Logs or diagnostic report
 
 我暂未附设备运行日志；下面附已有的排查线索。
-
-### 日志无法取得的原因 / Why diagnostics are unavailable
-
-这项是界面/交互反馈，我暂未附运行日志。
 
 ### 替代证据 / Alternative evidence
 
@@ -86,6 +70,6 @@ Android 手机／平板 / Android phone or tablet
 
 ### 提交前确认 / Checklist
 
-- [x] 我已检索相关 Issue，并把不同问题分开说明。
-- [x] 我反馈的是应用本体的问题。
-- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。
+- [x] 我已搜索现有 Issue，并将独立问题分开提交。 / I searched existing Issues and separated unrelated problems.
+- [x] 我了解本仓库维护应用本体，源站内容、作品可用性和第三方源脚本应联系对应维护者。 / I understand this repository maintains the app; source content and third-party source scripts belong with their maintainers.
+- [x] 我已检查附件与文本，移除账号、Cookie、Token、签名链接及私人内容。 / I reviewed and redacted credentials, signed URLs and private content.

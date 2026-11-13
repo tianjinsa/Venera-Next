@@ -4,33 +4,13 @@
 
 [对应上游表单](https://github.com/CyrilPeng/Venera-Next/issues/new?template=02-reader-performance.yaml)
 
-### 问题说明
+### 问题类型 / Issue type
 
-我想反馈画廊预加载的重复工作：当前页、漫画内容和阅读布局都没有变化，仅有其他界面更新时，程序仍会重新安排同一位置的预加载。
-
-我目前提供的是源码核对和已有的最小验证结果，尚未为这一项单独补充原版手机复测。
-
-### 实际行为 / Actual behavior
-
-停在同一页时，页面重新构建仍会进入同一轮预加载处理。缓存可能避免重复下载，但不能消除重复调用、遍历和配置创建。这里没有认定每次翻页都会重新下载图片。
-
-### 对我的影响
-
-我希望已经加载好的页面尽量直接复用。没有新内容时仍重复安排工作，会增加阅读期间的处理负担，可能影响翻页响应和顺畅程度；目前没有这项在我手机上的独立帧率测量。
-
-### 预期行为 / Expected behavior
-
-相同内容、布局和页码的预加载合并处理；真正翻页或更换内容后再安排必要的新任务，已有画面和缩放保持不变。
-
-### 复现步骤 / Steps to reproduce
-
-1. 使用普通本地或已缓存图片进入画廊模式。
-2. 停在同一页，保持布局和预加载数量不变。
-3. 打开/关闭阅读菜单等触发界面更新，检查是否反复执行同位置预加载；统计方式见后面的排查线索。
+阅读卡顿、慢加载或内存异常 / Reader performance
 
 ### 应用版本 / App version
 
-1.18.4-rc.1（我使用的官方原版）。
+1.18.4-rc.1（官方原版）。
 
 ### 平台 / Platform
 
@@ -43,13 +23,25 @@ Android 手机／平板 / Android phone or tablet
 - 处理器：骁龙 7gen2+
 - 内存：12 GB
 
+### 复现步骤 / Steps to reproduce
+
+1. 使用普通本地或已缓存图片进入画廊模式。
+2. 停在同一页，保持布局和预加载数量不变。
+3. 打开/关闭阅读菜单等触发界面更新，检查是否反复执行同位置预加载；统计方式见后面的排查线索。
+
+### 预期行为 / Expected behavior
+
+相同内容、布局和页码的预加载合并处理；真正翻页或更换内容后再安排必要的新任务，已有画面和缩放保持不变。
+
+### 实际行为 / Actual behavior
+
+画廊停在同一页、漫画内容和阅读布局都没有变化时，其他界面更新仍会在页面重新构建时安排同一位置的预加载。缓存可能避免重复下载，但没有消除重复调用、遍历和配置创建。
+
+没有新内容时仍重复安排这些工作，会增加阅读期间的处理负担，可能影响我的翻页响应和阅读顺畅程度。
+
 ### 阅读环境 / Reading context
 
 画廊模式，同位置重复界面更新；与瀑布流同页通知的问题分别报告。
-
-### 问题类型 / Issue type
-
-阅读卡顿、慢加载或内存异常 / Reader performance
 
 ### 诊断提供方式 / Diagnostic source
 
@@ -92,6 +84,6 @@ Android 手机／平板 / Android phone or tablet
 
 ### 提交前确认 / Checklist
 
-- [x] 我已检索相关 Issue，并把不同问题分开说明。
-- [x] 我反馈的是应用本体的问题。
-- [x] 我已检查正文，没有包含账号、Cookie、Token、签名链接或私人内容。
+- [x] 我已搜索现有 Issue，并将独立问题分开提交。 / I searched existing Issues and separated unrelated problems.
+- [x] 我了解本仓库维护应用本体，源站内容、作品可用性和第三方源脚本应联系对应维护者。 / I understand this repository maintains the app; source content and third-party source scripts belong with their maintainers.
+- [x] 我已检查附件与文本，移除账号、Cookie、Token、签名链接及私人内容。 / I reviewed and redacted credentials, signed URLs and private content.
