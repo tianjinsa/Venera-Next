@@ -35,7 +35,11 @@ def build(plan, environ):
         metadata = android.build_metadata(flavor, pubspec, environ)
         profile = Path(f"build/android-{flavor}-profile.json")
         profile.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
-        command = ["flutter", "build", "apk", "--release", "--flavor", flavor, "--no-pub",
+        # Keep Flutter's default pub/tooling preparation enabled. In 3.41.4,
+        # --no-pub also skips regenerating the Release plugin registrant, leaving
+        # dev-only plugins from the preceding locked pub get in Java sources
+        # even though Gradle correctly excludes them from the Release classpath.
+        command = ["flutter", "build", "apk", "--release", "--flavor", flavor,
                    "--target-platform", ",".join(TARGETS[abi][0] for abi in plan["native_abis"])]
         if flavor == "tv":
             command += [f"--dart-define=TV_BUILD={metadata['build_label']}",

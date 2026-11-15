@@ -240,3 +240,11 @@
 - 新设备脚本适配 Next 的库作用域及退出，复用Prime32张2048×3072生成图片、空闲和系统压力设计并扩展双向／取消／重入。仅新增固定 Flutter 3.41.4 SDK 的官方 dev 测试依赖及其锁记录。完整对照、检查与构建记录见 [Prime 续修](../experiments/reader_paging_prime_178.zh.md)；手机目标等待用户安装本轮包确认，不继续轮询 Actions。
 
 - 最终本地有界回归 32 文件 **498 通过／23 跳过／0 失败**，结构／架构／版本／依赖及差异检查通过；按用户最新“推送、Actions 跳过测试”要求，不再启动云端应用编译或额外验证，最终静态分析交 Actions。Android 使用 `skip_tests=true`，派发后不轮询，不把待完成构建写成通过。
+
+## #178 后续 Android Release 构建修复（2026-11-15）
+
+- 用户回传 [构建 43713176724](https://github.com/tianjinsa/Venera-Next/actions/runs/43713176724) 的 Android job 失败，源码为 `d0db79cc2f6431432cbb2f1943476ae016ef93f4`。致命错误是 Java 注册文件包含 `integration_test`，而非字体裁剪、过时 API 提示或目录监视提示。
+- 已核对固定 Flutter 3.41.4 源码：`FlutterCommand.regeneratePlatformSpecificToolingIfApplicable` 在 `shouldRunPub=false` 时提前返回；`injectPlugins(releaseMode:true)` 才会过滤 dev 插件；Gradle PluginHandler 则始终排除 Release 的开发插件依赖。根因是原构建脚本的 `--no-pub` 与新增设备测试插件相互作用，留下前置 `pub get` 的开发模式注册文件。
+- 两种 Android Release 构建恢复 Flutter 默认平台准备流程；前置锁文件校验不变，不删除测试依赖、不把测试插件加入正式依赖、不手改生成文件、不清理原生缓存。修正现有 Python 构建回归的两种 flavor 断言。按用户要求仅推送后用 Actions 构建（`skip_tests=true`），云端不编译，也不轮询构建完成。
+
+验证：`python3 -m unittest discover -s .github/scripts/tests -p test_ci_optimization.py -k AndroidBuildTests`，3 项通过；`git diff --check` 通过。未在云端编译 Android，实际构建交给 Actions。

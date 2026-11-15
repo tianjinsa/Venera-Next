@@ -94,3 +94,11 @@ flutter drive --profile --flavor mobile -d DEVICE_ID \
 - 按用户最新要求提交推送后使用 `build.yml`，**`skip_tests=true`**，只选择 Android。不会额外启动全量测试工作流，也不轮询构建；Actions 尚未完成不能记为通过。
 
 云端没有 Android 手机，不能声明手机帧率、实际呈现节奏、纹理上传或输入延迟已达标。
+
+## Android Release 构建失败补修
+
+用户回传 `d0db79cc` / [43713176724](https://github.com/tianjinsa/Venera-Next/actions/runs/43713176724) 的 Android job Java 编译失败。新增 `integration_test` 是开发依赖，Gradle 在 Release 正确排除它；但构建脚本的 `--no-pub` 让 Flutter 3.41.4 同时跳过 Release 注册文件的重新生成，前置 `pub get` 留下的注册文件仍引用该插件。这是构建路径回归，与本轮分页渲染修改无关。
+
+补修只移除手机／TV Release 命令的 `--no-pub`，由 Flutter 自己重新生成正确的注册文件，保留工作流前置 `flutter pub get --enforce-lockfile`、性能测试、原生缓存和签名／产物门禁。不修改 SDK 或生成的 Java 文件，不将测试插件放进生产依赖。现有 Python 回归覆盖两种 flavor；云端不编译，推送后重新触发跳过测试的 Actions 构建，结果等待用户通知。
+
+验证：`python3 -m unittest discover -s .github/scripts/tests -p test_ci_optimization.py -k AndroidBuildTests`，3 项通过；`git diff --check` 通过。未在云端编译 Android，实际构建交给 Actions。

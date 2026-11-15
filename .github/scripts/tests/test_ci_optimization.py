@@ -108,7 +108,10 @@ class AndroidBuildTests(unittest.TestCase):
                 flavor = command[command.index('--flavor') + 1]
                 order.append(('compile', flavor))
                 self.assertEqual(env['ANDROID_BUILD_ABIS'], 'armeabi-v7a,arm64-v8a,x86_64')
-                self.assertIn('--no-pub', command)
+                # Both Release flavors must regenerate plugin registration
+                # without dev-only plugins (e.g. integration_test).
+                self.assertIn('--release', command)
+                self.assertNotIn('--no-pub', command)
                 self.assertNotIn('clean', command)
                 self.assertEqual(command[command.index('--target-platform') + 1], 'android-arm,android-arm64,android-x64')
                 self.assertNotIn('--split-per-abi', command)

@@ -128,6 +128,12 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 
 ## 最近验证与维护记录
 
+### 2026-11-15：Android Release 开发插件注册修复
+
+- 用户回传 `d0db79cc` 的 Android 构建失败：`GeneratedPluginRegistrant.java` 引用了 `integration_test`，但 Release Java classpath 没有该开发插件。
+- C03：Flutter 3.41.4 在 `--no-pub` 下也跳过按 Release 模式重新生成平台注册文件；前置普通 `pub get` 则包含开发插件，Gradle 的 Release 排除规则造成两者不一致。移除手机／TV Release 命令中的 `--no-pub`，使用 Flutter 自身的模式过滤；保留前置 `--enforce-lockfile`、顺序构建、原生缓存、签名及全部 APK 校验。不修改 SDK、生成文件或正式包依赖。
+- 现有构建命令回归同时检查两种 flavor 允许重新生成注册文件。仅执行相应 Python 脚本测试，不在云端编译应用；推送后继续使用 `skip_tests=true` 的 Android Actions，不轮询。
+
 ### 2026-11-15：#178 对照 Prime 减少分页渲染开销
 
 - Next 基线 `16f54ee4`，只读对照 Prime `2e287566` 与其 PhotoView 固定 `a1255d1b`。旧 Gallery 本身也是 PageView；保留两边相同的翻页时长／曲线及 Next 的图像／手势清理，不凭容器名更换架构。
