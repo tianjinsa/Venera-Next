@@ -48,6 +48,16 @@ class MeasurementValidity(unittest.TestCase):
         self.assertEqual(result['nativeKeyIntervalMs']['p50'], 50)
         self.assertEqual(result['cpuMsPerSecond'], 80)
 
+    def test_new_drag_during_settling_is_distinct_from_idle_and_multitouch(self):
+        self.report['events'] += [
+            [1200000, 'pointerDown', 10.0, False, 0],
+            [1300000, 'pointerDown', 10.4, True, 0],
+            [1400000, 'pointerDown', 10.6, True, 1],
+        ]
+        result = summarize(self.report)
+        self.assertEqual(result['pointerDowns'], 3)
+        self.assertEqual(result['newDragWhileScrolling'], 1)
+
 
 if __name__ == '__main__':
     unittest.main()

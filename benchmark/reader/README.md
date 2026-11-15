@@ -13,7 +13,8 @@ FrameTiming 的时间戳属于实际帧阶段；接收批次的时间不是帧�
 UI/Raster 超预算、Flutter 产帧间隔与 SurfaceFlinger 实际呈现分别统计。
 Profile 用于定位；性能验收必须复测 Release，并同时记录资源和热状态。
 
-当前状态：工具链恢复和实机基线准备中，尚无性能修复或验收结论。
+当前状态：已完成多轮设备基线并提交动画交接修复，继续调查隐藏工具栏的重复工作。
+详细数据和未完成验收范围见 [report.md](report.md)。
 
 ## 运行方式
 
@@ -64,3 +65,32 @@ Profile 启动需传 `enable-dart-profiling=true`，`profile_capture.py` 会负�
 转发 VM 端口、等待明确就绪事件、保存 CPU/Timeline 并释放端口。Profile 与 Release
 在导出副本中统一 ARM64 versionCode，切换不卸载、不清数据。
 `stamp.py` 保存源码差异、资产与 APK 散列；后续采样还核验设备实际安装包的 SHA-256。
+
+## 动画结束前再次拖动
+
+原始 PointerDataPacket 进入 GestureBinding 前记录 DOWN 时的页位置、滚动状态及
+已有指针数。`newDragWhileScrolling` 仅计无其他指针且上一段仍滚动的新 DOWN，
+用于核验用户实际的“松手动画结束前再次拖动”，不把短输入间隔自动当作已覆盖。
+两版在入口安装相同 PageController 观察器；高频位置只缓冲数值，不追加 Profile instant。
+
+Android `input swipe` 的 MOVE 数量随执行速度变化。严格触摸对照可用独立 shell
+注入器，按绝对时间发送同样的 DOWN／MOVE／UP 路径，保存计划和实际时间：
+
+```powershell
+./benchmark/reader/build_input.ps1
+python benchmark/reader/adb_benchmark.py --variant next capture --name next-fixed-fast --input swipes --touch-driver fixed --touch-step-ms 4 --swipe-ms 80 --interval .045 --count 20 --perfetto
+python benchmark/reader/analyze_frames.py benchmark/reader/raw/next-fixed-fast
+```
+
+注入器以 shell UID 调用系统输入接口，只创建带内容散列的新测试 dex，不改系统设置
+或应用数据。固定路径适配本轮 1080×2400 设备；每轮核验注入迟到、原生 DOWN 间隔、
+Dart 收到的指针及实际选页数。Flutter MOVE 计数另报，不假定与注入数相等。
+
+`--alternate --warm-radius 1` 提供小窗口往返预热场景（音量键每两次反向，拖动每次
+反向）。是否完全命中缓存以 `imageMiss`／`sourceLoad` 为准，不能只根据预热参数认定。
+采样前后均核验预算和刷新率；任何变化都保留原始文件但排除普通 A/B。
+
+`profile_capture.py --widget-builds` 启用 Flutter 自带 Widget build Timeline，仅用于
+识别调用路径，不能用其耗时作为 Release 改善；大量标记可能覆盖环形缓冲早期记录。
+`analyze_frames.py` 将真实 UI 帧区间与 Perfetto 线程状态对齐，分开报告拖动中和
+松手后阶段；松手后标签本身不保证动画仍活跃，也不代表屏幕实际掉帧。

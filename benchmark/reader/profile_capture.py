@@ -15,6 +15,11 @@ def main():
     parser.add_argument('--name', required=True)
     parser.add_argument('--input', choices=['swipes', 'keysequence'], default='swipes')
     parser.add_argument('--count', type=int, default=20)
+    parser.add_argument('--widget-builds', action='store_true', help='Diagnostic build tracking adds overhead; never compare its timings with Release')
+    parser.add_argument('--touch-driver', choices=['adb', 'fixed'], default='adb')
+    parser.add_argument('--interval', type=float, default=.02)
+    parser.add_argument('--alternate', action='store_true')
+    parser.add_argument('--warm-radius', type=int, choices=range(3), default=0)
     parser.add_argument('--adb', default='E:/Android/Sdk/platform-tools/adb.exe')
     parser.add_argument('--dart', default='D:/.tool/flutter-3.41.4/bin/cache/dart-sdk/bin/dart.exe')
     parser.add_argument('--out', type=Path, default=Path(__file__).resolve().parent / 'raw')
@@ -34,7 +39,10 @@ def main():
         raise ValueError('VM output already exists')
     vm = None
     try:
-        vm = subprocess.Popen([args.dart, str(Path(__file__).with_name('vm_trace.dart')), ws, str(output), '35'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8')
+        collector = [args.dart, str(Path(__file__).with_name('vm_trace.dart')), ws, str(output), '35']
+        if args.widget_builds:
+            collector += ['--widget-builds']
+        vm = subprocess.Popen(collector, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8')
         # No periodic status queries. Wait on the explicit VM-ready marker.
         lines = []
         for line in vm.stdout:
@@ -43,7 +51,9 @@ def main():
                 break
         else:
             raise RuntimeError(''.join(lines))
-        command = [sys.executable, str(Path(__file__).with_name('adb_benchmark.py')), '--adb', args.adb, '--variant', args.variant, 'capture', '--name', args.name, '--out', str(args.out), '--seconds', '14', '--input', args.input, '--count', str(args.count), '--interval', '.02', '--swipe-ms', '80', '--key-delay-ms', '50', '--perfetto', '--reuse-process']
+        command = [sys.executable, str(Path(__file__).with_name('adb_benchmark.py')), '--adb', args.adb, '--variant', args.variant, 'capture', '--name', args.name, '--out', str(args.out), '--seconds', '14', '--input', args.input, '--count', str(args.count), '--interval', str(args.interval), '--swipe-ms', '80', '--key-delay-ms', '50', '--perfetto', '--reuse-process', '--touch-driver', args.touch_driver, '--warm-radius', str(args.warm_radius)]
+        if args.alternate:
+            command += ['--alternate']
         subprocess.run(command, check=True)
         lines.extend(vm.stdout.readlines())
         result = vm.wait(timeout=60)

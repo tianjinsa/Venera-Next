@@ -90,6 +90,45 @@ MethodChannel 在该轮没有表现为输入积压；通知次数也没有数量
 新 DOWN 时前一段仍滚动的次数核验，另计多指缩放，不用 pendingPage 代替触摸动画状态。
 同时对两版记录图片缓存未命中与源读取入口次数，避免由 cache() 调用数直接推断解码量。
 
+## 固定触摸序列复现与 UI 帧定位
+
+两版使用相同的 shell 注入器：每次 80 ms、4 ms 路径采样、相邻 DOWN 间隔
+125 ms，20 次拖动。两轮倒换顺序，均确认 20 个 DOWN、18 次在前段滚动中重新
+拖动；实际原生 DOWN 中位间隔均约 125 ms。注入实际时间与最大迟到单独留存，
+不假设 Dart 收到的 MOVE 数量相同。数据见
+[results/fixed-touch-baseline.json](results/fixed-touch-baseline.json)。
+
+| 轮次 | Prime UI P95 | Next 交接修复后 UI P95 | Prime / Next CPU time |
+|---|---:|---:|---:|
+| 固定快速拖动 r1 | .802 ms | 2.996 ms | 1973 / 1846 ms |
+| 固定快速拖动 r2 | .801 ms | 3.219 ms | 1869 / 2077 ms |
+
+Prime 两轮均前进 18 页，Next 分别 17／18 页，均有 17 个不同图片键未命中；
+这组没有复现 UI 超 8.33 ms，却稳定重现了 Next 的 UI P95 差距。
+Next 每轮 34／35 帧 UI ≥2 ms，Prime 均为 18 帧；其中松手后 UI P95 分别
+2.795／2.996 ms 对 .662／.732 ms。
+
+`analyze_frames.py` 对齐实际 buildStart／buildFinish 与 Perfetto：所有这些帧的
+线程状态覆盖完整，Next ≥2 ms 帧的 Runnable P95 仅 .025／.108 ms，主要时间处于
+Running，而非睡眠或调度等待。该结论限于这些窗口，不排除其他场景的调度问题。
+
+另外的零解码命中对照 `next-observed-key-cached-r1` /
+`prime-observed-key-cached-r1` 均完整接收 100 个快速离散键、实际选页 50 次，
+`imageMiss=sourceLoad=0`；Next CPU 2348 ms、455 帧，Prime 1875 ms、399 帧。
+Next 的 200 次窗口替换没有造成此轮重复读取／解码，不能由 cache() 计数直接归因。
+固定往返拖动中 Next 仍有 1 次未命中，不列为完全缓存命中的严格对照；500 ms
+间隔的普通拖动仍有部分 Prime 动画被下一次拖动打断，后续用更长间隔另验。
+
+Widget build Profile `next-widget-profile-fast-r1-vm` 与 Prime 对照表明：选页后
+Next 阅读外壳在相邻两帧重建，连带隐藏底栏及多个 Material 按钮；Prime 接近每页
+一次。高密度 Widget Timeline 的环形缓冲只保留了后段窗口，分析仅针对有效窗口，
+不把其含额外标记的耗时用于性能验收。
+
+对应路径是 `ReaderScaffold.buildBottom` 绑定当前页收藏查询，
+`ReaderImageFavoriteController._read` 完成后调用 `onChanged`，再刷新整个外壳。
+正在进行的下一项单变量实验仅限制隐藏菜单的完成通知重建；保留状态读取供快捷
+收藏，保留失效通知重新绑定，以及菜单打开后的实时结果。尚待 Release 对照决定保留。
+
 ## Profile 与 Perfetto
 
 - Next 已保存有效 CPU 样本与 Timeline：`next-profile-swipe-fast-r2-vm`、

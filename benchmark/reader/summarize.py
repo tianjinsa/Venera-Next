@@ -36,6 +36,7 @@ def summarize(report):
     changes = [event for event in events if event[1] == 'setPage' and event[2] != event[3]]
     redundant = sum(event[2] == event[3] for event in events if event[1] == 'setPage')
     stale = sum(event[2] != event[3] for event in events if event[1] == 'animationEnd')
+    downs = [event for event in events if event[1] == 'pointerDown']
     calibration = min(report['calibration'], key=lambda c: c['dartEndUs'] - c['dartBeginUs'])
     clock_offset = (calibration['dartBeginUs'] + calibration['dartEndUs']) / 2 - calibration['monoNs'] / 1000
     latencies = []
@@ -65,6 +66,11 @@ def summarize(report):
         'pageChanges': len(changes), 'pageChangesPerSecond': round(len(changes) / seconds, 3),
         'redundantPageChanges': redundant, 'supersededAnimationCompletions': stale,
         'eventCounts': dict(counts), 'droppedEvents': report['droppedEvents'],
+        'pointerDowns': len(downs),
+        'newDragWhileScrolling': sum(event[3] is True and event[4] == 0 for event in downs),
+        'pointerMoves': report.get('pointerMoves'),
+        'distinctMissKeys': len({event[2] for event in events if event[1] == 'imageMiss'}),
+        'distinctSourceKeys': len({event[2] for event in events if event[1] == 'sourceLoad'}),
         'cpuTimeMs': report['native']['cpuTimeMs'],
         'cpuMsPerSecond': round(report['native']['cpuTimeMs'] / seconds, 3),
         'before': report['before'], 'after': report['after'],

@@ -47,6 +47,20 @@ def replace(path, old, new, count=1):
     path.write_text(text.replace(old, new), encoding="utf-8")
 
 
+def observe_image_loads(out, variant):
+    package = 'venera_next' if variant == 'next' else 'venera'
+    providers = out / 'lib/foundation/image_provider'
+    base = providers / 'base_image_provider.dart'
+    source = providers / 'reader_image.dart'
+    for path in (base, source):
+        content = path.read_text(encoding='utf-8')
+        path.write_text(f"import 'package:{package}/foundation/reader_perf_probe.dart';\n" + content, encoding='utf-8')
+    replace(base, 'ImageStreamCompleter loadImage(T key, ImageDecoderCallback decode) {',
+            "ImageStreamCompleter loadImage(T key, ImageDecoderCallback decode) {\n    ReaderPerfProbe.event('imageMiss', [key.hashCode]);")
+    replace(source, 'Future<Uint8List> load(chunkEvents, checkStop) async {',
+            "Future<Uint8List> load(chunkEvents, checkStop) async {\n    ReaderPerfProbe.event('sourceLoad', [hashCode]);")
+
+
 def instrument(out, variant):
     fixture_png(out)
     package = "venera_next" if variant == "next" else "venera"
@@ -88,6 +102,7 @@ def instrument(out, variant):
     manifest = out / 'android/app/src/main/AndroidManifest.xml'
     replace(manifest, '</application>', '<profileable android:shell="true" />\n    </application>')
     shutil.copyfile(HERE / 'probe.dart', out / 'lib/foundation/reader_perf_probe.dart')
+    observe_image_loads(out, variant)
     main = (HERE / 'main_next.dart').read_text(encoding='utf-8')
     main = main.replace("import 'probe.dart';", f"import 'package:{package}/foundation/reader_perf_probe.dart';")
     if variant == 'prime':
@@ -125,6 +140,7 @@ def instrument(out, variant):
         main = main.replace("key.currentState?.page", "(key.currentState as dynamic)?.page")
         main = main.replace("key.currentState?.controller.state.pendingPage", "(key.currentState as dynamic)?.benchmarkPendingPage")
         main = main.replace("key.currentState?.maxPage", "(key.currentState as dynamic)?.maxPage")
+        main = main.replace("key.currentState?.imageViewController", "(key.currentState as dynamic)?.benchmarkViewport")
         main = main.replace("key.currentState!.toPage(args['page'] as int, animated: false)", "(key.currentState as dynamic).toPage(args['page'] as int, animate: false)")
         main = main.replace('package:venera_next/', 'package:venera/')
     (out / 'lib/reader_benchmark.dart').write_text(main, encoding='utf-8')
@@ -155,7 +171,6 @@ def instrument(out, variant):
         gallery = out / 'lib/features/reader/gallery_view.dart'
         add_import(gallery)
         hooks = [
-            ('final value = controller.page;', "final value = controller.page;\n    ReaderPerfProbe.event('position', [value]);"),
             ('void cache(int startPage) {', "void cache(int startPage) {\n    ReaderPerfProbe.event('cache', [page, startPage]);"),
             ('if (_lastPrecache == identity) return;', "if (_lastPrecache == identity) return;\n    ReaderPerfProbe.event('cacheReplace', [page, startPage]);"),
             ('Future<void> animateToPage(int page) {', "Future<void> animateToPage(int page) {\n    ReaderPerfProbe.event('animate', [page, controller.hasClients ? controller.page : null]);"),
@@ -169,7 +184,7 @@ def instrument(out, variant):
         reader = out / 'lib/pages/reader/reader.dart'
         add_import(reader)
         hooks = [
-            ('int get page => _page;', 'int get page => _page;\n  int? get benchmarkPendingPage => _pendingPage;'),
+            ('int get page => _page;', 'int get page => _page;\n  int? get benchmarkPendingPage => _pendingPage;\n  Object? get benchmarkViewport => _imageViewController;'),
             ('set page(int value) {', "set page(int value) {\n    ReaderPerfProbe.event('setPage', [_page, value, _pendingPage]);"),
             ('void setPage(int page) {', "void setPage(int page) {\n    ReaderPerfProbe.event('report', [_page, page, _pendingPage]);"),
             ('bool toPage(int page, {bool animate = true}) {', "bool toPage(int page, {bool animate = true}) {\n    ReaderPerfProbe.event('request', [_page, page, _pendingPage, _navigationId]);"),

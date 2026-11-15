@@ -126,6 +126,10 @@ def capture(device, args):
     installed_hash = device.run('shell', 'sha256sum', shlex.quote(package_path)).split()[0]
     if not re.fullmatch('[0-9a-fA-F]{64}', installed_hash):
         raise ValueError('Cannot identify installed benchmark APK')
+    for page in range(max(1, args.page - args.warm_radius), min(512, args.page + args.warm_radius) + 1) if args.warm_radius else ():
+        device.command('position', page=page)
+        device.wait_status('position')
+        time.sleep(.6)
     # Visit a neighbour first, so a preceding double-tap/zoom probe cannot leave
     # the next swipe scenario inside a zoomed PhotoView at the same page.
     device.command('position', page=args.page + 1 if args.page < 512 else args.page - 1)
@@ -158,7 +162,9 @@ def capture(device, args):
         # Legal discrete DOWN/UP pairs. This deliberately retains repeatCount=0
         # and is labelled separately from the pending physical-hold validation.
         code = '25' if args.direction == 'forward' else '24'
-        device.run('shell', 'input', 'keyevent', '--async', '--delay', str(args.key_delay_ms), *([code] * args.count))
+        opposite = '24' if code == '25' else '25'
+        codes = [opposite if args.alternate and (i // 2) % 2 else code for i in range(args.count)]
+        device.run('shell', 'input', 'keyevent', '--async', '--delay', str(args.key_delay_ms), *codes)
     elif args.input == 'taps':
         time.sleep(1)
         # A single remote shell preserves the requested cadence between touches.
@@ -168,9 +174,23 @@ def capture(device, args):
         device.run('shell', script)
     elif args.input == 'swipes':
         time.sleep(1)
-        coords = '920 1200 160 1200' if args.direction == 'forward' else '160 1200 920 1200'
-        script = f'for i in $(seq 1 {args.count}); do input swipe {coords} {args.swipe_ms}; sleep {args.interval}; done'
-        device.run('shell', script)
+        if args.touch_driver == 'fixed':
+            dex = args.touch_dex
+            digest = hashlib.sha256(dex.read_bytes()).hexdigest()
+            remote_dex = '/data/local/tmp/venera-reader-input-' + digest[:20] + '.dex'
+            existing = device.run('shell', f'if [ -e {remote_dex} ]; then sha256sum {remote_dex}; else echo MISSING; fi').split()
+            if existing == ['MISSING']:
+                device.run('push', str(dex), remote_dex)
+            elif not existing or existing[0].lower() != digest:
+                raise ValueError('Refusing to overwrite an unexpected device file')
+            command = f'CLASSPATH={shlex.quote(remote_dex)} app_process /system/bin ReaderBenchInput {args.count} {args.swipe_ms} {round(args.interval * 1000)} {args.touch_step_ms} {str(args.direction == "forward").lower()} {str(args.alternate).lower()}'
+            output = device.run('shell', command)
+            (folder / 'input-driver-output.txt').write_text(output, encoding='utf-8')
+            injected = json.loads(output.split('READER_BENCH_INPUT_JSON ', 1)[1].splitlines()[0])
+            (folder / 'input-events.json').write_text(json.dumps(injected, indent=2), encoding='utf-8')
+            (folder / 'input-driver-sha256.txt').write_text(digest, encoding='ascii')
+        else:
+            swipe_input(device, args)
     elif args.input == 'manual':
         print('PHYSICAL HOLD: hold at the high tone; release at the low tone.', flush=True)
         time.sleep(1)
@@ -202,7 +222,22 @@ def capture(device, args):
     report = json.loads((folder / 'capture.json').read_text(encoding='utf-8'))
     if report['before'].get('pageCount') != 512:
         raise ValueError('Fixture was not ready: results are invalid')
+    for phase in ('before', 'after'):
+        if args.expected_cache_mib and report[phase].get('cacheLimitBytes') != args.expected_cache_mib * 1024 * 1024:
+            raise ValueError('Cache budget changed; raw capture retained but excluded from matched A/B')
+        if report[phase].get('refreshHz', 0) < 119:
+            raise ValueError('Refresh rate changed; raw capture retained but excluded from 120 Hz A/B')
     print('SAVED', folder, 'frames=', len(report['frames']), 'nativeKeys=', len(report['native']['keys']), 'page=', report['before'].get('page'), '->', report['after'].get('page'), flush=True)
+
+
+def swipe_input(device, args):
+    coords = '920 1200 160 1200' if args.direction == 'forward' else '160 1200 920 1200'
+    opposite = '160 1200 920 1200' if args.direction == 'forward' else '920 1200 160 1200'
+    if args.alternate:
+        script = f'for i in $(seq 1 {args.count}); do if [ $((i % 2)) -eq 1 ]; then input swipe {coords} {args.swipe_ms}; else input swipe {opposite} {args.swipe_ms}; fi; sleep {args.interval}; done'
+    else:
+        script = f'for i in $(seq 1 {args.count}); do input swipe {coords} {args.swipe_ms}; sleep {args.interval}; done'
+    device.run('shell', script)
 
 
 def main():
@@ -230,6 +265,11 @@ def main():
     sample.add_argument('--interval', type=float, default=.2)
     sample.add_argument('--swipe-ms', type=int, default=100)
     sample.add_argument('--key-delay-ms', type=int, default=50)
+    sample.add_argument('--alternate', action='store_true', help='Reverse every two discrete keys or every drag; a separate cached-window scenario')
+    sample.add_argument('--warm-radius', type=int, choices=range(0, 3), default=0, help='Visit nearby pages before capture; verify cache misses in the recording')
+    sample.add_argument('--touch-driver', choices=['adb', 'fixed'], default='adb')
+    sample.add_argument('--touch-step-ms', type=int, default=4)
+    sample.add_argument('--touch-dex', type=Path, default=Path(__file__).resolve().parent / 'artifacts/touch-driver/dex/classes.dex')
     sample.add_argument('--perfetto', action='store_true')
     sample.add_argument('--reuse-process', action='store_true', help='For explicitly labelled warm-window or memory-pressure probes')
     sample.add_argument('--expected-cache-mib', type=int, default=192, help='Use 0 only for explicitly labelled pressure-policy experiments')

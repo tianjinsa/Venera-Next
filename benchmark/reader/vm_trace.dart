@@ -4,9 +4,11 @@ import 'dart:convert';
 import 'dart:io';
 
 Future<void> main(List<String> args) async {
-  if (args.length != 3) {
+  if (args.length < 3 ||
+      args.length > 4 ||
+      (args.length == 4 && args[3] != '--widget-builds')) {
     stderr.writeln(
-      'dart vm_trace.dart <ws-service-url> <output-directory> <seconds>',
+      'dart vm_trace.dart <ws-service-url> <output-directory> <seconds> [--widget-builds]',
     );
     exitCode = 2;
     return;
@@ -52,6 +54,15 @@ Future<void> main(List<String> args) async {
       (entry) => entry['name'] == 'main',
     );
     final isolateId = isolate['id'] as String;
+    if (args.length == 4) {
+      await save(
+        'widget-build-profiling',
+        await rpc('ext.flutter.profileWidgetBuilds', {
+          'isolateId': isolateId,
+          'enabled': 'true',
+        }),
+      );
+    }
     await rpc('setVMTimelineFlags', {
       'recordedStreams': ['Dart', 'Embedder', 'GC'],
     });

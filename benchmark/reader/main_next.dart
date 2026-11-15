@@ -135,8 +135,23 @@ Future<void> main() async {
     ),
   );
   await Future<void>.delayed(const Duration(seconds: 4));
+  final dynamic observedViewport = key.currentState?.imageViewController;
+  final Object? observedPager = observedViewport?.controller;
+  if (observedPager is PageController) {
+    observedPager.addListener(() {
+      if (ReaderPerfProbe.recording) {
+        ReaderPerfProbe.event('position', [observedPager.page]);
+      }
+    });
+  }
   await ReaderPerfProbe.init(
     directory: App.externalStoragePath!,
+    pointerState: () {
+      final dynamic viewport = key.currentState?.imageViewController;
+      final Object? pager = viewport?.controller;
+      if (pager is! PageController || !pager.hasClients) return [null, false];
+      return [pager.page, pager.position.isScrollingNotifier.value];
+    },
     state: () => {
       'page': key.currentState?.page,
       'pending': key.currentState?.controller.state.pendingPage,
