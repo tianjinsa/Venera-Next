@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:venera_next/foundation/image_provider/base_image_provider.dart';
@@ -7,36 +8,57 @@ import 'package:venera_next/foundation/image_provider/image_provider_lifecycle.d
 import 'package:venera_next/foundation/image_provider/reader_image.dart';
 
 import 'package:venera_next/foundation/image_work.dart';
+import 'package:venera_next/foundation/reader_diagnostics.dart';
 
 import 'image_cache_policy.dart';
 
-/// One speculative decode at a time, including native cleanup. Queued requests
-/// belong to the reading session and never resolve after cancellation.
+/// Bounded speculative work, including native cleanup. A window can contain
+/// several multi-image pages, but only four requests are admitted at a time.
 class ReaderImagePrecache {
-  ReaderImagePrecache({required ImageWork work}) : _work = work {
+  ReaderImagePrecache({required ImageWork work, this.maximumConcurrent = 1})
+    : _work = work {
+    RangeError.checkValueInInterval(
+      maximumConcurrent,
+      1,
+      2,
+      'maximumConcurrent',
+    );
     ReaderImageCachePolicy.precacheAllowed.addListener(_onPermissionChanged);
   }
 
   static const maximumPending = 4;
+  final int maximumConcurrent;
   final ImageWork _work;
   final _pending = <ReaderImageProvider, _ReaderPrecacheEntry>{};
-  _ReaderPrecacheEntry? _active;
+  final _active = <_ReaderPrecacheEntry>{};
+  final _attempted = <ReaderImageProvider>{};
+  List<ReaderImageProvider> _wanted = const [];
+  ImageConfiguration _configuration = ImageConfiguration.empty;
+  bool _pumping = false;
   Future<void>? _disposal;
 
   /// Replace the look-ahead window when the viewport/page changes. Stale work
   /// releases only its own subscription; visible consumers retain their load.
   void replace(
     Iterable<ReaderImageProvider> providers,
-    ImageConfiguration configuration,
-  ) {
+    ImageConfiguration configuration, {
+    Iterable<ReaderImageProvider> retain = const [],
+  }) {
     if (_disposal != null) return;
-    final wanted = providers.take(maximumPending).toSet();
+    final wanted = providers.toSet().toList();
+    if (!listEquals(wanted, _wanted) || configuration != _configuration) {
+      _attempted.clear();
+    }
+    _wanted = wanted;
+    _configuration = configuration;
+    final retained = retain.toSet();
     for (final entry in _pending.values.toList()) {
-      if (!wanted.contains(entry.provider)) entry.task.cancel();
+      if (!wanted.contains(entry.provider) &&
+          !(_active.contains(entry) && retained.contains(entry.provider))) {
+        entry.task.cancel();
+      }
     }
-    for (final provider in wanted) {
-      preload(provider, configuration);
-    }
+    _startNext();
   }
 
   void preload(ReaderImageProvider provider, ImageConfiguration configuration) {
@@ -47,34 +69,67 @@ class ReaderImagePrecache {
         PaintingBinding.instance.imageCache.statusForKey(provider).keepAlive) {
       return;
     }
+    _enqueue(provider, configuration);
+    _startNext();
+  }
+
+  bool _enqueue(
+    ReaderImageProvider provider,
+    ImageConfiguration configuration,
+  ) {
     _ReaderPrecacheEntry? entry;
     final task = _work.start(onCancel: () => entry?.release());
-    if (task == null) return;
+    if (task == null) return false;
     entry = _ReaderPrecacheEntry(provider, task, configuration, () {
-      _pending.remove(provider);
-      if (identical(_active, entry)) _active = null;
+      if (identical(_pending[provider], entry)) _pending.remove(provider);
+      _active.remove(entry);
+      if (!task.isCancelled && _wanted.contains(provider)) {
+        _attempted.add(provider);
+      }
       _startNext();
-    });
+    }, diagnostics: _work.diagnostics);
     _pending[provider] = entry;
-    _startNext();
+    return true;
   }
 
   void _startNext() {
     if (_disposal != null ||
-        _active != null ||
+        _pumping ||
         !ReaderImageCachePolicy.allowActivePrecache) {
       return;
     }
-    for (final entry in _pending.values) {
-      if (entry.task.isCancelled) continue;
-      _active = entry;
-      entry.resolve();
-      break;
+    _pumping = true;
+    try {
+      final cache = PaintingBinding.instance.imageCache;
+      for (final provider in _wanted) {
+        if (_pending.length >= maximumPending) break;
+        if (_pending.containsKey(provider) ||
+            _attempted.contains(provider) ||
+            cache.statusForKey(provider).keepAlive) {
+          continue;
+        }
+        if (!_enqueue(provider, _configuration)) break;
+      }
+      // Use the latest direction's order, rather than old insertion order.
+      final ordered = {
+        for (final provider in _wanted) ?_pending[provider],
+        ..._pending.values,
+      };
+      for (final entry in ordered) {
+        if (_active.length >= maximumConcurrent) break;
+        if (entry.task.isCancelled || _active.contains(entry)) continue;
+        _active.add(entry);
+        entry.resolve();
+      }
+    } finally {
+      _pumping = false;
     }
   }
 
   void _onPermissionChanged() {
     if (ReaderImageCachePolicy.allowActivePrecache) return;
+    _wanted = const [];
+    _attempted.clear();
     for (final entry in _pending.values.toList()) {
       entry.task.cancel();
     }
@@ -86,6 +141,8 @@ class ReaderImagePrecache {
     final pending = _pending.values.toList();
     final completion = Completer<void>();
     _disposal = completion.future;
+    _wanted = const [];
+    _attempted.clear();
     for (final entry in pending) {
       entry.task.cancel();
     }
@@ -101,13 +158,21 @@ class _ReaderPrecacheEntry {
     this.provider,
     this.task,
     this.configuration,
-    this.onFinished,
-  );
+    this.onFinished, {
+    ReaderDiagnostics? diagnostics,
+  }) : _diagnostics = diagnostics {
+    _queued = diagnostics?.beginImageSpan(
+      provider.hashCode,
+      ReaderDiagnosticStage.precacheQueueWait,
+    );
+  }
 
   final ReaderImageProvider provider;
   final ImageWorkTask task;
   final ImageConfiguration configuration;
   final void Function() onFinished;
+  final ReaderDiagnostics? _diagnostics;
+  ReaderDiagnosticSpan? _queued, _decoding;
   final _reported = Set<Object>.identity();
   ImageStream? _stream;
   ImageStreamListener? _listener;
@@ -129,11 +194,20 @@ class _ReaderPrecacheEntry {
   }
 
   void resolve() {
+    _queued?.finish();
+    _decoding = _diagnostics?.beginImageSpan(
+      provider.hashCode,
+      ReaderDiagnosticStage.precacheWait,
+    );
     _initializing = true;
     try {
       final stream = _stream = provider.resolve(configuration);
       final listener = _listener = ImageStreamListener(
         (image, synchronous) {
+          _decoding?.finish(
+            width: image.image.width,
+            height: image.image.height,
+          );
           try {
             image.dispose();
           } catch (error, stack) {
@@ -164,6 +238,8 @@ class _ReaderPrecacheEntry {
 
   void release() {
     if (_released) return;
+    _queued?.finish(success: false);
+    _decoding?.finish(success: false);
     _released = true;
     if (!_initializing) _releaseNow();
   }
@@ -203,8 +279,8 @@ class _ReaderPrecacheEntry {
     } catch (error, stack) {
       _record(error, stack);
     } finally {
-      onFinished();
       task.finish();
+      onFinished();
     }
   }
 }

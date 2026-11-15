@@ -51,7 +51,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | O04 | 作者独立规则，作者名称及 author/artist 标签精确匹配；不可变快照兼容原地规则修改；继续保留 Next 的关键词匹配方式及大小写选项 | `lib/features/comic_widgets/comic_blocking.dart`；`test/prime_migration/comic_blocking_test.dart`、`test/foundation/keyword_rules_test.dart` |
 | O05 | 收藏、历史、本地漫画、稍后再看、追更和 Agent 展示不按关键词/作者隐藏；发现/搜索继续过滤；独立扫描收藏用于调规则 | R00、R08、R09；`test/features/comic_widgets/keyword_filter_consumers_test.dart`、`test/agent/agent_showcase_filtering_test.dart` |
 | O06 | 无关键盘/阅读设置不重查全列表；收藏默认展示不逐本查历史，已读筛选缓存；查询/搜索/选择所有权及追更 generation 门禁保留 | R01；`lib/foundation/context.dart`、`lib/features/favorites/local_favorites_page.dart`；`test/features/favorites/local_favorites_refresh_test.dart`、`favorite_updates_service_test.dart` |
-| O07 | 阅读图像缓存取可用内存 1/16 并限 32–192 MiB；内存压力下最多 32 MiB 且取消主动预解码及排队订阅，可见图片不受取消影响；每视图预解码串行、最多四个请求，原生收尾后才交接下一项；退出 1 秒后收缩，重入取消旧收缩；TV 及继承的较小上限保留 | `lib/features/reader/image_cache_policy.dart`、`image_precache.dart`；`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart`、`image_precache_pressure_test.dart` |
+| O07 | 阅读图像缓存取可用内存 1/16 并限 32–192 MiB；内存压力下最多 32 MiB 且取消主动预解码及排队订阅，可见图片不受取消影响；分页预解码最多两并发，连续／瀑布流串行，每视图最多准入四个请求，原生收尾前不归还名额；保留进入当前页的解码并按方向调整相邻窗口；退出 1 秒后收缩，重入取消旧收缩；TV 及继承的较小上限保留 | `lib/features/reader/image_cache_policy.dart`、`image_precache.dart`；`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart`、`image_precache_pressure_test.dart` |
 | O08 | 最后进度、前台时长准确提交；控制器/计时器/监听清理、旧回调门禁和任务所有权有效；返回后由原会话后台收尾 | R05、R12；`lib/features/reader/reading_session.dart`；`test/features/reader/reader_exit_integration_test.dart`、`reading_session_test.dart` |
 | O09 | 线条增强及强度、暗色/暖色/红色夜览；黑线不变浅、纸白不提亮；评论可跳过增强而保留夜览；实时调整不重置缩放/进度 | `lib/foundation/reader_preferences.dart`、`lib/features/settings/reader_appearance.dart`；`test/prime_migration/reader_color_effects_test.dart`、`test/features/settings/reader_settings_persistence_test.dart` |
 | O10 | 历史后台读取与保存互不阻塞；WAL 快照、恢复前等待读取；主键 `(id, type)` 保留 Next 全部扩展列及每日时长事务；Pica 跨库导入临时 DELETE 后恢复 WAL，失败保留数据 | `lib/features/history/`、Next 导入/恢复队列；`test/prime_migration/history_pagination_test.dart`、`test/features/history/history_repository_test.dart`、`agent_statistics_test.dart` |
@@ -127,6 +127,13 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
 
 ## 最近验证与维护记录
+
+### 2026-11-15：#178 分页预加载、局部缩放通知与帧时间线
+
+- 基线 `a11a583`；只对照上游 `v1.18.4-rc.2+251`（标签解引用 `c0c45979`）的早启动／复用行为，不整文件覆盖、不整合版本或扩大缓存。
+- O07 保留预算及压力、任务错误所有权，分页在依赖就绪、命令发出和拖动初期更新窗口，保护当前／目标已启动解码，最多两个含清理中的任务、四个准入请求；多图窗口持续补位，反向与 RTL 使用逻辑页坐标。连续／瀑布流仍使用一个名额。
+- 分页选择通过活动页通知重置缩放，不再 `setState` 重建整个画廊。诊断 schema 2 追加真实帧阶段时间、预加载排队／完成和相对翻页事件，沿用超预算口径和隐私限制。
+- 基线同组 9 项回归全部复现失败，修复后对应检查通过；完整命令、验证计数、构建 SHA／结果及真机待测范围见 [#178 记录](../experiments/reader_paged_preload_178.zh.md)与[迁移记录](migration.md#178-分页预加载续修2026-11-15)。不将组件测试或合成 50 ms 排队实验当作 Android 显示等待／帧率结果。
 
 ### 2026-11-13：按 runner 资源配置并发与测量
 

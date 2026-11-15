@@ -82,12 +82,14 @@ void main() {
       );
       await policy.configure();
       final work = ImageWork();
-      final prefetch = ReaderImagePrecache(work: work);
+      final prefetch = ReaderImagePrecache(work: work, maximumConcurrent: 2);
       final bytes = Completer<Uint8List>();
       final source = _Provider(bytes.future);
+      final parallel = _Provider(bytes.future);
       final queued = _Provider(Future.value(_png));
-      prefetch.replace([source, queued], ImageConfiguration.empty);
+      prefetch.replace([source, parallel, queued], ImageConfiguration.empty);
       expect(source.loads, 1);
+      expect(parallel.loads, 1);
       expect(queued.loads, 0);
       final stream = source.resolve(ImageConfiguration.empty);
       var delivered = false;

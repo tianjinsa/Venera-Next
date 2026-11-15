@@ -8,6 +8,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/features/reader/image_precache.dart';
 import 'package:venera_next/foundation/image_work.dart';
+import 'package:venera_next/foundation/reader_diagnostics.dart';
 import 'package:venera_next/foundation/image_provider/base_image_provider.dart';
 import 'package:venera_next/foundation/image_provider/image_provider_lifecycle.dart';
 import 'package:venera_next/foundation/image_provider/reader_image.dart';
@@ -93,8 +94,11 @@ void main() {
     return result;
   }
 
-  ReaderImagePrecache owner(ImageWork session) {
-    final result = ReaderImagePrecache(work: session);
+  ReaderImagePrecache owner(ImageWork session, {int concurrent = 1}) {
+    final result = ReaderImagePrecache(
+      work: session,
+      maximumConcurrent: concurrent,
+    );
     owners.add(result);
     return result;
   }
@@ -146,6 +150,257 @@ void main() {
     await closing;
     expect(images.map((image) => image.loads), [1, 0, 0, 0, 0, 0]);
   });
+
+  test('concurrency stays within the hard limit in release builds too', () {
+    final session = work();
+    for (final limit in [0, 3]) {
+      expect(
+        () => ReaderImagePrecache(work: session, maximumConcurrent: limit),
+        throwsRangeError,
+      );
+    }
+  });
+
+  for (final concurrent in [1, 2]) {
+    test(
+      '$concurrent-slot queue measures a 50ms blocked native decode',
+      () async {
+        var now = 0;
+        final diagnostics = ReaderDiagnostics(
+          nowMicros: () => now,
+          attachTimings: (_) {},
+          detachTimings: (_) {},
+        );
+        addTearDown(diagnostics.dispose);
+        diagnostics.start(
+          mode: ReaderDiagnosticMode.paged,
+          processingEnabled: false,
+          appVersion: '1.18.4-rc.1+250',
+          refreshRate: 120,
+        );
+        final session = ImageWork(diagnostics: diagnostics);
+        sessions.add(session);
+        final precache = owner(session, concurrent: concurrent);
+        final native = Completer<ui.FrameInfo>();
+        final pixels = await _image();
+        final codec = _Codec(native.future);
+        releasePending.add(() {
+          if (!native.isCompleted) native.complete(_Frame(pixels));
+        });
+        final first = provider(
+          (_) async => _png,
+          decoder: (buffer, {getTargetSize}) async {
+            buffer.dispose();
+            return codec;
+          },
+        );
+        final next = provider((_) async => _png);
+        precache.replace([first, next], ImageConfiguration.empty);
+        await pumpEventQueue();
+        expect(codec.reads, 1);
+        expect(next.loads, concurrent == 1 ? 0 : 1);
+        now = 50000;
+        native.complete(_Frame(pixels));
+        for (
+          var i = 0;
+          i < 30 &&
+              !PaintingBinding.instance.imageCache.statusForKey(next).keepAlive;
+          i++
+        ) {
+          await frame();
+        }
+        final closing = precache.dispose();
+        await frame();
+        await closing;
+        diagnostics.stop(ReaderDiagnosticStop.review);
+        final report =
+            jsonDecode(diagnostics.exportJson()) as Map<String, dynamic>;
+        final queued = (report['imageEvents'] as List)
+            .where((e) => e['stage'] == 'precacheQueueWait')
+            .toList();
+        expect(queued, hasLength(2));
+        expect(queued.last['success'], isTrue);
+        expect(queued.last['waitUs'], concurrent == 1 ? 50000 : 0);
+        expect(next.loads, 1);
+      },
+    );
+  }
+
+  test(
+    'paged work overlaps two reads and deduplicates repeated windows',
+    () async {
+      final bytes = Completer<Uint8List>();
+      releasePending.add(() {
+        if (!bytes.isCompleted) bytes.complete(_png);
+      });
+      final precache = owner(work(), concurrent: 2);
+      final images = List.generate(6, (_) => provider((_) => bytes.future));
+      for (var i = 0; i < 20; i++) {
+        precache.replace(images, ImageConfiguration.empty);
+      }
+      expect(images.map((image) => image.loads), [1, 1, 0, 0, 0, 0]);
+      final closing = precache.dispose();
+      bytes.complete(_png);
+      await frame();
+      await closing;
+      expect(images.map((image) => image.loads), [1, 1, 0, 0, 0, 0]);
+    },
+  );
+
+  test(
+    'a multi-image window refills without another viewport update',
+    () async {
+      final session = work();
+      var retained = 0, peakRetained = 0;
+      session.retainTasks((_) {
+        retained++;
+        if (retained > peakRetained) peakRetained = retained;
+        return () => retained--;
+      });
+      final precache = owner(session, concurrent: 2);
+      final images = List.generate(6, (_) => provider((_) async => _png));
+      precache.replace(images, ImageConfiguration.empty);
+      for (var i = 0; i < 30 && images.last.loads == 0; i++) {
+        await frame();
+      }
+      expect(images.map((image) => image.loads), everyElement(1));
+      expect(
+        peakRetained,
+        lessThanOrEqualTo(ReaderImagePrecache.maximumPending),
+      );
+    },
+  );
+
+  test(
+    'incoming decode survives a window handoff before display subscribes',
+    () async {
+      final bytes = Completer<Uint8List>();
+      releasePending.add(() {
+        if (!bytes.isCompleted) bytes.complete(_png);
+      });
+      final precache = owner(work());
+      final incoming = provider((check) async {
+        final value = await bytes.future;
+        check();
+        return value;
+      });
+      final next = provider((_) async => _png);
+      final cache = PaintingBinding.instance.imageCache;
+      precache.replace([incoming], ImageConfiguration.empty);
+      final original = cache.putIfAbsent(
+        incoming,
+        () => throw StateError('cached'),
+      );
+      precache.replace([next], ImageConfiguration.empty, retain: [incoming]);
+      await frame();
+      expect(cache.statusForKey(incoming).pending, isTrue);
+      final stream = incoming.resolve(ImageConfiguration.empty);
+      expect(stream.completer, same(original));
+      final received = Completer<void>();
+      final listener = ImageStreamListener((info, _) {
+        info.dispose();
+        if (!received.isCompleted) received.complete();
+      });
+      stream.addListener(listener);
+      bytes.complete(_png);
+      await received.future;
+      stream.removeListener(listener);
+      expect(incoming.loads, 1);
+      expect(cache.statusForKey(incoming).keepAlive, isTrue);
+    },
+  );
+
+  test(
+    'reversing priority preserves active reads and reorders queued work',
+    () async {
+      final bytes = Completer<Uint8List>();
+      releasePending.add(() {
+        if (!bytes.isCompleted) bytes.complete(_png);
+      });
+      final precache = owner(work(), concurrent: 2);
+      final first = provider((_) => bytes.future);
+      final second = provider((_) => bytes.future);
+      final forward = provider((_) async => _png);
+      final backward = provider((_) async => _png);
+      precache.replace([
+        first,
+        second,
+        forward,
+        backward,
+      ], ImageConfiguration.empty);
+      precache.replace([
+        backward,
+        forward,
+        second,
+        first,
+      ], ImageConfiguration.empty);
+      expect(first.loads, 1);
+      expect(second.loads, 1);
+      expect(
+        PaintingBinding.instance.imageCache.statusForKey(first).pending,
+        isTrue,
+      );
+      expect(
+        PaintingBinding.instance.imageCache.statusForKey(second).pending,
+        isTrue,
+      );
+      final started = <String>[];
+      // One remaining slot must follow the new order while the second read waits.
+      final ready = Completer<Uint8List>();
+      releasePending.add(() {
+        if (!ready.isCompleted) ready.complete(_png);
+      });
+      final current = provider((_) => ready.future);
+      final ahead = provider((_) async {
+        started.add('ahead');
+        return _png;
+      });
+      final behind = provider((_) async {
+        started.add('behind');
+        return _png;
+      });
+      precache.replace(
+        [current, ahead, behind],
+        ImageConfiguration.empty,
+        retain: [first, second],
+      );
+      precache.replace(
+        [current, behind, ahead],
+        ImageConfiguration.empty,
+        retain: [first, second],
+      );
+      bytes.complete(_png);
+      for (var i = 0; i < 20 && started.isEmpty; i++) {
+        await frame();
+      }
+      expect(started.first, 'behind');
+      expect(first.loads, 1);
+      expect(second.loads, 1);
+      ready.complete(_png);
+    },
+  );
+
+  test(
+    'two-slot admission includes cancelled native work until cleanup',
+    () async {
+      final bytes = Completer<Uint8List>();
+      releasePending.add(() {
+        if (!bytes.isCompleted) bytes.complete(_png);
+      });
+      final precache = owner(work(), concurrent: 2);
+      final old = List.generate(2, (_) => provider((_) => bytes.future));
+      final next = provider((_) async => _png);
+      precache.replace(old, ImageConfiguration.empty);
+      precache.replace([next], ImageConfiguration.empty);
+      await frame();
+      expect(next.loads, 0);
+      bytes.complete(_png);
+      for (var i = 0; i < 20 && next.loads == 0; i++) {
+        await frame();
+      }
+      expect(next.loads, 1);
+    },
+  );
 
   test(
     'a new viewport drops stale queued work and joins the old read',

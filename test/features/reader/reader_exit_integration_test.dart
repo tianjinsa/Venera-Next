@@ -1622,6 +1622,15 @@ void main() {
         await tester.pump();
         expect(fixture.readerKey.currentState, same(reader));
         saving.completeError(StateError('Comments exit save failed'));
+        // Returning from comments can leave a real neighbouring file/decode
+        // in cleanup. Advance its I/O as well as fake frames before settling
+        // the background indicator; keep the prompt-return assertions above.
+        await _pumpUntil(
+          tester,
+          () =>
+              fixture.readerKey.currentState == null &&
+              find.byIcon(Icons.error_outline).evaluate().isNotEmpty,
+        );
         await tester.pumpAndSettle();
         expect(find.byIcon(Icons.error_outline), findsOneWidget);
         expect(find.text('Unable to close. Please try again.'), findsNothing);

@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:developer' show Timeline;
 import 'dart:math' as math;
+import 'dart:ui' show FramePhase;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
@@ -17,7 +18,11 @@ enum ReaderDiagnosticStage {
   codecInitWait,
   firstDecodeWait,
   displayWait,
+  precacheQueueWait,
+  precacheWait,
 }
+
+enum ReaderDiagnosticPagePhase { requested, selected }
 
 enum ReaderDiagnosticStop { timeout, review, background, interrupted, disposed }
 
@@ -92,6 +97,8 @@ class ReaderDiagnostics extends ChangeNotifier {
       'keepAliveImages': cache.currentSize,
       'liveImages': cache.liveImageCount,
       'pendingImages': cache.pendingImageCount,
+      'maximumBytes': cache.maximumSizeBytes,
+      'maximumImages': cache.maximumSize,
     };
   }
 
@@ -205,6 +212,38 @@ class ReaderDiagnostics extends ChangeNotifier {
     });
   }
 
+  /// Only relative movement is retained, never a chapter or source page ID.
+  void recordPageTurn({
+    required ReaderDiagnosticPagePhase phase,
+    required int direction,
+    required int distance,
+  }) {
+    if (!_acceptSample()) return;
+    _append({
+      'atUs': _elapsed,
+      'stage': 'pageTurn',
+      'phase': phase.name,
+      'direction': direction.sign,
+      'distance': distance.abs(),
+    });
+  }
+
+  void recordPrecacheWindow({
+    required bool allowed,
+    required int candidates,
+    required int concurrencyLimit,
+  }) {
+    if (!_acceptSample()) return;
+    _append({
+      'atUs': _elapsed,
+      'stage': 'precacheWindow',
+      'allowed': allowed,
+      'candidates': candidates,
+      'concurrencyLimit': concurrencyLimit,
+      'budgetBytes': PaintingBinding.instance.imageCache.maximumSizeBytes,
+    });
+  }
+
   void _append(Map<String, Object> event) {
     if (_events.length == maxEvents) {
       _events.removeFirst();
@@ -215,16 +254,29 @@ class ReaderDiagnostics extends ChangeNotifier {
 
   void _recordFrames(List<FrameTiming> timings) {
     if (!_acceptSample()) return;
+    final receivedAt = _elapsed;
     for (final frame in timings) {
       if (_frames.length == maxFrames) {
         _frames.removeFirst();
         _droppedFrames++;
       }
       _frames.add([
-        _elapsed,
+        receivedAt,
         frame.buildDuration.inMicroseconds,
         frame.rasterDuration.inMicroseconds,
         frame.totalSpan.inMicroseconds,
+        // Flutter's native engine uses Dart's timeline clock for TimePoint
+        // (DartVMInitializer / DartTimelineTicksSinceEpoch). Subtract the same
+        // origin as image spans; never use callback delivery time as frame time.
+        // A negative value denotes a batched frame begun before capture.
+        for (final phase in const [
+          FramePhase.vsyncStart,
+          FramePhase.buildStart,
+          FramePhase.buildFinish,
+          FramePhase.rasterStart,
+          FramePhase.rasterFinish,
+        ])
+          frame.timestampInMicroseconds(phase) - _startedAt,
       ]);
     }
   }
@@ -252,11 +304,11 @@ class ReaderDiagnostics extends ChangeNotifier {
           );
     final events = _events.toList();
     final data = <String, Object?>{
-      'schema': 1,
+      'schema': 2,
       'privacy':
           'No comic content, titles, paths, URLs, accounts, scripts, or error text.',
       'measurement':
-          'Elapsed waits are not CPU time or UI-thread blocking. Source reads include encoded cache and source callbacks. Processing wait measures only custom image processing. Frame samples are not measured FPS.',
+          'Elapsed waits are not CPU time or UI-thread blocking. Source reads include encoded cache and source callbacks. Processing wait measures only custom image processing. Frame samples are not measured FPS. Frame phase timestamps and image/page events share the capture-relative Dart timeline clock; negative frame times precede capture. receivedAtUs is batched callback delivery, not frame occurrence. Schema 2 preserves the first four schema 1 frame columns and appends phase times.',
       'configuration': _configuration,
       'durationUs': _recording ? _elapsed : _duration,
       'stopReason': _stopReason?.name,
@@ -278,10 +330,21 @@ class ReaderDiagnostics extends ChangeNotifier {
       'retainedFrameSamples': {
         'ui': _summary(_frames.map((frame) => frame[1])),
         'raster': _summary(_frames.map((frame) => frame[2])),
+        'totalSpan': _summary(_frames.map((frame) => frame[3])),
         'frameBudgetUs': _frameBudgetUs.round(),
         'overBudget': slow.length,
         'slowest': slow.take(40).toList(),
-        'slowestColumns': ['receivedAtUs', 'uiUs', 'rasterUs', 'totalSpanUs'],
+        'slowestColumns': [
+          'receivedAtUs',
+          'uiUs',
+          'rasterUs',
+          'totalSpanUs',
+          'vsyncStartAtUs',
+          'buildStartAtUs',
+          'buildFinishAtUs',
+          'rasterStartAtUs',
+          'rasterFinishAtUs',
+        ],
       },
       'retainedStageSamples': {
         for (final stage in ReaderDiagnosticStage.values)

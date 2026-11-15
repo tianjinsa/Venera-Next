@@ -12,13 +12,13 @@ import 'package:venera_next/foundation/image_provider/reader_image.dart';
 import 'package:venera_next/foundation/image_work.dart';
 import 'package:venera_next/foundation/reader_diagnostics.dart';
 
-FrameTiming _frame(int ui, int raster) => FrameTiming(
-  vsyncStart: 0,
-  buildStart: 0,
-  buildFinish: ui,
-  rasterStart: ui,
-  rasterFinish: ui + raster,
-  rasterFinishWallTime: ui + raster,
+FrameTiming _frame(int ui, int raster, {int start = 0}) => FrameTiming(
+  vsyncStart: start,
+  buildStart: start,
+  buildFinish: start + ui,
+  rasterStart: start + ui,
+  rasterFinish: start + ui + raster,
+  rasterFinishWallTime: start + ui + raster,
 );
 
 Future<void> _drawFrame() async {
@@ -66,11 +66,105 @@ void main() {
       isNull,
     );
     diagnostics.recordCache(42, pending: false, keepAlive: false, live: false);
+    diagnostics.recordPageTurn(
+      phase: ReaderDiagnosticPagePhase.requested,
+      direction: 1,
+      distance: 1,
+    );
+    diagnostics.recordPrecacheWindow(
+      allowed: false,
+      candidates: 0,
+      concurrencyLimit: 2,
+    );
     expect(diagnostics.hasCapture, isFalse);
     expect(attaches, 0);
     expect(detaches, 0);
     expect(clockReads, 0);
   });
+
+  test(
+    'precache admission and cache limits are visible without private keys',
+    () {
+      start();
+      diagnostics.recordPrecacheWindow(
+        allowed: false,
+        candidates: 0,
+        concurrencyLimit: 2,
+      );
+      final data = report();
+      expect(data['imageEvents'], [
+        {
+          'atUs': 0,
+          'stage': 'precacheWindow',
+          'allowed': false,
+          'candidates': 0,
+          'concurrencyLimit': 2,
+          'budgetBytes': PaintingBinding.instance.imageCache.maximumSizeBytes,
+        },
+      ]);
+      expect(
+        data['globalImageCacheBefore']['maximumBytes'],
+        PaintingBinding.instance.imageCache.maximumSizeBytes,
+      );
+    },
+  );
+
+  test(
+    'batched frame phases share the image clock and preserve legacy columns',
+    () {
+      now = 1000000;
+      start();
+      now += 20000;
+      diagnostics.recordPageTurn(
+        phase: ReaderDiagnosticPagePhase.selected,
+        direction: -1,
+        distance: 1,
+      );
+      final image = diagnostics.beginImageSpan(
+        7,
+        ReaderDiagnosticStage.precacheWait,
+      )!;
+      now += 50000;
+      image.finish();
+      now = 2000000;
+      frames!([
+        _frame(9000, 1000, start: 1020000),
+        _frame(1000, 10000, start: 1100000),
+        _frame(12000, 1000, start: 990000),
+      ]);
+      diagnostics.stop(ReaderDiagnosticStop.review);
+      final data = report();
+      expect(data['schema'], 2);
+      final samples = data['retainedFrameSamples'];
+      expect(samples['overBudget'], 3);
+      expect((samples['slowestColumns'] as List).take(4), [
+        'receivedAtUs',
+        'uiUs',
+        'rasterUs',
+        'totalSpanUs',
+      ]);
+      final rows = samples['slowest'] as List;
+      expect(rows.map((row) => row[0]), everyElement(1000000));
+      expect(rows.map((row) => row[4]), [-10000, 100000, 20000]);
+      expect(rows.last, [
+        1000000,
+        9000,
+        1000,
+        10000,
+        20000,
+        20000,
+        29000,
+        29000,
+        30000,
+      ]);
+      expect(samples['totalSpan']['maxUs'], 13000);
+      final events = data['imageEvents'] as List;
+      expect(events.first['atUs'], 20000);
+      expect(events.first['direction'], -1);
+      expect(events.last['atUs'], 20000);
+      expect(events.last['waitUs'], 50000);
+    },
+  );
 
   test(
     'spans use session-local image numbers and elapsed waits, not private keys',
