@@ -451,7 +451,6 @@ class GalleryModeState extends State<ReaderGalleryView>
                   shouldRefreshEInk = true;
                 }
               } else {
-                final previousPage = page;
                 final previousActivePage = _activePage.value;
                 navigation.reportPage(i);
                 // Navigation ignores intermediate pages of a longer command.
@@ -467,7 +466,7 @@ class GalleryModeState extends State<ReaderGalleryView>
                   );
                 }
                 shouldRefreshEInk =
-                    page != previousPage && !isChapterCommentsPage(i);
+                    page != previousActivePage && !isChapterCommentsPage(i);
                 widget.onPageReported(
                   isChapterCommentsPage(i),
                   shouldRefreshEInk,
