@@ -76,7 +76,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | R09 | 关键词管理独立扫描本地收藏以检查误伤；扫描只读，不隐藏/删除收藏；原页面查询结束后再打开结果，窗口及 generation 门禁有效 | `lib/features/settings/keyword_blocking.dart`、`lib/features/comic_widgets/keyword_hidden_notice.dart`；`test/features/settings/keyword_rules_widget_test.dart` |
 | R10 | 线条增强、夜览和调光位于阅读设置前部，并在「调节画面」快捷菜单共同提供；共享组件遵守全局/设备/单漫画作用域；亮度预览只刷新遮罩，结束后由真实宿主显式提供当前作用域的已提交值，独立外壳遵循传入快照；面板已卸载的晚到保存同样更新遮罩，不等待翻页；保存状态不反复改变菜单高度 | `lib/features/settings/reader_appearance.dart`、`lib/features/settings/reader_brightness.dart`、`lib/features/reader/scaffold.dart`、`shell_host.dart`、`settings_effects.dart`；`test/features/settings/reader_settings_persistence_test.dart`、`test/features/reader/brightness_test.dart`、`settings_effects_test.dart`、`shell_presentation_test.dart`、`reader_exit_integration_test.dart` 的快捷/侧栏三种作用域及面板卸载回归 |
 | R11 | 开关/选择器保存期间保留原 Element 和占位宽度；只按相关字段订阅，作用域变化才重建设置表单；持久化失败/重试、窗口退出等待仍有效 | `lib/features/settings/setting_components.dart`、`lib/features/settings/setting_field.dart`；`test/features/settings/setting_persistence_test.dart` 的原 Element/文字矩形断言、`reader_settings_persistence_test.dart`、`test/components/settings_save_host_test.dart` |
-| R12 | 瀑布流同章节同页滚动不反复通知外壳；图片分块进度按 100 毫秒合并，连续图像使用双线性采样；异步解码改变前方尺寸时在布局内补偿可见锚点，不产生中间跳帧或取消拖动；前章晚到先等待滚动停止，再保留最新可见页及局部偏移，换章/退出取消等待；画廊预取按内容/布局/页码合并并放到帧后，保留 PhotoView、缩放及已有图像生命周期 | `lib/features/reader/continuous_view.dart`、`gallery_view.dart`；`test/features/reader/continuous_owner_test.dart`、`waterfall_loading_stability_test.dart`、`comic_image_progress_test.dart`、`waterfall_controller_test.dart`、`gallery_page_continuity_test.dart`、`gallery_rotation_test.dart`、`reader_exit_integration_test.dart`；滚动锚点实现在 `continuous_scroll.dart` |
+| R12 | 瀑布流同章节同页滚动不反复通知外壳；图片分块进度按 100 毫秒合并，连续图像使用双线性采样；异步解码改变前方尺寸时在布局内补偿可见锚点，不产生中间跳帧或取消拖动；前章晚到先等待滚动停止，再保留最新可见页及局部偏移，换章/退出取消等待；画廊预取按内容/布局/页码去重并在命令／拖动初期交接，保留 PhotoView、缩放及已有图像生命周期；分页避免整套设置重复解析和隐藏控件重建／动画，保持实时设置与菜单功能 | `lib/features/reader/continuous_view.dart`、`gallery_view.dart`、`reader_page.dart`、`scaffold.dart`；`test/features/reader/continuous_owner_test.dart`、`waterfall_loading_stability_test.dart`、`comic_image_progress_test.dart`、`waterfall_controller_test.dart`、`gallery_page_continuity_test.dart`、`gallery_rotation_test.dart`、`reader_exit_integration_test.dart`、`page_layout_settings_test.dart`、`shell_presentation_test.dart`；滚动锚点实现在 `continuous_scroll.dart` |
 
 表内省略目录的阅读实现文件位于 `lib/features/reader/`，`comic_tile.dart` 位于 `lib/features/comic_widgets/`。来源及上游归因详见[候选表](upstream-issue-candidates.md)，不得把 R02 的导航调整直接写成已证实的上游 Navigator 缺陷。
 
@@ -127,6 +127,14 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
 
 ## 最近验证与维护记录
+
+### 2026-11-15：#178 对照 Prime 减少分页渲染开销
+
+- Next 基线 `16f54ee4`，只读对照 Prime `2e287566` 与其 PhotoView 固定 `a1255d1b`。旧 Gallery 本身也是 PageView；保留两边相同的翻页时长／曲线及 Next 的图像／手势清理，不凭容器名更换架构。
+- R12 布局热点改为类型化单字段实时读取，隐藏亮度面板／标题／动作按有效输入复用，隐藏控件停 tick；主题、语言、可访问性、ImageWork 和动作状态变化继续生效。18 次已缓存翻页在 192／32 MiB 同组对照中，整套设置解析 468→90、Widget build 13,392→3,354；这是宿主 Debug 工作量，不能称作 Android 帧率提升。
+- O07 的预算、压力、分页两并发／四准入、窗口交接、显示结果复用及退出清理全部保留。诊断新增预算决策原因与查询／压力证据、拖动／回弹 vsync 间隔和连续慢样本；原 schema 2 与全局慢帧口径不变。
+- 新增 Prime 同尺寸 32 张 2048×3072 图的设备脚本，正常阶段尊重真实预算、压力阶段使用系统通知；记录 RSS／缓存／活动加载，覆盖双向、取消／换向、空闲和多次重入。依赖为同一固定 Flutter SDK 的官方 `integration_test`，不升级生产依赖。
+- 实际命令、最终验证及待确认的 GPU／呈现节奏问题见 [Prime 对照记录](../experiments/reader_paging_prime_178.zh.md)。最终定向回归 498 通过／23 跳过；按用户最新要求 Android Actions 设置 `skip_tests=true`，不再本地应用编译或追加验证，派发后不轮询；云端不声称手机已经达到旧 Prime 流畅度。
 
 ### 2026-11-15：#178 分页预加载、局部缩放通知与帧时间线
 

@@ -58,6 +58,7 @@ import 'package:venera_next/foundation/tv_reader_policy.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/reader_settings.dart';
 import 'package:venera_next/foundation/reader_preferences.dart';
+import 'package:venera_next/foundation/reader_preference_store.dart';
 import 'package:venera_next/foundation/comic_type.dart';
 import 'package:venera_next/foundation/comic_layout.dart';
 import 'package:venera_next/foundation/log.dart';
@@ -903,14 +904,8 @@ class ReaderState extends State<Reader>
     if (widget.chapters == null) return false;
     var source = ComicSource.find(type.sourceKey);
     if (source?.chapterCommentsLoader == null) return false;
-    return appdata.settings
-                .readerSettings(cid, type.sourceKey)
-                .showChapterComments ==
-            true &&
-        appdata.settings
-                .readerSettings(cid, type.sourceKey)
-                .showChapterCommentsAtEnd ==
-            true;
+    final settings = preferences;
+    return settings.showChapterComments && settings.showChapterCommentsAtEnd;
   }
 
   @override
@@ -1543,6 +1538,7 @@ class ReaderState extends State<Reader>
     maximumBytes: () =>
         appdata.settings.tvLowMemoryEnabled ? TvReaderPolicy.cacheBytes : null,
     readAvailableMemory: MemoryInfo.getFreePhysicalMemorySize,
+    onChanged: readerDiagnostics.recordCacheBudget,
     setLimit: (bytes) =>
         PaintingBinding.instance.imageCache.maximumSizeBytes = bytes,
     onConfigured: (memory, limit) => Log.info(
@@ -2105,22 +2101,24 @@ abstract mixin class ReaderImagePerPageHandler {
     singleImageOnFirstPage: showSingleImageOnFirstPage(),
   );
 
-  bool showSingleImageOnFirstPage() => appdata.settings
-      .readerSettings(cid, type.sourceKey)
-      .showSingleImageOnFirstPage;
+  ReaderPreferenceStore get _layoutPreferences => ReaderPreferenceStore(
+    settings: appdata.settings,
+    comicId: cid,
+    sourceKey: type.sourceKey,
+  );
+
+  bool showSingleImageOnFirstPage() =>
+      _layoutPreferences.read(ReaderPreferences.showSingleImageOnFirstPage);
 
   /// The number of images displayed on one screen
   int get imagesPerPage {
-    if (mode.isContinuous) return 1;
-    if (isPortrait) {
-      return appdata.settings
-          .readerSettings(cid, type.sourceKey)
-          .readerScreenPicNumberForPortrait;
-    } else {
-      return appdata.settings
-          .readerSettings(cid, type.sourceKey)
-          .readerScreenPicNumberForLandscape;
-    }
+    if (mode.isContinuous || appdata.settings.tvLowMemoryEnabled) return 1;
+    // Layout is queried repeatedly by page/gesture validity checks. Resolve
+    // only this typed field, retaining the live global/device/comic precedence.
+    final preference = isPortrait
+        ? ReaderPreferences.readerScreenPicNumberForPortrait
+        : ReaderPreferences.readerScreenPicNumberForLandscape;
+    return _layoutPreferences.read(preference).toInt();
   }
 
   /// Check if the number of images per page has changed.

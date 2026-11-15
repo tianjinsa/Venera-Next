@@ -76,11 +76,114 @@ void main() {
       candidates: 0,
       concurrencyLimit: 2,
     );
+    diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.drag);
     expect(diagnostics.hasCapture, isFalse);
     expect(attaches, 0);
     expect(detaches, 0);
     expect(clockReads, 0);
   });
+
+  test('pressure before capture retains its cause and query evidence', () {
+    const budget = ReaderDiagnosticCacheBudget(
+      reason: ReaderDiagnosticCacheReason.memoryPressure,
+      memoryQuery: ReaderDiagnosticMemoryQuery.available,
+      limitBytes: 32 << 20,
+      availableBytes: 8 << 30,
+      pressureEvents: 1,
+      underPressure: true,
+      precacheAllowed: false,
+    );
+    diagnostics.recordCacheBudget(budget);
+    expect(clockReads, 0);
+    start();
+    final data = report();
+    expect(data['readerCacheBudgetAtStart'], budget.toJson());
+    expect(data['readerCacheBudgetLatest'], budget.toJson());
+    expect(data['imageEvents'], isEmpty);
+    diagnostics.recordCacheBudget(budget);
+    expect(report()['imageEvents'].single['stage'], 'cacheBudget');
+    diagnostics.stop(ReaderDiagnosticStop.review);
+    const nextBudget = ReaderDiagnosticCacheBudget(
+      reason: ReaderDiagnosticCacheReason.availableMemory,
+      memoryQuery: ReaderDiagnosticMemoryQuery.available,
+      limitBytes: 192 << 20,
+      pressureEvents: 0,
+      underPressure: false,
+      precacheAllowed: true,
+    );
+    diagnostics.recordCacheBudget(nextBudget);
+    expect(report()['readerCacheBudgetLatest'], budget.toJson());
+    start();
+    expect(report()['readerCacheBudgetAtStart'], nextBudget.toJson());
+  });
+
+  test(
+    'vsync cadence and slow runs use frame time within drag/settle episodes',
+    () {
+      now = 1000000;
+      start();
+      diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.drag);
+      now += 20000;
+      diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.settle);
+      now += 60000;
+      diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.idle);
+      now += 2000000;
+      diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.drag);
+      now += 20000;
+      diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.idle);
+      now += 1000000;
+      frames!([
+        _frame(9000, 1000, start: 1000000),
+        _frame(9000, 1000, start: 1008333),
+        _frame(1000, 10000, start: 1020000),
+        _frame(9000, 1000, start: 1045000),
+        _frame(1000, 1000, start: 1070000),
+        _frame(9000, 1000, start: 3080000),
+        _frame(1000, 1000, start: 3088333),
+      ]);
+      diagnostics.stop(ReaderDiagnosticStop.review);
+      final data = report();
+      final scroll = data['scrollFrameSamples'];
+      expect(scroll['drag']['ui']['count'], 4);
+      expect(scroll['drag']['maxConsecutiveOverBudgetSamples'], 2);
+      expect(scroll['drag']['vsyncInterval']['count'], 2);
+      expect(scroll['drag']['vsyncInterval']['maxUs'], 8333);
+      expect(scroll['settle']['rasterOverBudget'], 1);
+      expect(scroll['settle']['uiOverBudget'], 1);
+      expect(scroll['settle']['maxConsecutiveOverBudgetSamples'], 2);
+      expect(scroll['settle']['vsyncInterval']['maxUs'], 25000);
+      expect(scroll['largestVsyncGaps'].first['fromVsyncAtUs'], 20000);
+      // The gap between two gestures is not a presentation stall. The original
+      // global sample count/slow-frame threshold still includes every frame.
+      expect(data['retainedFrameSamples']['ui']['count'], 7);
+      expect(data['retainedFrameSamples']['overBudget'], 5);
+      expect(data['retainedFrameSamples']['uiOverBudget'], 4);
+    },
+  );
+
+  test(
+    'scroll phases are deduplicated without clocks and have a separate cap',
+    () {
+      start();
+      diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.drag);
+      final before = clockReads;
+      diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.drag);
+      expect(clockReads, before);
+      for (var i = 0; i < 110; i++) {
+        now++;
+        diagnostics.recordScrollPhase(
+          i.isEven
+              ? ReaderDiagnosticScrollPhase.idle
+              : ReaderDiagnosticScrollPhase.drag,
+        );
+      }
+      final data = report();
+      expect(data['scrollFrameSamples']['phases'], hasLength(96));
+      expect(data['scrollFrameSamples']['droppedPhases'], 15);
+      start();
+      expect(report()['scrollFrameSamples']['phases'], isEmpty);
+    },
+  );
 
   test(
     'precache admission and cache limits are visible without private keys',

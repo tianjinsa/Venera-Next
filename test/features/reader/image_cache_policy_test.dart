@@ -1,8 +1,67 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/features/reader/image_cache_policy.dart';
+import 'package:venera_next/foundation/reader_diagnostics.dart';
 
 void main() {
+  testWidgets(
+    '32 MiB decisions distinguish low RAM, pressure and query failure',
+    (tester) async {
+      final changes = <ReaderDiagnosticCacheBudget>[];
+      final low = ReaderImageCachePolicy(
+        readAvailableMemory: () async => 256 << 20,
+        setLimit: (_) {},
+        onChanged: changes.add,
+        onError: (_, _) => fail('unexpected error'),
+      );
+      await low.configure();
+      expect(low.snapshot.reason, ReaderDiagnosticCacheReason.availableMemory);
+      expect(low.snapshot.availableBytes, 256 << 20);
+      expect(low.snapshot.precacheAllowed, isFalse);
+      expect(low.snapshot.pressureEvents, 0);
+      low.dispose();
+      final query = Completer<int?>();
+      final pressure = ReaderImageCachePolicy(
+        readAvailableMemory: () => query.future,
+        setLimit: (_) {},
+        onChanged: changes.add,
+        onError: (_, _) => fail('unexpected error'),
+      );
+      final pending = pressure.configure();
+      pressure.handleMemoryPressure();
+      query.complete(8 << 30);
+      await pending;
+      expect(pressure.snapshot.limitBytes, 32 << 20);
+      expect(
+        pressure.snapshot.reason,
+        ReaderDiagnosticCacheReason.memoryPressure,
+      );
+      expect(pressure.snapshot.availableBytes, 8 << 30);
+      expect(
+        pressure.snapshot.memoryQuery,
+        ReaderDiagnosticMemoryQuery.available,
+      );
+      expect(pressure.snapshot.pressureEvents, 1);
+      expect(pressure.snapshot.underPressure, isTrue);
+      pressure.dispose();
+      final failed = ReaderImageCachePolicy(
+        readAvailableMemory: () async =>
+            throw StateError('private platform error'),
+        setLimit: (_) {},
+        onChanged: changes.add,
+        onError: (_, _) {},
+      );
+      await failed.configure();
+      expect(failed.snapshot.reason, ReaderDiagnosticCacheReason.inherited);
+      expect(failed.snapshot.memoryQuery, ReaderDiagnosticMemoryQuery.failed);
+      expect(failed.snapshot.limitBytes, 32 << 20);
+      expect(failed.snapshot.toJson().toString(), isNot(contains('private')));
+      failed.dispose();
+      await tester.pump(const Duration(seconds: 1));
+      expect(changes.last.reason, ReaderDiagnosticCacheReason.exitShrink);
+    },
+  );
+
   test('available memory reserves one sixteenth within 32–192 MiB', () {
     expect(ReaderImageCachePolicy.limitForMemory(256 << 20), 32 << 20);
     expect(ReaderImageCachePolicy.limitForMemory(1 << 30), 64 << 20);

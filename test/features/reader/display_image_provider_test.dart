@@ -379,8 +379,7 @@ void main() {
     expect(next.completer, isNot(same(stream.completer)));
     var frames = 0;
     listen(next, onImage: (_) => frames++);
-    await pumpEventQueue();
-    await _frame();
+    await _frameUntil(() => frames == 1);
     expect(source.loads, 2);
     expect(frames, 1);
     final preparing = owner.prepareForExit();
@@ -519,8 +518,7 @@ void main() {
       expect(cache.statusForKey(source).pending, true);
       expect(nextFrames, 0);
       nextRead.complete(_png);
-      await pumpEventQueue();
-      await _frame();
+      await _frameUntil(() => nextFrames == 1);
       expect(nextFrames, 1);
       expect(cache.statusForKey(source).keepAlive, true);
       expect(source.loads, 2);

@@ -33,6 +33,7 @@ import 'package:venera_next/features/reader/chapter_comments.dart';
 import 'package:venera_next/foundation/res.dart';
 import 'package:venera_next/foundation/selection_operation.dart';
 import 'package:venera_next/foundation/image_work.dart';
+import 'package:venera_next/foundation/image_provider/reader_image.dart';
 import 'package:venera_next/foundation/persistence_failure.dart';
 import 'package:venera_next/features/comic_source/models.dart';
 import 'package:venera_next/features/favorites/favorites_manager.dart';
@@ -46,6 +47,7 @@ import 'package:venera_next/features/reader/platform_effects.dart';
 import 'package:venera_next/features/reader/image_export.dart';
 import 'package:venera_next/features/reader/image_position.dart';
 import 'package:venera_next/features/reader/image_downloads.dart';
+import 'package:venera_next/features/reader/image_cache_policy.dart';
 import 'package:venera_next/features/reader/gallery_view.dart';
 import 'package:venera_next/features/reader/layout_detection.dart';
 import 'package:venera_next/features/reader/reader_page.dart';
@@ -108,6 +110,102 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('window_manager'), null);
   });
+
+  for (final pressure in [false, true]) {
+    testWidgets('cached page turns retain reader controls pressure=$pressure', (
+      tester,
+    ) async {
+      final previousLimit =
+          PaintingBinding.instance.imageCache.maximumSizeBytes;
+      final fixture = await _ReaderFixture.create(tester, imageCount: 12);
+      try {
+        await fixture.mount(tester, pushed: false, withWindow: false);
+        final reader = fixture.readerKey.currentState!;
+        final gallery = reader.imageViewController! as GalleryModeState;
+        if (pressure) {
+          tester.binding.handleMemoryPressure();
+        } else {
+          PaintingBinding.instance.imageCache.maximumSizeBytes = 192 << 20;
+        }
+        for (final key in gallery.data.images) {
+          await tester.runAsync(
+            () => precacheImage(
+              ReaderImageProvider(
+                key,
+                gallery.data.sourceKey,
+                gallery.data.comicId,
+                gallery.data.chapterId,
+                1,
+              ),
+              gallery.context,
+            ),
+          );
+          await tester.pump();
+        }
+        await tester.pumpAndSettle();
+        final rebuilds = <String, int>{};
+        debugOnRebuildDirtyWidget = (element, builtOnce) {
+          final type = element.widget.runtimeType.toString();
+          rebuilds.update(type, (count) => count + 1, ifAbsent: () => 1);
+        };
+        final samples = <int>[];
+        final sync = <int>[];
+        for (final page in [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1,
+        ]) {
+          final watch = Stopwatch()..start();
+          gallery.controller.jumpToPage(page);
+          sync.add(watch.elapsedMicroseconds);
+          await tester.pump(const Duration(milliseconds: 16));
+          samples.add(watch.elapsedMicroseconds);
+        }
+        debugOnRebuildDirtyWidget = null;
+        expect(rebuilds['ReaderBrightnessPanel'] ?? 0, 0);
+        expect(rebuilds['ReaderTopBar'] ?? 0, 0);
+        expect(rebuilds['Slider'], 18);
+        final slider = tester.element(find.byType(ReaderProgressSlider));
+        expect(TickerMode.valuesOf(slider).enabled, isFalse);
+        await tester.pumpAndSettle();
+        expect(tester.binding.transientCallbackCount, 0);
+        print(
+          'READER_RENDER_WORK ${jsonEncode({'cacheLimitBytes': PaintingBinding.instance.imageCache.maximumSizeBytes, 'pageTurns': samples.length, 'syncUs': sync, 'pumpUs': samples, 'widgetBuilds': rebuilds.values.fold<int>(0, (total, n) => total + n), 'hiddenBrightnessBuilds': rebuilds['ReaderBrightnessPanel'] ?? 0, 'headerBuilds': rebuilds['ReaderTopBar'] ?? 0})}',
+        );
+      } finally {
+        debugOnRebuildDirtyWidget = null;
+        await fixture.dispose(tester);
+        // The fixture deliberately skips device sizing. Restore the policy as
+        // well as ImageCache so the pressure case cannot affect later tests.
+        final restore = ReaderImageCachePolicy(
+          maximumBytes: () => previousLimit,
+          readAvailableMemory: () async => previousLimit * 16,
+          setLimit: (bytes) =>
+              PaintingBinding.instance.imageCache.maximumSizeBytes = bytes,
+          onError: (error, _) => fail('$error'),
+        );
+        await restore.configure();
+        restore.dispose();
+        await tester.pump(const Duration(seconds: 1));
+        PaintingBinding.instance.imageCache.maximumSizeBytes = previousLimit;
+      }
+    });
+  }
 
   testWidgets('fixture drains admitted writes before deleting its store', (
     tester,
@@ -2105,6 +2203,13 @@ void main() {
       await _pumpUntil(tester, () => dialog.isCompleted || exportDone);
       expect(dialog.isCompleted, isTrue);
       reader.toPage(2, animated: false);
+      await tester.pump();
+      // Native file IO/decoding needs the real event loop, even when a cached
+      // image made the first page ready. Fake-time pumpAndSettle cannot drain it.
+      await _pumpUntil(
+        tester,
+        () => PaintingBinding.instance.imageCache.pendingImageCount == 0,
+      );
       await tester.pumpAndSettle();
       selected.complete(destination.path);
       await _pumpUntil(tester, () => exportDone);

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:venera_next/foundation/reader_diagnostics.dart';
 
 /// Budget and memory-pressure lifetime for one reader. Late platform replies
 /// and delayed exit work cannot change a newer reader's cache.
@@ -12,6 +13,7 @@ class ReaderImageCachePolicy {
     required this.onError,
     this.onConfigured,
     this.maximumBytes,
+    this.onChanged,
   }) : _session = ++_currentSession {
     _restore?.cancel();
     _restore = null;
@@ -40,50 +42,93 @@ class ReaderImageCachePolicy {
   final void Function(Object, StackTrace) onError;
   final void Function(int availableBytes, int limit)? onConfigured;
   final int? Function()? maximumBytes;
+  final void Function(ReaderDiagnosticCacheBudget)? onChanged;
   final int _session;
   int _generation = 0;
   bool _disposed = false;
   bool _underPressure = false;
   int _limit = defaultLimit;
+  int _pressureEvents = 0;
+  int? _availableBytes, _ceilingBytes;
+  var _reason = ReaderDiagnosticCacheReason.inherited;
+  var _memoryQuery = ReaderDiagnosticMemoryQuery.notQueried;
   bool get _current => !_disposed && _session == _currentSession;
 
-  void _setLimit(int value) {
+  ReaderDiagnosticCacheBudget get snapshot => ReaderDiagnosticCacheBudget(
+    reason: _reason,
+    memoryQuery: _memoryQuery,
+    limitBytes: _limit,
+    underPressure: _underPressure,
+    pressureEvents: _pressureEvents,
+    precacheAllowed: allowActivePrecache,
+    availableBytes: _availableBytes,
+    ceilingBytes: _ceilingBytes,
+  );
+
+  void _setLimit(int value, ReaderDiagnosticCacheReason reason) {
     _limit = value;
+    _reason = reason;
     _activeBudget = value;
     setLimit(value);
     _updatePrecachePermission();
+    onChanged?.call(snapshot);
   }
 
   Future<void> configure() async {
     if (!_current) return;
     final generation = ++_generation;
+    _memoryQuery = ReaderDiagnosticMemoryQuery.pending;
+    _availableBytes = null;
     try {
       final ceiling = maximumBytes?.call();
+      _ceilingBytes = ceiling;
       if (ceiling != null) {
-        _setLimit(_underPressure ? math.min(ceiling, 32 << 20) : ceiling);
+        _setLimit(
+          _underPressure ? math.min(ceiling, 32 << 20) : ceiling,
+          _underPressure
+              ? ReaderDiagnosticCacheReason.memoryPressure
+              : ReaderDiagnosticCacheReason.platformCeiling,
+        );
+      } else {
+        onChanged?.call(snapshot);
       }
       final memory = await readAvailableMemory();
-      if (!_current ||
-          generation != _generation ||
-          _underPressure ||
-          memory == null ||
-          memory <= 0) {
+      if (!_current || generation != _generation) return;
+      _availableBytes = memory != null && memory > 0 ? memory : null;
+      _memoryQuery = _availableBytes == null
+          ? ReaderDiagnosticMemoryQuery.unavailable
+          : ReaderDiagnosticMemoryQuery.available;
+      if (_underPressure || _availableBytes == null) {
+        onChanged?.call(snapshot);
         return;
       }
-      final detected = limitForMemory(memory);
+      final detected = limitForMemory(_availableBytes!);
       final limit = ceiling == null ? detected : math.min(ceiling, detected);
-      _setLimit(limit);
-      onConfigured?.call(memory, limit);
+      _setLimit(
+        limit,
+        ceiling != null && ceiling <= detected
+            ? ReaderDiagnosticCacheReason.platformCeiling
+            : ReaderDiagnosticCacheReason.availableMemory,
+      );
+      onConfigured?.call(_availableBytes!, limit);
     } catch (error, stack) {
-      if (_current && generation == _generation) onError(error, stack);
+      if (_current && generation == _generation) {
+        _memoryQuery = ReaderDiagnosticMemoryQuery.failed;
+        onChanged?.call(snapshot);
+        onError(error, stack);
+      }
     }
   }
 
   void handleMemoryPressure() {
     if (!_current) return;
     _underPressure = true;
+    _pressureEvents++;
     _activeUnderPressure = true;
-    _setLimit(math.min(_limit, 32 << 20));
+    _setLimit(
+      math.min(_limit, 32 << 20),
+      ReaderDiagnosticCacheReason.memoryPressure,
+    );
   }
 
   void dispose() {
@@ -97,7 +142,10 @@ class ReaderImageCachePolicy {
     _restore = Timer(const Duration(seconds: 1), () {
       _restore = null;
       if (_session != _currentSession) return;
-      _setLimit(math.min(_limit, defaultLimit));
+      _setLimit(
+        math.min(_limit, defaultLimit),
+        ReaderDiagnosticCacheReason.exitShrink,
+      );
     });
   }
 }

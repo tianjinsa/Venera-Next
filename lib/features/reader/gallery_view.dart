@@ -393,67 +393,94 @@ class GalleryModeState extends State<ReaderGalleryView>
       },
       child: PhotoViewGestureDetectorScope(
         axis: data.vertical ? Axis.vertical : Axis.horizontal,
-        child: PageView.builder(
-          reverse: data.reverse,
-          scrollDirection: data.vertical ? Axis.vertical : Axis.horizontal,
-          itemCount: totalPages + 2,
-          controller: controller,
-          itemBuilder: (context, index) => _buildPhotoPage(context, index),
-          onPageChanged: (i) {
-            if (_disposed ||
-                !mounted ||
-                !identical(data.content, originalContent) ||
-                !identical(navigation, originalNavigation)) {
-              return;
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            // Ignore nested comments/zoom scrolling. Deduplication and all
+            // clocks are inside opt-in diagnostics; no per-pixel state update.
+            final diagnostics = widget.imageWork.diagnostics;
+            if (diagnostics == null ||
+                !diagnostics.isRecording ||
+                notification.depth != 0 ||
+                notification.metrics is! PageMetrics) {
+              return false;
             }
-            var shouldRefreshEInk = false;
-            if (i == 0) {
-              if (data.firstChapter ||
-                  !navigation.toChapter(
-                    navigation.state.chapter - 1,
-                    toLastPage: true,
-                  )) {
-                controller.jumpToPage(1);
-              } else {
-                shouldRefreshEInk = true;
+            final phase = switch (notification) {
+              ScrollEndNotification() => ReaderDiagnosticScrollPhase.idle,
+              ScrollStartNotification(:final dragDetails) =>
+                dragDetails == null
+                    ? ReaderDiagnosticScrollPhase.settle
+                    : ReaderDiagnosticScrollPhase.drag,
+              ScrollUpdateNotification(:final dragDetails) =>
+                dragDetails == null
+                    ? ReaderDiagnosticScrollPhase.settle
+                    : ReaderDiagnosticScrollPhase.drag,
+              _ => null,
+            };
+            if (phase != null) diagnostics.recordScrollPhase(phase);
+            return false;
+          },
+          child: PageView.builder(
+            reverse: data.reverse,
+            scrollDirection: data.vertical ? Axis.vertical : Axis.horizontal,
+            itemCount: totalPages + 2,
+            controller: controller,
+            itemBuilder: (context, index) => _buildPhotoPage(context, index),
+            onPageChanged: (i) {
+              if (_disposed ||
+                  !mounted ||
+                  !identical(data.content, originalContent) ||
+                  !identical(navigation, originalNavigation)) {
+                return;
               }
-            } else if (i == totalPages + 1) {
-              if (data.lastChapter ||
-                  !navigation.toChapter(navigation.state.chapter + 1)) {
-                controller.jumpToPage(totalPages);
+              var shouldRefreshEInk = false;
+              if (i == 0) {
+                if (data.firstChapter ||
+                    !navigation.toChapter(
+                      navigation.state.chapter - 1,
+                      toLastPage: true,
+                    )) {
+                  controller.jumpToPage(1);
+                } else {
+                  shouldRefreshEInk = true;
+                }
+              } else if (i == totalPages + 1) {
+                if (data.lastChapter ||
+                    !navigation.toChapter(navigation.state.chapter + 1)) {
+                  controller.jumpToPage(totalPages);
+                } else {
+                  shouldRefreshEInk = true;
+                }
               } else {
-                shouldRefreshEInk = true;
-              }
-            } else {
-              final previousPage = page;
-              final previousActivePage = _activePage.value;
-              navigation.reportPage(i);
-              // Navigation ignores intermediate pages of a longer command.
-              // Do not replace that command's early prefetch with this page.
-              if (_disposed || !mounted || page != i) return;
-              _activePage.value = page;
-              cache(page);
-              if (page != previousActivePage) {
-                widget.imageWork.diagnostics?.recordPageTurn(
-                  phase: ReaderDiagnosticPagePhase.selected,
-                  direction: (page - previousActivePage).sign,
-                  distance: (page - previousActivePage).abs(),
+                final previousPage = page;
+                final previousActivePage = _activePage.value;
+                navigation.reportPage(i);
+                // Navigation ignores intermediate pages of a longer command.
+                // Do not replace that command's early prefetch with this page.
+                if (_disposed || !mounted || page != i) return;
+                _activePage.value = page;
+                cache(page);
+                if (page != previousActivePage) {
+                  widget.imageWork.diagnostics?.recordPageTurn(
+                    phase: ReaderDiagnosticPagePhase.selected,
+                    direction: (page - previousActivePage).sign,
+                    distance: (page - previousActivePage).abs(),
+                  );
+                }
+                shouldRefreshEInk =
+                    page != previousPage && !isChapterCommentsPage(i);
+                widget.onPageReported(
+                  isChapterCommentsPage(i),
+                  shouldRefreshEInk,
                 );
               }
-              shouldRefreshEInk =
-                  page != previousPage && !isChapterCommentsPage(i);
-              widget.onPageReported(
-                isChapterCommentsPage(i),
-                shouldRefreshEInk,
-              );
-            }
-            if (shouldRefreshEInk && (i == 0 || i == totalPages + 1)) {
-              widget.onChapterChanged();
-            }
-            // Neighbours reset their zoom in place without discarding images.
-            _longPressController = null;
-            isLongPressing = false;
-          },
+              if (shouldRefreshEInk && (i == 0 || i == totalPages + 1)) {
+                widget.onChapterChanged();
+              }
+              // Neighbours reset their zoom in place without discarding images.
+              _longPressController = null;
+              isLongPressing = false;
+            },
+          ),
         ),
       ),
     );

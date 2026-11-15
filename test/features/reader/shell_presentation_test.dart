@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/features/reader/auto_reading.dart';
 import 'package:venera_next/features/reader/brightness.dart';
 import 'package:venera_next/features/reader/platform_effects_controller.dart';
@@ -55,6 +56,7 @@ void main() {
       var active = false;
       var reducedMotion = true;
       var chapter = 2;
+      var brightness = scenario.brightness;
       var comments = false;
       var identity = Object();
       ReaderShellData data() => ReaderShellData(
@@ -83,7 +85,7 @@ void main() {
       Future<void> mount() => tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(
-            brightness: scenario.brightness,
+            brightness: brightness,
             fontFamily: Platform.environment['SHELL_INPUTS_QA_FONT'] == null
                 ? null
                 : 'ShellQA',
@@ -297,6 +299,23 @@ void main() {
       expect(
         tester.widget<ReaderBottomBar>(find.byType(ReaderBottomBar)).label,
         'E3 : P12',
+      );
+      final header = tester.widget<ReaderTopBar>(find.byType(ReaderTopBar));
+      final panel = tester.widget<SettingsSaveScope>(
+        find.byType(SettingsSaveScope),
+      );
+      brightness = brightness == Brightness.dark
+          ? Brightness.light
+          : Brightness.dark;
+      await mount();
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<ReaderTopBar>(find.byType(ReaderTopBar)),
+        isNot(same(header)),
+      );
+      expect(
+        tester.widget<SettingsSaveScope>(find.byType(SettingsSaveScope)),
+        isNot(same(panel)),
       );
       await tester.pumpWidget(const SizedBox());
       await work.dispose();

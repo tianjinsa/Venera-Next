@@ -118,6 +118,18 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
 
   bool _brightnessPanelOpen = false;
 
+  Widget? _topBar, _brightnessPanel;
+  Object? _topBarInputs, _bottomActionInputs;
+  List<Widget>? _bottomActions;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Theme, locale and accessibility changes still rebuild the controls.
+    _topBar = _brightnessPanel = null;
+    _bottomActionInputs = null;
+  }
+
   final EInkRefreshController _eInkRefreshController = EInkRefreshController();
 
   static const kTopBarHeight = 56.0;
@@ -196,6 +208,9 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     _sidebarBinding.close();
     _brightnessPreview.dispose();
     _brightnessPreview = ReaderBrightnessPreview();
+    _brightnessPanel = null;
+    _topBar = null;
+    _bottomActionInputs = null;
   }
 
   void _applySystemUiMode() {
@@ -307,18 +322,19 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
                   _brightnessPreview,
                   widget.brightnessChanges,
                 ]),
-                builder: (context, _) => ReaderBrightnessOverlay(
-                  enabled:
-                      _brightnessPreview.enabled ??
-                      _brightnessSettings.read(
-                        ReaderPreferences.readerBrightnessEnabled,
-                      ),
-                  brightness:
-                      _brightnessPreview.brightness ??
-                      _brightnessSettings.read(
-                        ReaderPreferences.readerBrightness,
-                      ),
-                ),
+                builder: (context, _) {
+                  final settings = _brightnessSettings;
+                  return ReaderBrightnessOverlay(
+                    enabled:
+                        _brightnessPreview.enabled ??
+                        settings.read(
+                          ReaderPreferences.readerBrightnessEnabled,
+                        ),
+                    brightness:
+                        _brightnessPreview.brightness ??
+                        settings.read(ReaderPreferences.readerBrightness),
+                  );
+                },
               ),
             ),
           if (!isOnChapterCommentsPage) _buildInformation(),
@@ -398,64 +414,80 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   }
 
   Widget _menuRegion({required bool visible, required Widget child}) =>
-      ExcludeFocus(
-        excluding: !visible,
-        child: ExcludeSemantics(
+      TickerMode(
+        enabled: visible,
+        child: ExcludeFocus(
           excluding: !visible,
-          child: IgnorePointer(ignoring: !visible, child: child),
+          child: ExcludeSemantics(
+            excluding: !visible,
+            child: IgnorePointer(ignoring: !visible, child: child),
+          ),
         ),
       );
 
-  Widget buildTop() => ReaderTopBar(
-    title: widget.data.title,
-    chapterTitle: widget.data.chapterTitle,
-    onBack: () => unawaited(widget.onExit()),
-    actions: [
-      if (widget.onDiagnostics != null && widget.imageWork.diagnostics != null)
-        ListenableBuilder(
-          listenable: widget.imageWork.diagnostics!,
-          builder: (context, _) => Tooltip(
-            message: widget.imageWork.diagnostics!.isRecording
-                ? 'Stop and review'.tl
-                : 'Reading diagnostics'.tl,
-            child: IconButton(
-              icon: Icon(
-                widget.imageWork.diagnostics!.isRecording
-                    ? Icons.stop_circle_outlined
-                    : Icons.speed,
+  Widget buildTop() {
+    final showComments = shouldShowChapterComments();
+    final inputs = (
+      widget.data.title,
+      widget.data.chapterTitle,
+      showComments,
+      widget.imageWork,
+      widget.onDiagnostics != null,
+    );
+    if (_topBar != null && _topBarInputs == inputs) return _topBar!;
+    _topBarInputs = inputs;
+    return _topBar = ReaderTopBar(
+      title: widget.data.title,
+      chapterTitle: widget.data.chapterTitle,
+      onBack: () => unawaited(widget.onExit()),
+      actions: [
+        if (widget.onDiagnostics != null &&
+            widget.imageWork.diagnostics != null)
+          ListenableBuilder(
+            listenable: widget.imageWork.diagnostics!,
+            builder: (context, _) => Tooltip(
+              message: widget.imageWork.diagnostics!.isRecording
+                  ? 'Stop and review'.tl
+                  : 'Reading diagnostics'.tl,
+              child: IconButton(
+                icon: Icon(
+                  widget.imageWork.diagnostics!.isRecording
+                      ? Icons.stop_circle_outlined
+                      : Icons.speed,
+                ),
+                onPressed: () {
+                  if (_isOpen) openOrClose();
+                  widget.onDiagnostics!();
+                },
               ),
-              onPressed: () {
-                if (_isOpen) openOrClose();
-                widget.onDiagnostics!();
-              },
             ),
           ),
-        ),
-      if (shouldShowChapterComments())
+        if (showComments)
+          Tooltip(
+            message: "Chapter Comments".tl,
+            child: IconButton(
+              icon: const Icon(Icons.comment),
+              onPressed: openChapterComments,
+            ),
+          ),
         Tooltip(
-          message: "Chapter Comments".tl,
+          message: 'Lock reader menu'.tl,
           child: IconButton(
-            icon: const Icon(Icons.comment),
-            onPressed: openChapterComments,
+            key: const ValueKey('reader-menu-lock'),
+            icon: const Icon(Icons.lock_outline),
+            onPressed: lockMenu,
           ),
         ),
-      Tooltip(
-        message: 'Lock reader menu'.tl,
-        child: IconButton(
-          key: const ValueKey('reader-menu-lock'),
-          icon: const Icon(Icons.lock_outline),
-          onPressed: lockMenu,
+        Tooltip(
+          message: "Settings".tl,
+          child: IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: openSetting,
+          ),
         ),
-      ),
-      Tooltip(
-        message: "Settings".tl,
-        child: IconButton(
-          icon: const Icon(Icons.settings),
-          onPressed: openSetting,
-        ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 
   late var _favorites = _createFavorites();
 
@@ -527,44 +559,63 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
       });
     }
 
-    final buttons = buildReaderBottomActions(
-      context,
-      imageFavoriteStatus: _favorites.status,
-      imageCollecting: _favorites.collecting,
-      onCollect: _favorites.canCollect ? addImageFavorite : null,
-      onRetryImageStatus: _favorites.retry,
-      onFullscreen: widget.onFullscreen,
-      orientation: widget.orientation,
-      onRotate: widget.onRotate,
-      brightnessEnabled:
-          _brightnessPreview.enabled ??
-          _brightnessSettings.read(ReaderPreferences.readerBrightnessEnabled),
-      onBrightness: () =>
-          setState(() => _brightnessPanelOpen = !_brightnessPanelOpen),
-      automaticReading: ReaderAutomaticReadingAction(
-        tooltip: switch (widget.data.automaticReading) {
-          AutoReadingStatus.waiting =>
-            'Automatic reading is waiting for content'.tl,
-          AutoReadingStatus.paused => 'Automatic reading is paused'.tl,
-          _ => 'Start or stop automatic reading'.tl,
-        },
-        active: widget.data.automaticReadingActive,
-        playing: widget.data.automaticReadingActive,
-        onPressed: () {
-          if (!mounted || !identical(widget.imageWork, work)) return;
-          final active = toggleAutomaticReading();
-          if (mounted && active && isOpen) openOrClose();
-          update();
-        },
-      ),
-      onChapters: widget.data.hasChapters ? openChapterDrawer : null,
-      onSave: saveCurrentImage,
-      onShare: share,
+    final brightnessEnabled =
+        _brightnessPreview.enabled ??
+        _brightnessSettings.read(ReaderPreferences.readerBrightnessEnabled);
+    final actionInputs = (
+      widget.imageWork,
+      Theme.of(context).colorScheme,
+      Localizations.localeOf(context),
+      _favorites.status,
+      _favorites.collecting,
+      _favorites.canCollect,
+      widget.onFullscreen,
+      widget.onRotate,
+      widget.orientation,
+      brightnessEnabled,
+      widget.data.automaticReading,
+      widget.data.hasChapters,
+      widget.onToggleAutomaticReading,
     );
+    if (_bottomActions == null || _bottomActionInputs != actionInputs) {
+      _bottomActionInputs = actionInputs;
+      _bottomActions = buildReaderBottomActions(
+        context,
+        imageFavoriteStatus: _favorites.status,
+        imageCollecting: _favorites.collecting,
+        onCollect: _favorites.canCollect ? addImageFavorite : null,
+        onRetryImageStatus: _favorites.retry,
+        onFullscreen: widget.onFullscreen,
+        orientation: widget.orientation,
+        onRotate: widget.onRotate,
+        brightnessEnabled: brightnessEnabled,
+        onBrightness: () =>
+            setState(() => _brightnessPanelOpen = !_brightnessPanelOpen),
+        automaticReading: ReaderAutomaticReadingAction(
+          tooltip: switch (widget.data.automaticReading) {
+            AutoReadingStatus.waiting =>
+              'Automatic reading is waiting for content'.tl,
+            AutoReadingStatus.paused => 'Automatic reading is paused'.tl,
+            _ => 'Start or stop automatic reading'.tl,
+          },
+          active: widget.data.automaticReadingActive,
+          playing: widget.data.automaticReadingActive,
+          onPressed: () {
+            if (!mounted || !identical(widget.imageWork, work)) return;
+            final active = toggleAutomaticReading();
+            if (mounted && active && isOpen) openOrClose();
+            update();
+          },
+        ),
+        onChapters: widget.data.hasChapters ? openChapterDrawer : null,
+        onSave: saveCurrentImage,
+        onShare: share,
+      );
+    }
 
     return ReaderBottomBar(
       label: text,
-      actions: buttons,
+      actions: _bottomActions!,
       page: progress.page,
       maxPage: progress.maxPage,
       reversed: progress.reversed,
@@ -578,7 +629,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     );
   }
 
-  Widget buildBrightnessPanel() => SettingsSaveScope(
+  Widget buildBrightnessPanel() => _brightnessPanel ??= SettingsSaveScope(
     work: widget.imageWork,
     child: ReaderBrightnessSetting(
       comicId: widget.data.comicId,

@@ -20,6 +20,12 @@ English version: [dependencies.en.md](dependencies.en.md)
 - 升级依赖时检查上游变更、安全公告、许可证、平台构建和相关测试。
 - 发布到 pub.dev 不能替代安全维护；发布前仍需完成差异审计和上游同步计划。
 
+## 阅读器设备性能测试（2026-11-15）
+
+新增官方 Flutter SDK 的 **`integration_test` 0.0.0（sdk: flutter）** 开发依赖，源码／版本由项目固定的 **Flutter 3.41.4** SDK 一起固定，BSD-3-Clause，维护方为 Flutter 团队。用途是运行 [Prime 对照设备脚本](../experiments/reader_paging_prime_178.zh.md)，采集真实 Reader 手势、FrameTiming、RSS 和压力响应；不是生产图片加载依赖。官方 SDK 正在维护该测试入口，未引入个人 fork。
+
+新增传递依赖为 SDK 的 `flutter_driver`／`fuchsia_remote_debug_protocol`，以及锁定的 pub.dev 官方 `process 5.0.5`、`sync_http 0.3.1`、`webdriver 3.1.0`（BSD-3-Clause，来源和归档 SHA-256 见锁文件）。现有依赖版本／来源不变。替代是普通 Widget 测试（能验证构建与生命周期，不能执行手机上的实际交互）或自行维护 VM 驱动；采用 Flutter 自带工具减少定制。回滚时同时移除设备脚本、driver、dev 声明及这六项锁记录，普通阅读器回归不依赖此设备脚本。
+
 ## 当前 Git 依赖
 
 2026-09-28：五个依赖曾改用 `CyrilPeng` 下的现有 fork，固定 commit 不变。2026-10-05 起，PhotoView 改为本地包；2026-11-06，滚动列表、WebDAV 和桌面 WebView 也曾收纳为本地包，PNG／7z 和 SAF 包装层由自编模块替代。2026-11-07，滚动列表回归官方 pub.dev 0.3.8，InAppWebView 六包改为同一官方完整 commit，Windows 单包保留实例所有权补丁。当前为 2 个独立 Git 来源、7 个 Git 包、8 个本地包；个人 Git 来源只剩必要的 QuickJS。回滚时同步恢复声明、锁文件和对应清单记录。

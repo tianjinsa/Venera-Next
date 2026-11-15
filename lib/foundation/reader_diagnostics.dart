@@ -24,6 +24,55 @@ enum ReaderDiagnosticStage {
 
 enum ReaderDiagnosticPagePhase { requested, selected }
 
+enum ReaderDiagnosticScrollPhase { drag, settle, idle }
+
+enum ReaderDiagnosticCacheReason {
+  inherited,
+  availableMemory,
+  platformCeiling,
+  memoryPressure,
+  exitShrink,
+}
+
+enum ReaderDiagnosticMemoryQuery {
+  notQueried,
+  pending,
+  available,
+  unavailable,
+  failed,
+}
+
+/// Numeric policy evidence only; no platform error messages or device identity.
+class ReaderDiagnosticCacheBudget {
+  const ReaderDiagnosticCacheBudget({
+    required this.reason,
+    required this.memoryQuery,
+    required this.limitBytes,
+    required this.underPressure,
+    required this.pressureEvents,
+    required this.precacheAllowed,
+    this.availableBytes,
+    this.ceilingBytes,
+  });
+
+  final ReaderDiagnosticCacheReason reason;
+  final ReaderDiagnosticMemoryQuery memoryQuery;
+  final int limitBytes, pressureEvents;
+  final int? availableBytes, ceilingBytes;
+  final bool underPressure, precacheAllowed;
+
+  Map<String, Object> toJson() => {
+    'reason': reason.name,
+    'memoryQuery': memoryQuery.name,
+    'limitBytes': limitBytes,
+    'underPressure': underPressure,
+    'pressureEvents': pressureEvents,
+    'precacheAllowed': precacheAllowed,
+    'availableBytes': ?availableBytes,
+    'ceilingBytes': ?ceilingBytes,
+  };
+}
+
 enum ReaderDiagnosticStop { timeout, review, background, interrupted, disposed }
 
 /// An opt-in, in-memory capture. Its input API accepts no private text.
@@ -49,20 +98,26 @@ class ReaderDiagnostics extends ChangeNotifier {
 
   static const captureDuration = Duration(seconds: 45);
   static const maxReportCharacters = 60000;
+  static const maxScrollPhases = 96;
   final int maxEvents, maxFrames, maxImages;
   final int Function() _nowMicros;
   final void Function(TimingsCallback) _attachTimings, _detachTimings;
   final _events = ListQueue<Map<String, Object>>();
   final _frames = ListQueue<List<int>>();
+  final _scrollPhases = ListQueue<(int, ReaderDiagnosticScrollPhase)>();
   final _imageIds = <int, int>{};
   Timer? _timer;
   int _generation = 0, _startedAt = 0, _duration = 0;
   int _droppedEvents = 0, _droppedFrames = 0, _ignoredImages = 0;
+  int _droppedScrollPhases = 0;
+  ReaderDiagnosticScrollPhase? _lastScrollPhase;
   int _inFlight = 0, _inFlightAtStop = 0;
   bool _recording = false, _hasCapture = false, _disposed = false;
   double _frameBudgetUs = 1000000 / 60;
   Map<String, Object> _configuration = {};
   Map<String, int> _cacheBefore = {}, _cacheAfter = {};
+  ReaderDiagnosticCacheBudget? _cacheBudget;
+  Map<String, Object>? _cacheBudgetBefore, _cacheBudgetAfter;
   ReaderDiagnosticStop? _stopReason;
   late final TimingsCallback _onFrames = _recordFrames;
 
@@ -134,6 +189,7 @@ class ReaderDiagnostics extends ChangeNotifier {
       'displayRefreshHz': hz,
     };
     _cacheBefore = _cacheSnapshot();
+    _cacheBudgetBefore = _cacheBudget?.toJson();
     _startedAt = _nowMicros();
     _recording = _hasCapture = true;
     _attachTimings(_onFrames);
@@ -149,6 +205,7 @@ class ReaderDiagnostics extends ChangeNotifier {
     _timer = null;
     _detachTimings(_onFrames);
     _cacheAfter = _cacheSnapshot();
+    _cacheBudgetAfter = _cacheBudget?.toJson();
     _inFlightAtStop = _inFlight;
     _imageIds.clear();
     _stopReason = reason;
@@ -161,6 +218,9 @@ class ReaderDiagnostics extends ChangeNotifier {
     _hasCapture = false;
     _events.clear();
     _frames.clear();
+    _scrollPhases.clear();
+    _lastScrollPhase = null;
+    _droppedScrollPhases = 0;
     _imageIds.clear();
     _droppedEvents = _droppedFrames = _ignoredImages = _inFlight =
         _inFlightAtStop = 0;
@@ -169,6 +229,7 @@ class ReaderDiagnostics extends ChangeNotifier {
     _configuration = {};
     _cacheBefore = {};
     _cacheAfter = {};
+    _cacheBudgetBefore = _cacheBudgetAfter = null;
     if (notify) _notifyChanged();
   }
 
@@ -244,6 +305,25 @@ class ReaderDiagnostics extends ChangeNotifier {
     });
   }
 
+  // Keep the latest decision even outside capture: pressure commonly arrives
+  // before the user opens diagnostics. Only capture-relative changes are events.
+  void recordCacheBudget(ReaderDiagnosticCacheBudget budget) {
+    if (_disposed) return;
+    _cacheBudget = budget;
+    if (!_acceptSample()) return;
+    _append({'atUs': _elapsed, 'stage': 'cacheBudget', ...budget.toJson()});
+  }
+
+  void recordScrollPhase(ReaderDiagnosticScrollPhase phase) {
+    if (phase == _lastScrollPhase || !_acceptSample()) return;
+    _lastScrollPhase = phase;
+    if (_scrollPhases.length == maxScrollPhases) {
+      _scrollPhases.removeFirst();
+      _droppedScrollPhases++;
+    }
+    _scrollPhases.add((_elapsed, phase));
+  }
+
   void _append(Map<String, Object> event) {
     if (_events.length == maxEvents) {
       _events.removeFirst();
@@ -292,6 +372,72 @@ class ReaderDiagnostics extends ChangeNotifier {
     };
   }
 
+  Map<String, Object> _scrollSummary() {
+    final phases = _scrollPhases.toList();
+    final frames = _frames.toList()..sort((a, b) => a[4].compareTo(b[4]));
+    final until = _recording ? _elapsed : _duration;
+    final largestGaps = <Map<String, Object>>[];
+    final summaries = <String, Object>{};
+    for (final phase in [
+      ReaderDiagnosticScrollPhase.drag,
+      ReaderDiagnosticScrollPhase.settle,
+    ]) {
+      final ui = <int>[], raster = <int>[], gaps = <int>[];
+      var overUI = 0, overRaster = 0, maxRun = 0;
+      for (var i = 0; i < phases.length; i++) {
+        final (from, current) = phases[i];
+        if (current != phase) continue;
+        final to = i + 1 < phases.length ? phases[i + 1].$1 : until;
+        int? previous;
+        var run = 0;
+        for (final frame in frames) {
+          final at = frame[4];
+          if (at < from || at >= to) continue;
+          ui.add(frame[1]);
+          raster.add(frame[2]);
+          final slowUI = frame[1] > _frameBudgetUs;
+          final slowRaster = frame[2] > _frameBudgetUs;
+          if (slowUI) overUI++;
+          if (slowRaster) overRaster++;
+          run = slowUI || slowRaster ? run + 1 : 0;
+          maxRun = math.max(run, maxRun);
+          if (previous != null && at > previous) {
+            final gap = at - previous;
+            gaps.add(gap);
+            largestGaps.add({
+              'phase': phase.name,
+              'fromVsyncAtUs': previous,
+              'toVsyncAtUs': at,
+              'gapUs': gap,
+            });
+          }
+          previous = at;
+        }
+      }
+      summaries[phase.name] = {
+        'ui': _summary(ui),
+        'raster': _summary(raster),
+        'uiOverBudget': overUI,
+        'rasterOverBudget': overRaster,
+        'maxConsecutiveOverBudgetSamples': maxRun,
+        'vsyncInterval': _summary(gaps),
+      };
+    }
+    largestGaps.sort(
+      (a, b) => (b['gapUs'] as int).compareTo(a['gapUs'] as int),
+    );
+    return {
+      'measurement':
+          'Produced-frame vsync intervals within each scroll notification phase. Drag/settle boundaries are notification times, not exact input or presentation times. Idle gaps and gaps across phase boundaries are excluded only from this auxiliary summary. Global frame statistics retain all samples. Not presented FPS or input-to-display latency.',
+      'droppedPhases': _droppedScrollPhases,
+      'phases': [
+        for (final (at, phase) in phases) {'atUs': at, 'phase': phase.name},
+      ],
+      ...summaries,
+      'largestVsyncGaps': largestGaps.take(12).toList(),
+    };
+  }
+
   String exportJson() {
     final slow =
         _frames
@@ -317,6 +463,7 @@ class ReaderDiagnostics extends ChangeNotifier {
         'events': maxEvents,
         'frames': maxFrames,
         'images': maxImages,
+        'scrollPhases': maxScrollPhases,
         'reportCharacters': maxReportCharacters,
       },
       'droppedEvents': _droppedEvents,
@@ -327,12 +474,23 @@ class ReaderDiagnostics extends ChangeNotifier {
       'inFlightStagesAtStop': _inFlightAtStop,
       'globalImageCacheBefore': _cacheBefore,
       'globalImageCacheAfter': _cacheAfter,
+      'readerCacheBudgetAtStart': _cacheBudgetBefore,
+      'readerCacheBudgetLatest': _recording
+          ? _cacheBudget?.toJson()
+          : _cacheBudgetAfter,
+      'scrollFrameSamples': _scrollSummary(),
       'retainedFrameSamples': {
         'ui': _summary(_frames.map((frame) => frame[1])),
         'raster': _summary(_frames.map((frame) => frame[2])),
         'totalSpan': _summary(_frames.map((frame) => frame[3])),
         'frameBudgetUs': _frameBudgetUs.round(),
         'overBudget': slow.length,
+        'uiOverBudget': _frames
+            .where((frame) => frame[1] > _frameBudgetUs)
+            .length,
+        'rasterOverBudget': _frames
+            .where((frame) => frame[2] > _frameBudgetUs)
+            .length,
         'slowest': slow.take(40).toList(),
         'slowestColumns': [
           'receivedAtUs',

@@ -15,6 +15,7 @@ import 'package:venera_next/features/reader/reader_viewport.dart';
 import 'package:venera_next/foundation/image_provider/base_image_provider.dart';
 import 'package:venera_next/foundation/image_provider/reader_image.dart';
 import 'package:venera_next/foundation/image_work.dart';
+import 'package:venera_next/foundation/reader_diagnostics.dart';
 
 final _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
@@ -77,6 +78,53 @@ class _Binding extends AutomatedTestWidgetsFlutterBinding {
 
 void main() {
   final cache = _Binding().imageCache as _Cache;
+
+  testWidgets(
+    'gallery traces drag, settling and idle without consuming scroll',
+    (tester) async {
+      final diagnostics = ReaderDiagnostics(
+        attachTimings: (_) {},
+        detachTimings: (_) {},
+      );
+      final fixture = _Fixture(cache, 'ltr', diagnostics: diagnostics);
+      try {
+        await fixture.mount(tester);
+        fixture.completeAll();
+        await fixture.flush(tester, () => cache.pendingImageCount == 0);
+        diagnostics.start(
+          mode: ReaderDiagnosticMode.paged,
+          processingEnabled: false,
+          appVersion: '1.18.4-rc.1+250',
+          refreshRate: 120,
+        );
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byType(PageView)),
+        );
+        // Match real input's small first movement so PageView wins the arena
+        // before PhotoView can interpret a large first event as an image pan.
+        await gesture.moveBy(const Offset(-20, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+        await gesture.moveBy(const Offset(-220, 0));
+        await tester.pump(const Duration(milliseconds: 200));
+        await gesture.moveBy(Offset.zero);
+        await tester.pump(const Duration(milliseconds: 200));
+        await gesture.up();
+        await fixture.flush(tester, () => cache.pendingImageCount == 0);
+        await tester.pumpAndSettle();
+        expect(fixture.navigation.state.page, 2);
+        diagnostics.stop(ReaderDiagnosticStop.review);
+        final data =
+            jsonDecode(diagnostics.exportJson()) as Map<String, dynamic>;
+        expect(
+          (data['scrollFrameSamples']['phases'] as List).map((e) => e['phase']),
+          ['drag', 'settle', 'idle'],
+        );
+      } finally {
+        await fixture.dispose(tester);
+        diagnostics.dispose();
+      }
+    },
+  );
 
   for (final direction in ['ltr', 'rtl', 'vertical']) {
     testWidgets('starts the next window before the $direction page midpoint', (
@@ -388,11 +436,12 @@ class _Fixture {
     this.direction, {
     this.imagesPerPage = 1,
     this.initialPage = 1,
-  });
+    ReaderDiagnostics? diagnostics,
+  }) : work = ImageWork(diagnostics: diagnostics);
   final _Cache cache;
   final String direction;
   final int imagesPerPage, initialPage;
-  final work = ImageWork();
+  final ImageWork work;
   final binding = ReaderViewportBinding();
   final key = GlobalKey<GalleryModeState>();
   final size = const Size(300, 450);
