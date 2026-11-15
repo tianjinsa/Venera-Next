@@ -76,7 +76,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | R09 | 关键词管理独立扫描本地收藏以检查误伤；扫描只读，不隐藏/删除收藏；原页面查询结束后再打开结果，窗口及 generation 门禁有效 | `lib/features/settings/keyword_blocking.dart`、`lib/features/comic_widgets/keyword_hidden_notice.dart`；`test/features/settings/keyword_rules_widget_test.dart` |
 | R10 | 线条增强、夜览和调光位于阅读设置前部，并在「调节画面」快捷菜单共同提供；共享组件遵守全局/设备/单漫画作用域；亮度预览只刷新遮罩，结束后由真实宿主显式提供当前作用域的已提交值，独立外壳遵循传入快照；面板已卸载的晚到保存同样更新遮罩，不等待翻页；保存状态不反复改变菜单高度 | `lib/features/settings/reader_appearance.dart`、`lib/features/settings/reader_brightness.dart`、`lib/features/reader/scaffold.dart`、`shell_host.dart`、`settings_effects.dart`；`test/features/settings/reader_settings_persistence_test.dart`、`test/features/reader/brightness_test.dart`、`settings_effects_test.dart`、`shell_presentation_test.dart`、`reader_exit_integration_test.dart` 的快捷/侧栏三种作用域及面板卸载回归 |
 | R11 | 开关/选择器保存期间保留原 Element 和占位宽度；只按相关字段订阅，作用域变化才重建设置表单；持久化失败/重试、窗口退出等待仍有效 | `lib/features/settings/setting_components.dart`、`lib/features/settings/setting_field.dart`；`test/features/settings/setting_persistence_test.dart` 的原 Element/文字矩形断言、`reader_settings_persistence_test.dart`、`test/components/settings_save_host_test.dart` |
-| R12 | 瀑布流同章节同页滚动不反复通知外壳；图片分块进度按 100 毫秒合并，连续图像使用双线性采样；异步解码改变前方尺寸时在布局内补偿可见锚点，不产生中间跳帧或取消拖动；前章晚到先等待滚动停止，再保留最新可见页及局部偏移，换章/退出取消等待；画廊预取按内容/布局/页码去重并在命令／拖动初期交接，保留 PhotoView、缩放及已有图像生命周期；分页避免整套设置重复解析和隐藏控件重建／动画；连续命令避免重复重启动画，保留空闲动画、合法输入与视觉页刷新，保持实时设置与菜单功能 | `lib/features/reader/continuous_view.dart`、`gallery_view.dart`、`reader_page.dart`、`scaffold.dart`；`test/features/reader/continuous_owner_test.dart`、`waterfall_loading_stability_test.dart`、`comic_image_progress_test.dart`、`waterfall_controller_test.dart`、`gallery_page_continuity_test.dart`、`gallery_rotation_test.dart`、`reader_exit_integration_test.dart`、`page_layout_settings_test.dart`、`shell_presentation_test.dart`；滚动锚点实现在 `continuous_scroll.dart` |
+| R12 | 瀑布流同章节同页滚动不反复通知外壳；图片分块进度按 100 毫秒合并，连续图像使用双线性采样；异步解码改变前方尺寸时在布局内补偿可见锚点，不产生中间跳帧或取消拖动；前章晚到先等待滚动停止，再保留最新可见页及局部偏移，换章/退出取消等待；画廊预取按内容/布局/页码去重并在命令／拖动初期交接，保留 PhotoView、缩放及已有图像生命周期；分页避免整套设置重复解析和隐藏控件重建／动画；连续命令避免重复重启动画，保留空闲动画、合法输入与视觉页刷新；隐藏工具栏的收藏读完成不重建外壳，快捷收藏与失效重绑仍有效，保持实时设置与菜单功能 | `lib/features/reader/continuous_view.dart`、`gallery_view.dart`、`reader_page.dart`、`scaffold.dart`；`test/features/reader/continuous_owner_test.dart`、`waterfall_loading_stability_test.dart`、`comic_image_progress_test.dart`、`waterfall_controller_test.dart`、`gallery_page_continuity_test.dart`、`gallery_rotation_test.dart`、`reader_exit_integration_test.dart`、`page_layout_settings_test.dart`、`shell_presentation_test.dart`；滚动锚点实现在 `continuous_scroll.dart` |
 
 表内省略目录的阅读实现文件位于 `lib/features/reader/`，`comic_tile.dart` 位于 `lib/features/comic_widgets/`。来源及上游归因详见[候选表](upstream-issue-candidates.md)，不得把 R02 的导航调整直接写成已证实的上游 Navigator 缺陷。
 
@@ -281,3 +281,10 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 - 真机固定 120 Hz／192 MiB、100 次约 53 ms 间隔的离散 DOWN/UP：Next 前进 34→50 页，CPU 5909→4710 ms；Prime 50 页、3338 ms。Next UI P95 3.943→4.050 ms 未改善，仍非最终验收；实体长按按用户安排稍后校准。反向与完整限制见 `benchmark/reader/report.md`，原始 Trace 仅本地保存。
 - 控制器／音量／真实 Gallery 定向 53 项通过，额外手势／预取／压力 35 项通过，相关 Dart 分析通过。退出集成 184 通过／8 失败，未修改的起点源码独立导出也同名 184／8，记录 Windows 夹具／时序基线失败，不宣称全通过。未运行全量 Actions，未推送。
 - 用户澄清连续触摸为上一段松手动画结束前再次拖动，后续采样以原始 DOWN 到达前的 PageController 滚动状态核验覆盖；不把短输入间隔、FrameTiming 或 cache 调用数直接写成掉帧／解码结论。O07/O08 缓存预算与退出所有权未修改。
+
+### 2026-11-16：#178 隐藏工具栏通知真机实验
+
+- R12：保留当前页收藏状态读取供快捷收藏，菜单隐藏时不因读完成重建外壳；失效通知仍重新绑定，菜单可见时结果、错误／重试和收藏状态仍正常更新，不改变 ImageWork 或存储队列。
+- 实际 FrameTiming 与 Perfetto 证明固定连续拖动的 UI 尾部主要在 Running；Widget Timeline 关联到选页及收藏异步完成后的两次外壳重建。单变量通知修复的两轮 Release UI P95 为 1.224／1.142 ms，对照复测 2.929 ms；≥2 ms 帧由约每页两次变为一次。保留实际选页数和 PSS 波动，不宣称整体 CPU 稳定增益；120 Hz／192 MiB 不变。
+- 新 `shell_favorite_notifications_test.dart` 在旧版重现、修复后通过，覆盖隐藏控件连续性、关闭菜单的快捷收藏、外部失效重查、可见菜单结果；连同外壳／收藏控制器／手势共 25 项通过，相关分析通过。此前退出集成同名 8 项 Windows 基线失败仍未算作通过。
+- 缓存音量键 UI P95 仍约 3.84 ms、CPU 基本不变，下一轮单独检查按键导航的视口／外壳通知；实体长按校准仍待用户方便。数据、原始文件边界与注入器一次被终止的无效轮次见 `benchmark/reader/report.md`。未推送或运行全量 Actions。
