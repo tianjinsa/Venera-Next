@@ -10,6 +10,8 @@
 4. `onPageChanged` 的整幅画廊 `setState` 会重新构造已挂载的 PhotoView 子树。原有页面键与控制器机制已经避免完全销毁图片，仍存在可消除的 Widget 重建。
 5. 预加载和显示使用相等的 `ReaderImageProvider` 缓存键。诊断对象和当前显示页码不改变这个键；本轮没有发现缓存键失配。没有改动图片处理的页码契约、缩放尺寸或质量。
 
+只读核对 [Issue 公开 RC2 补充样本](https://github.com/CyrilPeng/Venera-Next/issues/178#issuecomment-6890559801)：反向样本 1,133 帧中 55 帧超预算，`sourceRead` 和 `firstDecodeWait` 都为 0，`displayWait` 最大仅 104 µs。这支持另有图片等待之外的慢帧来源，但不能单独定位到重建、GC、定时器或光栅路径。该公开样本与用户本次四组对照的采样段不同，不合并统计。
+
 这些是可复现的调度、缓存交接和构建行为。**没有真机追踪证明它们单独解释用户报告的约 69 ms 显示等待，也没有证明所有 UI／光栅慢帧都来自图片。** 可用内存预算低于 64 MiB 或系统内存压力仍会按原策略停止主动预加载；新增诊断会明确记录许可及预算，便于区分该情况。
 
 ## 改动与资源边界
@@ -87,4 +89,4 @@ rasterStartAtUs, rasterFinishAtUs
 - `python3 .github/scripts/check_structure_imports.py`、`check_architecture_dependencies.py`、`release_version.py --check`、`git diff --check`：通过。锁定依赖解析通过，`pubspec.yaml`／`pubspec.lock` 未改动。
 - 基线同组九项全部复现失败、修复通过；RC2 的三项交接对照通过。合成首帧实验验证单／双名额排队 50／0 ms，不能替代真机数据。
 
-Android 构建将在本轮源码提交推送后通过现有 `build.yml` 派发，保留默认质量门禁；准确源码 SHA、运行链接和最终结果随后记录。没有 Android 真机帧率／显示等待结果。
+Android 源码 `32144e72b44a3cc5c1d47c43dcc5f516502d3bc9` 已推送到工作分支，并派发 [build.yml / 43691908256](https://github.com/tianjinsa/Venera-Next/actions/runs/43691908256)，`skip_tests=false`，仅选择 Android（现有流程同时构建 mobile／TV 各架构 Release）。首次核对 head SHA 一致、状态为 `in_progress`，尚不计为通过。用户随后明确本轮不要继续轮询，构建完成会主动通知；因此停止主动查询，最终结论及手机复测结果等待用户反馈。后续仅补本文档的提交不改变该构建的产品源码 SHA。没有 Android 真机帧率／显示等待结果。
