@@ -9,10 +9,34 @@ import io
 import json
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import tarfile
+import zlib
 
 HERE = Path(__file__).resolve().parent
+
+
+def fixture_png(out):
+    """Lossless RGB fixture, matching the previous 2048x3072 canvas geometry."""
+    width, height = 2048, 3072
+    background = bytes((232, 234, 246))
+    indigo, teal = bytes((63, 81, 181)), bytes((0, 150, 136))
+    rows = []
+    for y in range(height):
+        stripe = next((row for row in range(12) if 64 + row * 240 <= y < 224 + row * 240), None)
+        if stripe is None:
+            row = background * width
+        else:
+            row = background * 64 + (indigo if stripe % 2 == 0 else teal) * 1920 + background * 64
+        rows.append(b'\0' + row)
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+    png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(b''.join(rows), 9)) + chunk(b'IEND', b'')
+    path = out / 'assets/reader_benchmark.png'
+    path.parent.mkdir(exist_ok=True)
+    path.write_bytes(png)
+    replace(out / 'pubspec.yaml', '  assets:\n', '  assets:\n    - assets/reader_benchmark.png\n')
 
 
 def replace(path, old, new, count=1):
@@ -24,6 +48,7 @@ def replace(path, old, new, count=1):
 
 
 def instrument(out, variant):
+    fixture_png(out)
     package = "venera_next" if variant == "next" else "venera"
     native_package = "com.github.cyrilpeng.veneranext" if variant == "next" else "com.github.wgh136.venera"
     native_dir = out / "android/app/src/main/kotlin" / native_package.replace(".", "/")
@@ -45,6 +70,12 @@ def instrument(out, variant):
     appid = 'com.github.cyrilpeng.veneranext.readerbenchmark' if variant == 'next' else 'com.github.wgh136.venera.prime.readerbenchmark'
     old = 'applicationId = "com.github.cyrilpeng.veneranext"' if variant == 'next' else 'applicationId = integrationTestBuild ? "com.github.wgh136.venera.prime.integrationtest" : "com.github.wgh136.venera.prime"'
     replace(gradle, old, f'applicationId = "{appid}"')
+    replace(gradle, 'variant.outputs.all { output ->', '''variant.outputs.all { output ->
+            // Match this export's ARM64 Release code so switching Profile and
+            // Release preserves the isolated app data without uninstalling.
+            if (variant.buildType.name == "profile") {
+                versionCodeOverride = flutterVersionCode.toInteger() * 10 + 2
+            }''')
     if variant == 'next':
         # Flutter adds a default ARM64 NDK filter; AGP accepts this alongside
         # splits only when a universal output is enabled. Packaging only.
@@ -52,12 +83,16 @@ def instrument(out, variant):
     # Use the existing dedicated benchmark key, never an installed user's key.
     if variant == 'prime':
         replace(gradle, 'rootProject.file("key.properties")', 'file(System.getenv("ANDROID_KEY_PROPERTIES_FILE"))')
+        replace(gradle, "include 'armeabi-v7a', 'arm64-v8a', 'x86_64'", "include 'arm64-v8a'")
+        replace(gradle, 'abiFilters "armeabi-v7a", "arm64-v8a", "x86_64"', 'abiFilters "arm64-v8a"', count=2)
+    manifest = out / 'android/app/src/main/AndroidManifest.xml'
+    replace(manifest, '</application>', '<profileable android:shell="true" />\n    </application>')
     shutil.copyfile(HERE / 'probe.dart', out / 'lib/foundation/reader_perf_probe.dart')
     main = (HERE / 'main_next.dart').read_text(encoding='utf-8')
     main = main.replace("import 'probe.dart';", f"import 'package:{package}/foundation/reader_perf_probe.dart';")
     if variant == 'prime':
         imports = {
-            'features/comic_source/models.dart': 'foundation/comic_source/models.dart',
+            'features/comic_source/models.dart': 'foundation/comic_source/comic_source.dart',
             'features/history/history.dart': 'foundation/history.dart',
             'features/local_comics/local_comics.dart': 'foundation/local.dart',
             'features/reader/reader_page.dart': 'pages/reader/reader.dart',
@@ -79,7 +114,7 @@ def instrument(out, variant):
         main = main.replace('HistoryManager.create()', 'HistoryManager()')
         main = main.replace('  final imageFavorites = ImageFavoriteManager.create(history: historyStore);\n', '')
         main = main.replace('GlobalKey<ReaderState>()', 'GlobalKey()')
-        begin = main.index('  runApp(')
+        begin = main.rindex('  runApp(')
         end = main.index('  await Future<void>.delayed', begin)
         main = main[:begin] + '''  runApp(MaterialApp(
     navigatorKey: App.rootNavigatorKey,

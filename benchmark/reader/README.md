@@ -36,13 +36,21 @@ Next 导出副本打开 universal 输出以兼容 Flutter 默认 ARM64 NDK filte
 保留锁文件校验与 Release 插件注册流程。签名仅使用忽略目录内专用测试密钥。
 安装脚本用 aapt 核验 `.readerbenchmark` 包名，拒绝覆盖正式包。
 
-夹具为 512 个不同文件键的相同 2048×3072 PNG。首次启动在采样前生成，后续复用。
+夹具为 512 个不同文件键的相同 2048×3072 PNG。首次启动在采样前复制，后续复用。
 文件缓存预热与 Flutter 已解码缓存命中要区分，不能把本地文件直接称为已解码命中。
 固定 LTR、单页、200 毫秒动画、预加载设置；其他方向／布局需另行配置与回归。
+
+图片由导出脚本生成无损 RGB PNG 并作为资产打包，手机只在首次准备时复制。
+普通对照每轮只结束独立测试包进程并重新启动，不清除数据，统一初始解码窗口；
+采样入口核验 512 页、120 Hz、192 MiB。`--reuse-process` 仅用于明确标记的缓存
+窗口／压力实验，避免将切后台后的 32 MiB 状态混入普通基线。
 
 `duration` 是 ADB 输入候选。必须先对照实体按键的原生 `repeatCount`、`downTime`
 和间隔；若不等价，用 `--input manual` 自动采样并手动按键。
 `taps`／`swipes` 明确作为触摸场景，不能替代长按音量键证据。
+`keysequence` 是单次 DOWN/UP 对的固定间隔连续输入，保留 `repeatCount=0`；
+它用于连续合法单次键与动画交接实验，不能冒充实体长按。以测得事件间隔为准，
+不把请求的 50 ms 自动当作实际 20 Hz。过快点按可能触发双击缩放，须核对真实页码。
 原生事件与 Dart 接收通过八次时钟往返校准对齐，报告最短往返的不确定度。
 CPU 使用进程累计 CPU 时间差；不把异步等待或整段动画时长当 CPU 执行。
 
@@ -51,3 +59,8 @@ Release 的验收不用这些 Profile 开销。Perfetto 另外采集调度／频
 FrameTimeline、GPU 内存和设备支持的电源轨。原始 Trace 不自动上传或提交。
 
 测量语义检查：`python -m unittest discover -s benchmark/reader -p test_measurement.py`。
+
+Profile 启动需传 `enable-dart-profiling=true`，`profile_capture.py` 会负责启动、
+转发 VM 端口、等待明确就绪事件、保存 CPU/Timeline 并释放端口。Profile 与 Release
+在导出副本中统一 ARM64 versionCode，切换不卸载、不清数据。
+`stamp.py` 保存源码差异、资产与 APK 散列；后续采样还核验设备实际安装包的 SHA-256。

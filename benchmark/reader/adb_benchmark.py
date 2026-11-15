@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import time
 
@@ -23,8 +24,11 @@ class Device:
         self.package, self.activity = PACKAGES[variant]
         self.remote = f'/sdcard/Android/data/{self.package}/files/reader-bench'
 
-    def run(self, *args, check=True):
-        return subprocess.run(self.prefix + list(args), capture_output=True, check=check).stdout.decode('utf-8', errors='replace')
+    def run(self, *args, check=True, input_bytes=None):
+        result = subprocess.run(self.prefix + list(args), capture_output=True, input=input_bytes)
+        if check and result.returncode:
+            raise RuntimeError(result.stderr.decode('utf-8', errors='replace') + result.stdout.decode('utf-8', errors='replace'))
+        return result.stdout.decode('utf-8', errors='replace')
 
     def command(self, command, **args):
         params = ['shell', 'am', 'broadcast', '-p', self.package, '-a', self.package + '.READER_BENCH', '--es', 'command', command]
@@ -47,6 +51,25 @@ class Device:
                 return status
             time.sleep(.3)
         raise TimeoutError(f'No {command!r} status: ' + self.run('shell', 'cat', self.remote + '/error.txt', check=False))
+
+    def launch(self, fresh=False, enable_profiling=False):
+        prior = (self.read_json('status.json') or {}).get('timelineUs', 0)
+        if fresh:
+            self.run('shell', 'am', 'force-stop', self.package)
+        activity_args = ['shell', 'am', 'start', '-n', self.package + '/' + self.activity]
+        if enable_profiling:
+            activity_args += ['--ez', 'enable-dart-profiling', 'true']
+        self.run(*activity_args)
+        deadline = time.monotonic() + 60
+        # Existing singleTop Activities do not initialize again. A fresh ping
+        # acknowledgement works for both a new process and a resumed reader.
+        while time.monotonic() < deadline:
+            self.command('ping')
+            time.sleep(1)
+            status = self.read_json('status.json')
+            if status and status.get('command') == 'ping' and status.get('timelineUs', 0) > prior:
+                return status
+        raise TimeoutError('No fresh benchmark acknowledgement after launch')
 
     def snapshot(self, directory, phase):
         commands = {
@@ -94,6 +117,20 @@ def capture(device, args):
         raise ValueError('Invalid capture name')
     folder = args.out / args.name
     folder.mkdir(parents=True, exist_ok=False)
+    initial = device.launch(fresh=not args.reuse_process)
+    if initial.get('pageCount') != 512 or initial.get('refreshHz', 0) < 119:
+        raise ValueError('Requires a ready 512-page reader at 120 Hz')
+    if args.expected_cache_mib and initial.get('cacheLimitBytes') != args.expected_cache_mib * 1024 * 1024:
+        raise ValueError('Unexpected cache budget; do not mix pressure and normal baselines')
+    package_path = device.run('shell', 'pm', 'path', device.package).splitlines()[0].removeprefix('package:').strip()
+    installed_hash = device.run('shell', 'sha256sum', shlex.quote(package_path)).split()[0]
+    if not re.fullmatch('[0-9a-fA-F]{64}', installed_hash):
+        raise ValueError('Cannot identify installed benchmark APK')
+    # Visit a neighbour first, so a preceding double-tap/zoom probe cannot leave
+    # the next swipe scenario inside a zoomed PhotoView at the same page.
+    device.command('position', page=args.page + 1 if args.page < 512 else args.page - 1)
+    device.wait_status('position')
+    time.sleep(.3)
     device.command('position', page=args.page)
     device.wait_status('position')
     time.sleep(args.settle)
@@ -102,9 +139,10 @@ def capture(device, args):
     if args.perfetto:
         config = folder / 'perfetto.pbtxt'
         config.write_text(perfetto_config(device.package, trace_duration), encoding='utf-8')
-        remote = '/data/local/tmp/reader-bench-' + args.name
-        device.run('push', str(config), remote + '.pbtxt')
-        launch = device.run('shell', 'perfetto', '--txt', '-c', remote + '.pbtxt', '-o', remote + '.pftrace', '--background-wait')
+        remote = '/data/misc/perfetto-traces/reader-bench-' + args.name
+        # Android's perfetto domain may not read shell_data_file in local/tmp.
+        # Feed configuration on stdin and use the platform trace output folder.
+        launch = device.run('shell', 'perfetto', '--txt', '-c', '-', '-o', remote + '.pftrace', '--background-wait', input_bytes=config.read_bytes())
         (folder / 'perfetto-launch.txt').write_text(launch, encoding='utf-8')
         trace_started = time.monotonic()
     device.command('capture', name=args.name, seconds=args.seconds)
@@ -115,6 +153,12 @@ def capture(device, args):
     if args.input == 'duration':
         time.sleep(1)
         device.run('shell', 'input', 'keyevent', '--duration', str(args.hold_ms), '25' if args.direction == 'forward' else '24')
+    elif args.input == 'keysequence':
+        time.sleep(1)
+        # Legal discrete DOWN/UP pairs. This deliberately retains repeatCount=0
+        # and is labelled separately from the pending physical-hold validation.
+        code = '25' if args.direction == 'forward' else '24'
+        device.run('shell', 'input', 'keyevent', '--async', '--delay', str(args.key_delay_ms), *([code] * args.count))
     elif args.input == 'taps':
         time.sleep(1)
         # A single remote shell preserves the requested cadence between touches.
@@ -128,7 +172,19 @@ def capture(device, args):
         script = f'for i in $(seq 1 {args.count}); do input swipe {coords} {args.swipe_ms}; sleep {args.interval}; done'
         device.run('shell', script)
     elif args.input == 'manual':
-        print('PHYSICAL HOLD: start now; release when the capture window ends.', flush=True)
+        print('PHYSICAL HOLD: hold at the high tone; release at the low tone.', flush=True)
+        time.sleep(1)
+        try:
+            import winsound
+            winsound.Beep(1000, 200)
+        except ImportError:
+            print('\a', end='', flush=True)
+        time.sleep(args.hold_ms / 1000)
+        try:
+            import winsound
+            winsound.Beep(500, 350)
+        except ImportError:
+            print('\a', end='', flush=True)
     while time.monotonic() - start < args.seconds + 1.6:
         time.sleep(.3)
     device.wait_status('saved', timeout=15)
@@ -140,9 +196,12 @@ def capture(device, args):
         device.run('pull', remote + '.pftrace', str(folder / 'trace.pftrace'))
     metadata = {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items() if k not in ('serial', 'adb')}
     metadata['package'] = device.package
+    metadata['installedApkSha256'] = installed_hash.lower()
     metadata['captureSha256'] = hashlib.sha256((folder / 'capture.json').read_bytes()).hexdigest()
     (folder / 'procedure.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
     report = json.loads((folder / 'capture.json').read_text(encoding='utf-8'))
+    if report['before'].get('pageCount') != 512:
+        raise ValueError('Fixture was not ready: results are invalid')
     print('SAVED', folder, 'frames=', len(report['frames']), 'nativeKeys=', len(report['native']['keys']), 'page=', report['before'].get('page'), '->', report['after'].get('page'), flush=True)
 
 
@@ -164,13 +223,16 @@ def main():
     sample.add_argument('--seconds', type=int, default=12)
     sample.add_argument('--page', type=int, default=160)
     sample.add_argument('--settle', type=float, default=3)
-    sample.add_argument('--input', choices=['manual', 'duration', 'taps', 'swipes', 'idle'], default='idle')
+    sample.add_argument('--input', choices=['manual', 'duration', 'keysequence', 'taps', 'swipes', 'idle'], default='idle')
     sample.add_argument('--direction', choices=['forward', 'reverse'], default='forward')
     sample.add_argument('--hold-ms', type=int, default=8000)
     sample.add_argument('--count', type=int, default=20)
     sample.add_argument('--interval', type=float, default=.2)
     sample.add_argument('--swipe-ms', type=int, default=100)
+    sample.add_argument('--key-delay-ms', type=int, default=50)
     sample.add_argument('--perfetto', action='store_true')
+    sample.add_argument('--reuse-process', action='store_true', help='For explicitly labelled warm-window or memory-pressure probes')
+    sample.add_argument('--expected-cache-mib', type=int, default=192, help='Use 0 only for explicitly labelled pressure-policy experiments')
     args = parser.parse_args()
     device = Device(args.adb, args.variant, args.serial)
     if args.action == 'install':
@@ -179,8 +241,7 @@ def main():
             raise ValueError('Refusing an APK with a non-benchmark application ID')
         print(device.run('install', '-r', '--no-streaming', str(args.apk)))
     elif args.action == 'launch':
-        print(device.run('shell', 'am', 'start', '-n', device.package + '/' + device.activity))
-        print(json.dumps(device.wait_status('ready', timeout=60), indent=2))
+        print(json.dumps(device.launch(), indent=2))
     elif args.action == 'position':
         device.command('position', page=args.page)
         print(json.dumps(device.wait_status('position'), indent=2))

@@ -1,8 +1,8 @@
 // Ordinary engine binding and the real reader: no integration-test frame pump.
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/window_frame.dart';
 import 'package:venera_next/features/comic_source/models.dart';
@@ -22,12 +22,22 @@ import 'package:venera_next/routing/app_navigation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    const MaterialApp(
+      home: Scaffold(body: Center(child: Text('Preparing local benchmark'))),
+    ),
+  );
+  await WidgetsBinding.instance.endOfFrame;
+  debugPrint('BENCH startup frame');
   await App.init();
+  debugPrint('BENCH paths ready');
   // This entrypoint must only be installed with the isolated benchmark ID.
   if (!App.dataPath.contains('readerbenchmark')) {
     throw StateError('Refusing to use the installed application data');
   }
+  await appdata.init();
   await AppTranslation.init();
+  debugPrint('BENCH translations ready');
   final settings = appdata.settings;
   settings['language'] = 'en-US';
   settings['readerMode'] = const String.fromEnvironment(
@@ -60,34 +70,25 @@ Future<void> main() async {
   ).create(recursive: true);
   await File('${App.dataPath}/local_path').writeAsString(localRoot.path);
   final directory = await Directory(
-    '${localRoot.path}/fixture/one',
+    '${localRoot.path}/fixture-rgb-v1/one',
   ).create(recursive: true);
   if (!await File('${directory.path}/512.png').exists()) {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder)
-      ..drawColor(Colors.indigo.shade50, BlendMode.src);
-    for (var row = 0; row < 12; row++) {
-      canvas.drawRect(
-        Rect.fromLTWH(64, 64 + row * 240, 1920, 160),
-        Paint()..color = row.isEven ? Colors.indigo : Colors.teal,
-      );
-    }
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(2048, 3072);
-    final bytes = (await image.toByteData(
-      format: ui.ImageByteFormat.png,
-    ))!.buffer.asUint8List();
+    final asset = await rootBundle.load('assets/reader_benchmark.png');
+    final bytes = asset.buffer.asUint8List(
+      asset.offsetInBytes,
+      asset.lengthInBytes,
+    );
     for (var page = 1; page <= 512; page++) {
       await File('${directory.path}/$page.png').writeAsBytes(bytes);
     }
-    image.dispose();
-    picture.dispose();
   }
+  debugPrint('BENCH images ready');
   final local = LocalManager(initializeSources: () async {});
   final favorites = LocalFavoritesManager.independent();
   final historyStore = HistoryManager.create();
   final imageFavorites = ImageFavoriteManager.create(history: historyStore);
   await local.init();
+  debugPrint('BENCH local store ready');
   await favorites.init();
   await historyStore.init();
   final chapters = ComicChapters({'one': 'Generated'});
@@ -96,7 +97,7 @@ Future<void> main() async {
     title: 'Generated reader benchmark',
     subtitle: 'Local 2048 x 3072 shapes',
     tags: const [],
-    directory: 'fixture',
+    directory: 'fixture-rgb-v1',
     chapters: chapters,
     cover: 'one/1.png',
     comicType: ComicType.local,

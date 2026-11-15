@@ -28,6 +28,7 @@ def summarize(report):
     gaps = [(b[0] - a[0]) / 1000 for a, b in zip(frames, frames[1:])]
     keys = report['native']['keys']
     key_intervals = [(b[0] - a[0]) / 1e6 for a, b in zip(keys, keys[1:])]
+    repeated_intervals = [(b[0] - a[0]) / 1e6 for a, b in zip(keys, keys[1:]) if a[6] > 0 and b[6] == a[6] + 1]
     dart_keys = [event for event in events if event[1] == 'volume']
     repeats = [event for event in events if event[1] == 'request' and event[4] is not None]
     requests = [event for event in events if event[1] == 'request']
@@ -54,6 +55,8 @@ def summarize(report):
         'nativeKeys': len(keys), 'dartKeys': len(dart_keys),
         'nativeKeysPerSecond': round(len(keys) / seconds, 3),
         'nativeKeyIntervalMs': distribution(key_intervals),
+        'sustainedRepeatIntervalMs': distribution(repeated_intervals),
+        'sustainedRepeatHz': round(1000 / distribution(repeated_intervals)['p50'], 3) if repeated_intervals and distribution(repeated_intervals)['p50'] > 0 else None,
         'nativeRepeatCounts': [key[6] for key in keys],
         'nativeDownTimeCount': len(set(key[4] for key in keys)),
         'nativeToDartMs': distribution(latencies),

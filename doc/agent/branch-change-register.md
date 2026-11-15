@@ -267,3 +267,10 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 - 用户要求独立性能分支，本轮在 `codex/reader-page-turn-adb-perf`，起点 `97217db9f0c40549b15acef528abc339eb1998d4`；Prime 只读参考远端 SHA `2e287566c6fad11b0085bbdf4a528e507021ec61`，不使用其当前其他分支工作树冒充基线。
 - `benchmark/reader/` 提供准确 Git 导出、独立测试包、512 张固定本地大图、原通道实体音量输入、低开销观察器、ADB/Perfetto 和 Profile VM 导出。原始 Trace、APK、设备记录默认忽略。O07/O08/R12 行为尚未改变。
 - 测量脚本四项语义回归通过，Next 导出入口 Dart 分析通过。Release APK 正在准备，尚未获得严格 A/B 数据，未判定根因、未宣称真机改善。
+
+### 2026-11-16：#178 快速离散音量键实机基线
+
+- 两版独立 Release 测试包已安装并确认 512 页、120 Hz、192 MiB；Android 的 8 秒 duration 输入均只有两个事件，实体长按校准按用户要求稍后进行。固定间隔的单次 DOWN/UP 序列单独标记，不冒充实体长按。
+- 100 次快速离散音量键全部进入 Dart。Prime 前进 50 页、动画/跳页 50/50、CPU 3338 ms；Next 前进 34 页、动画/跳页 100/0、CPU 5909 ms。UI P95 分别 3.726/3.943 ms；单轮不作为最终验收。支持下一轮只改动画交接的实验，尚未修改产品代码。
+- 保存有效 Next Profile CPU/Timeline 和两版 Release Perfetto；当前 FrameTimeline 无测试应用 Surface，电源轨为空，不能声称已测出实际呈现掉帧率或 GPU 功耗。切后台返回后 Next 的 32 MiB 轮次单独保留，后续对照统一新进程与预算核验，不夹带修改缓存策略。
+- 工具补齐显式设置初始化、宿主生成无损本地夹具、独立 Gradle 配置和准确 APK/源码散列。4 项测量口径测试、3 个 Dart 工具入口定向分析通过；完整报告在 benchmark/reader/report.md。未运行本地全量测试。

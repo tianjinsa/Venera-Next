@@ -47,6 +47,7 @@ Future<void> main(List<String> args) async {
   try {
     final vm = await rpc('getVM');
     await save('vm', vm);
+    await save('flags', await rpc('getFlagList'));
     final isolate = (vm['isolates'] as List).firstWhere(
       (entry) => entry['name'] == 'main',
     );
@@ -67,16 +68,16 @@ Future<void> main(List<String> args) async {
     final origin = start['timestamp'] as int;
     final extent = (finish['timestamp'] as int) - origin;
     await save(
-      'cpu',
-      await rpc('getCpuSamples', {
-        'isolateId': isolateId,
+      'timeline',
+      await rpc('getVMTimeline', {
         'timeOriginMicros': origin,
         'timeExtentMicros': extent,
       }),
     );
     await save(
-      'timeline',
-      await rpc('getVMTimeline', {
+      'cpu',
+      await rpc('getCpuSamples', {
+        'isolateId': isolateId,
         'timeOriginMicros': origin,
         'timeExtentMicros': extent,
       }),

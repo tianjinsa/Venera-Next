@@ -19,14 +19,43 @@ if(!(Test-Path -LiteralPath $keystore)){
     & (Join-Path $Java 'bin/keytool.exe') -genkeypair -keystore $keystore -storepass reader-benchmark-local -keypass reader-benchmark-local -alias benchmark -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=Reader Benchmark, O=Local Test'
     if($LASTEXITCODE -ne 0){throw 'Benchmark key generation failed'}
 }
-@('storeFile='+$keystore.Replace('\','/'),'storePassword=reader-benchmark-local','keyAlias=benchmark','keyPassword=reader-benchmark-local') | Set-Content -LiteralPath $properties -Encoding utf8
+@(
+    ('storeFile='+$keystore.Replace('\','/'))
+    'storePassword=reader-benchmark-local'
+    'keyAlias=benchmark'
+    'keyPassword=reader-benchmark-local'
+) | Set-Content -LiteralPath $properties -Encoding utf8
 $profileRoot=Join-Path $Support 'profile'
+$gradleRoot=Join-Path $PSScriptRoot 'artifacts/gradle-home'
+New-Item -ItemType Directory -Path $gradleRoot -Force | Out-Null
+foreach($cacheName in @('caches','wrapper','native')){
+    $cacheLink=Join-Path $gradleRoot $cacheName
+    if(!(Test-Path -LiteralPath $cacheLink)){
+        New-Item -ItemType Junction -Path $cacheLink -Target (Join-Path $Support "gradle-cache/$cacheName") | Out-Null
+    }
+}
+# Reuse downloaded caches, but not historical user properties/init scripts that
+# can silently replace application IDs. Pin the already installed NDK/CMake.
+$initRoot=Join-Path $gradleRoot 'init.d'
+New-Item -ItemType Directory -Path $initRoot -Force | Out-Null
+@'
+gradle.beforeProject { project ->
+    ['com.android.application', 'com.android.library'].each { pluginId ->
+        project.pluginManager.withPlugin(pluginId) {
+            project.extensions.getByName('androidComponents').finalizeDsl { androidDsl ->
+                androidDsl.ndkVersion = '28.0.13004108'
+                androidDsl.externalNativeBuild.cmake.version = '3.22.1'
+            }
+        }
+    }
+}
+'@ | Set-Content -LiteralPath (Join-Path $initRoot 'benchmark-toolchain.gradle') -Encoding utf8
 $changes=@{
     JAVA_HOME=$Java
     ANDROID_HOME=$Android
     ANDROID_SDK_ROOT=$Android
     ANDROID_USER_HOME=(Join-Path $profileRoot '.android')
-    GRADLE_USER_HOME=(Join-Path $Support 'gradle-cache')
+    GRADLE_USER_HOME=$gradleRoot
     PUB_CACHE='D:\.tool\pub-cache'
     CARGO_HOME=(Join-Path $Support 'cargo-cache')
     RUSTUP_HOME=(Join-Path $profileRoot '.rustup')
