@@ -1,0 +1,6 @@
+raw/
+artifacts/
+__pycache__/
+*.perfetto-trace
+*.pftrace
+*.heapsnapshot

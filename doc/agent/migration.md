@@ -248,3 +248,9 @@
 - 两种 Android Release 构建恢复 Flutter 默认平台准备流程；前置锁文件校验不变，不删除测试依赖、不把测试插件加入正式依赖、不手改生成文件、不清理原生缓存。修正现有 Python 构建回归的两种 flavor 断言。按用户要求仅推送后用 Actions 构建（`skip_tests=true`），云端不编译，也不轮询构建完成。
 
 验证：`python3 -m unittest discover -s .github/scripts/tests -p test_ci_optimization.py -k AndroidBuildTests`，3 项通过；`git diff --check` 通过。未在云端编译 Android，实际构建交给 Actions。
+
+### 2026-11-16：#178 ADB 真机对照准备
+
+- 用户要求独立性能分支，本轮在 `codex/reader-page-turn-adb-perf`，起点 `97217db9f0c40549b15acef528abc339eb1998d4`；Prime 只读参考远端 SHA `2e287566c6fad11b0085bbdf4a528e507021ec61`，不使用其当前其他分支工作树冒充基线。
+- `benchmark/reader/` 提供准确 Git 导出、独立测试包、512 张固定本地大图、原通道实体音量输入、低开销观察器、ADB/Perfetto 和 Profile VM 导出。原始 Trace、APK、设备记录默认忽略。O07/O08/R12 行为尚未改变。
+- 测量脚本四项语义回归通过，Next 导出入口 Dart 分析通过。Release APK 正在准备，尚未获得严格 A/B 数据，未判定根因、未宣称真机改善。
