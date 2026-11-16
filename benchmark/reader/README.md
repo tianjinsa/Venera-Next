@@ -13,7 +13,7 @@ FrameTiming 的时间戳属于实际帧阶段；接收批次的时间不是帧�
 UI/Raster 超预算、Flutter 产帧间隔与 SurfaceFlinger 实际呈现分别统计。
 Profile 用于定位；性能验收必须复测 Release，并同时记录资源和热状态。
 
-当前状态：已完成多轮设备基线并提交动画交接修复，继续调查隐藏工具栏的重复工作。
+当前状态：已提交动画交接与隐藏收藏通知修复，完成实体键校准，继续调查按键导航的重复工作。
 详细数据和未完成验收范围见 [report.md](report.md)。
 
 ## 运行方式
@@ -94,3 +94,38 @@ Dart 收到的指针及实际选页数。Flutter MOVE 计数另报，不假定�
 识别调用路径，不能用其耗时作为 Release 改善；大量标记可能覆盖环形缓冲早期记录。
 `analyze_frames.py` 将真实 UI 帧区间与 Perfetto 线程状态对齐，分开报告拖动中和
 松手后阶段；松手后标签本身不保证动画仍活跃，也不代表屏幕实际掉帧。
+
+## 实体音量键校准与匹配输入
+
+已在本设备完成实体音量减键校准：连续 271 个 DOWN，repeatCount 为 0…270、
+共用一个 downTime；原生及 Dart 各收到 271 个，持续重复约 19.78 Hz。
+首个重复的 eventTime 间隔为 401 ms；原生接收间隔约 242 ms，是因为首键本身
+约 163 ms 后才到 Activity。两种时间分别保存，不把通道耗时与原生投递延迟混为一谈。
+实际首末 DOWN 的 eventTime 跨度约 14 秒，提示原计划的 8 秒不能充当实测时长。
+
+客户端不显示内部 `notify()` 提示，声音也未可靠传达。手工采样必须拆开准备和结束，
+准备命令返回 `SAMPLER ARMED` 后，在可见聊天及表层命令中明确提示按住／松开：
+
+```powershell
+python benchmark/reader/manual_session.py arm --variant next --name physical-hold
+# 这里在聊天中提示按住，再执行可见的 8 秒计时；用户按住后不再运行准备步骤。
+Write-Output '现在按住音量减键'; Start-Sleep -Seconds 8; Write-Output '现在松开音量减键'
+python benchmark/reader/manual_session.py finish --variant next --name physical-hold
+```
+
+重启手机可能使单调时钟回退；ACK 按时间戳是否改变判断，不能要求大于旧进程时间。
+连续同名命令也必须等待各自的新 ACK，避免把前一次定位当成本次完成。
+
+自动对照保留实体记录前 8 秒的 eventTime 偏移，发送连续递增 repeatCount 的 DOWN
+及一个 UP，保留相同 downTime。它不同于反复发送单次 `input keyevent`：
+
+```powershell
+./benchmark/reader/build_input.ps1 -Keys
+python benchmark/reader/adb_benchmark.py --variant next capture --name calibrated-forward --input calibrated-hold --seconds 12 --perfetto
+```
+
+两版首轮均核验 152 个 DOWN、完整 repeatCount、同一个 downTime，且接收事件时间与
+注入记录一致；首键原生投递也同为约 161–162 ms。校准摘要见
+[results/physical-volume-calibration.json](results/physical-volume-calibration.json)。
+后续每轮自动拒绝不匹配的原生序列。原生探针只记录 DOWN，没有测量实体 UP 的时刻；
+模拟输入验证的是阅读器实际消费的 DOWN 链路，最终仍需实体键复核体验。

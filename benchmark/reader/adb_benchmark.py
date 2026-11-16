@@ -23,6 +23,7 @@ class Device:
         self.prefix = [adb] + (['-s', serial] if serial else [])
         self.package, self.activity = PACKAGES[variant]
         self.remote = f'/sdcard/Android/data/{self.package}/files/reader-bench'
+        self._prior_acks = {}
 
     def run(self, *args, check=True, input_bytes=None):
         result = subprocess.run(self.prefix + list(args), capture_output=True, input=input_bytes)
@@ -31,6 +32,7 @@ class Device:
         return result.stdout.decode('utf-8', errors='replace')
 
     def command(self, command, **args):
+        self._prior_acks[command] = (self.read_json('status.json') or {}).get('timelineUs')
         params = ['shell', 'am', 'broadcast', '-p', self.package, '-a', self.package + '.READER_BENCH', '--es', 'command', command]
         for key, value in args.items():
             params += ['--ei' if isinstance(value, int) else '--es', key, str(value)]
@@ -47,7 +49,7 @@ class Device:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             status = self.read_json('status.json')
-            if status and status.get('command') == command:
+            if status and status.get('command') == command and status.get('timelineUs') != self._prior_acks.get(command):
                 return status
             time.sleep(.3)
         raise TimeoutError(f'No {command!r} status: ' + self.run('shell', 'cat', self.remote + '/error.txt', check=False))
@@ -67,7 +69,8 @@ class Device:
             self.command('ping')
             time.sleep(1)
             status = self.read_json('status.json')
-            if status and status.get('command') == 'ping' and status.get('timelineUs', 0) > prior:
+            # A device reboot resets the monotonic clock, but keeps status.json.
+            if status and status.get('command') == 'ping' and status.get('timelineUs') != prior:
                 return status
         raise TimeoutError('No fresh benchmark acknowledgement after launch')
 
@@ -165,6 +168,31 @@ def capture(device, args):
         opposite = '24' if code == '25' else '25'
         codes = [opposite if args.alternate and (i // 2) % 2 else code for i in range(args.count)]
         device.run('shell', 'input', 'keyevent', '--async', '--delay', str(args.key_delay_ms), *codes)
+    elif args.input == 'calibrated-hold':
+        if args.alternate:
+            raise ValueError('A held key has one direction; use discrete keys for cached alternation')
+        timing = json.loads(args.key_timing.read_text(encoding='utf-8'))
+        offsets = timing['downOffsetsMs']
+        release = timing['releaseMs']
+        if release / 1000 + 2 > args.seconds:
+            raise ValueError('Capture is too short for this key timing')
+        digest = hashlib.sha256(args.key_dex.read_bytes()).hexdigest()
+        remote_dex = '/data/local/tmp/venera-reader-keys-' + digest[:20] + '.dex'
+        existing = device.run('shell', f'if [ -e {remote_dex} ]; then sha256sum {remote_dex}; else echo MISSING; fi').split()
+        if existing == ['MISSING']:
+            device.run('push', str(args.key_dex), remote_dex)
+        elif not existing or existing[0].lower() != digest:
+            raise ValueError('Refusing to overwrite an unexpected device file')
+        time.sleep(1)
+        code = 25 if args.direction == 'forward' else 24
+        sequence = ','.join(str(int(value)) for value in offsets)
+        command = f'CLASSPATH={shlex.quote(remote_dex)} app_process /system/bin ReaderBenchKeys {code} {int(release)} {shlex.quote(sequence)}'
+        output = device.run('shell', command)
+        (folder / 'input-driver-output.txt').write_text(output, encoding='utf-8')
+        injected = json.loads(output.split('READER_BENCH_KEYS_JSON ', 1)[1].splitlines()[0])
+        (folder / 'input-events.json').write_text(json.dumps(injected, indent=2), encoding='utf-8')
+        (folder / 'input-driver-sha256.txt').write_text(digest, encoding='ascii')
+        (folder / 'key-timing.json').write_bytes(args.key_timing.read_bytes())
     elif args.input == 'taps':
         time.sleep(1)
         # A single remote shell preserves the requested cadence between touches.
@@ -220,6 +248,19 @@ def capture(device, args):
     metadata['captureSha256'] = hashlib.sha256((folder / 'capture.json').read_bytes()).hexdigest()
     (folder / 'procedure.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
     report = json.loads((folder / 'capture.json').read_text(encoding='utf-8'))
+    if args.input == 'calibrated-hold':
+        keys = report['native']['keys']
+        downs = [event for event in injected['events'] if event[4] == 0]
+        validation = {
+            'expectedDowns': len(downs), 'observedDowns': len(keys),
+            'repeatCountsConsecutive': [key[6] for key in keys] == list(range(len(downs))),
+            'oneDownTime': len({key[4] for key in keys}) == 1,
+            'eventTimeOffsetsMatch': bool(keys) and [key[3] - keys[0][3] for key in keys] == [event[2] - downs[0][2] for event in downs],
+        }
+        (folder / 'input-validation.json').write_text(json.dumps(validation, indent=2), encoding='utf-8')
+        if (len(keys) != len(downs) or not validation['repeatCountsConsecutive'] or
+                not validation['oneDownTime'] or not validation['eventTimeOffsetsMatch']):
+            raise ValueError('Native held-key sequence mismatch; retain capture but exclude from matched A/B')
     if report['before'].get('pageCount') != 512:
         raise ValueError('Fixture was not ready: results are invalid')
     for phase in ('before', 'after'):
@@ -258,13 +299,15 @@ def main():
     sample.add_argument('--seconds', type=int, default=12)
     sample.add_argument('--page', type=int, default=160)
     sample.add_argument('--settle', type=float, default=3)
-    sample.add_argument('--input', choices=['manual', 'duration', 'keysequence', 'taps', 'swipes', 'idle'], default='idle')
+    sample.add_argument('--input', choices=['manual', 'duration', 'keysequence', 'calibrated-hold', 'taps', 'swipes', 'idle'], default='idle')
     sample.add_argument('--direction', choices=['forward', 'reverse'], default='forward')
     sample.add_argument('--hold-ms', type=int, default=8000)
     sample.add_argument('--count', type=int, default=20)
     sample.add_argument('--interval', type=float, default=.2)
     sample.add_argument('--swipe-ms', type=int, default=100)
     sample.add_argument('--key-delay-ms', type=int, default=50)
+    sample.add_argument('--key-timing', type=Path, default=Path(__file__).resolve().parent / 'inputs/physical-volume-20hz.json')
+    sample.add_argument('--key-dex', type=Path, default=Path(__file__).resolve().parent / 'artifacts/key-driver/dex/classes.dex')
     sample.add_argument('--alternate', action='store_true', help='Reverse every two discrete keys or every drag; a separate cached-window scenario')
     sample.add_argument('--warm-radius', type=int, choices=range(0, 3), default=0, help='Visit nearby pages before capture; verify cache misses in the recording')
     sample.add_argument('--touch-driver', choices=['adb', 'fixed'], default='adb')

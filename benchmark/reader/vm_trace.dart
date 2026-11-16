@@ -64,8 +64,11 @@ Future<void> main(List<String> args) async {
       );
     }
     await rpc('setVMTimelineFlags', {
-      'recordedStreams': ['Dart', 'Embedder', 'GC'],
+      // Engine scheduling is captured separately in Perfetto. Dense Embedder
+      // events can overwrite the Dart UI window in the VM's ring buffer.
+      'recordedStreams': ['Dart', 'GC'],
     });
+    await save('timeline-flags', await rpc('getVMTimelineFlags'));
     await rpc('clearVMTimeline');
     await rpc('clearCpuSamples', {'isolateId': isolateId});
     final start = await rpc('getVMTimelineMicros');

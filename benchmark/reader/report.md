@@ -163,6 +163,30 @@ UI P95 3.810→3.844 ms，CPU 2348→2334 ms，产出帧 455→458，基本不�
 
 ## Profile 与 Perfetto
 
+实体键校准 `next-physical-volume-calibration-r3` 完成：271 个连续 DOWN、同一 downTime，
+原生／Dart 数量一致，持续重复约 19.78 Hz；首个 repeat 的 eventTime 相隔 401 ms。
+原计划按住 8 秒，但实际首末 eventTime 相隔约 14 秒，因此只使用实际记录计算频率，
+不将提示时长当作持键时长。之前启动 ACK 超时及零输入窗口均排除。
+
+自动输入截取该实体记录前 8 秒的 152 个 DOWN，保留各次 eventTime 偏移、连续
+repeatCount 和同一 downTime。Next 与 Prime 均验证完整原生序列、Dart 接收和
+注入时间一致，首键原生投递约 161–163 ms；通道接收 P95 分别 .429／.776 ms。
+这组未见 Next 通道积压，不支持将 MethodChannel 本身归为根因。两版均选页 77 次，
+Next／Prime UI P95 为 4.057／4.055 ms，CPU time 6990／5692 ms；Next 图片入口
+152 次、Prime 76 次，是否取消后重读需进一步记录，不能当作已完成两倍解码的证据。
+原生探针未记录实体 UP，回放验证范围限于阅读器消费的 DOWN 链路。
+
+`next-profile-viewport-cached-key-r1` 完整保存 Dart／GC Timeline，避免高密度 Embedder
+流覆盖早期窗口。100 次离散键、50 次选页、零图片未命中期间，出现 200 次同一视口
+卸载／挂载与 250 次 shellUpdate，其中 200 次来自绑定回调。ReaderImagesHost 每次
+build 更换闭包，Gallery.didUpdateWidget 交接同一对象，ReaderState 再注册两个帧后
+外壳刷新。这是正在进行的单变量实验，尚不能仅由次数判定性能收益。
+
+该 Profile 有 200 个 UI ≥2 ms 帧；Perfetto 完整覆盖 UI 区间，Running P95 4.303 ms、
+Runnable P95 .023 ms。CPU 样本主要落在框架 build／layout 和按钮动画，支持继续检查
+同步 UI 工作。窗口内记录到 8 次 CollectNewGeneration，区间合计 24.957 ms，不能将
+并发 Scavenge 工作线程时间再重复相加，也不把 Profile 的 GC 次数用于 Release 验收。
+
 - Next 已保存有效 CPU 样本与 Timeline：`next-profile-swipe-fast-r2-vm`、
   `next-profile-keysequence-r1-vm`。仅按对应 capture 的实际时间窗口分析样本，
   不把异步等待时间当执行时间。当前有效窗口未观察到 GC 时间线事件。

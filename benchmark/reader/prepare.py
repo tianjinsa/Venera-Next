@@ -165,6 +165,11 @@ def instrument(out, variant):
         add_import(page)
         for signature, label in [('void update() {', 'update'), ('void updateHistory() {', 'history'), ('Widget build(BuildContext context) {', 'readerBuild')]:
             replace(page, signature, signature + f"\n    ReaderPerfProbe.event('{label}', [page]);")
+        for signature, label, values in [
+            ('void onViewportChanged(ReaderImageViewController viewport, bool attached) {', 'viewportBinding', '[attached, identityHashCode(viewport), identityHashCode(imageViewController)]'),
+            ('void updateShell() {', 'shellUpdate', '[page, identityHashCode(imageViewController)]'),
+        ]:
+            replace(page, signature, signature + f"\n    if (ReaderPerfProbe.detailed) ReaderPerfProbe.event('{label}', {values});")
         volume = out / 'lib/features/reader/volume.dart'
         add_import(volume)
         replace(volume, 'final arguments = call.arguments;', "final arguments = call.arguments;\n      ReaderPerfProbe.event('volume', [arguments is Map ? arguments['value'] : null]);")

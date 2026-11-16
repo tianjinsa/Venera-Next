@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 class ReaderPerfProbe {
   static const channel = MethodChannel('reader/benchmark');
   static const maxEvents = 30000;
+  static const detailed = kProfileMode;
   static bool recording = false;
   static final events = <List<Object?>>[];
   static final frames = <List<int>>[];
