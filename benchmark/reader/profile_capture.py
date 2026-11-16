@@ -20,6 +20,8 @@ def main():
     parser.add_argument('--interval', type=float, default=.02)
     parser.add_argument('--alternate', action='store_true')
     parser.add_argument('--warm-radius', type=int, choices=range(3), default=0)
+    parser.add_argument('--expected-cache-mib', type=int, default=192,
+                        help='0 permits a diagnostic with its actual budget; do not use it for matched Release A/B')
     parser.add_argument('--adb', default='E:/Android/Sdk/platform-tools/adb.exe')
     parser.add_argument('--dart', default='D:/.tool/flutter-3.41.4/bin/cache/dart-sdk/bin/dart.exe')
     parser.add_argument('--out', type=Path, default=Path(__file__).resolve().parent / 'raw')
@@ -52,6 +54,7 @@ def main():
         else:
             raise RuntimeError(''.join(lines))
         command = [sys.executable, str(Path(__file__).with_name('adb_benchmark.py')), '--adb', args.adb, '--variant', args.variant, 'capture', '--name', args.name, '--out', str(args.out), '--seconds', '14', '--input', args.input, '--count', str(args.count), '--interval', str(args.interval), '--swipe-ms', '80', '--key-delay-ms', '50', '--perfetto', '--reuse-process', '--touch-driver', args.touch_driver, '--warm-radius', str(args.warm_radius)]
+        command += ['--expected-cache-mib', str(args.expected_cache_mib)]
         if args.alternate:
             command += ['--alternate']
         subprocess.run(command, check=True)
