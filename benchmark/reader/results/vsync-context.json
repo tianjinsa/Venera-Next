@@ -527,5 +527,221 @@
       "networkParticipation": "Zero source/decode/precache work in app diagnostic; cached isolation only"
     }
   ],
-  "limits": "No strict A/B profit inference: different contents/windows and network participation. Android dispatch is not Dart receipt. Surface gaps include static dwell. Older user log really contains 16.7ms settle median; current captures do not reproduce it. Cached capture still has25ms tail. No diagnosed cause or final acceptance."
+  "limits": "No strict A/B profit inference: different contents/windows and network participation. Android dispatch is not Dart receipt. Surface gaps include static dwell. Older user log really contains 16.7ms settle median; current captures do not reproduce it. Cached capture still has25ms tail. No diagnosed cause or final acceptance.",
+  "subsequentUserExports": [
+    {
+      "label": "real",
+      "sourceFileSha256": "10e60eecc6575f7f21faf5049e7ce2a0cc07f61bd4cafbe97169960b3d920df3",
+      "durationUs": 5948267,
+      "globalFrames": {
+        "ui": {
+          "count": 350,
+          "medianUs": 888,
+          "p95Us": 4225,
+          "maxUs": 5493
+        },
+        "raster": {
+          "count": 350,
+          "medianUs": 1462,
+          "p95Us": 2599,
+          "maxUs": 13833
+        },
+        "totalSpan": {
+          "count": 350,
+          "medianUs": 3701,
+          "p95Us": 11873,
+          "maxUs": 24668
+        },
+        "frameBudgetUs": 8333,
+        "overBudget": 5,
+        "uiOverBudget": 0,
+        "rasterOverBudget": 5
+      },
+      "scroll": {
+        "droppedPhases": 52,
+        "drag": {
+          "ui": {
+            "count": 0
+          },
+          "raster": {
+            "count": 0
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 0
+          }
+        },
+        "settle": {
+          "ui": {
+            "count": 137,
+            "medianUs": 656,
+            "p95Us": 4441,
+            "maxUs": 5316
+          },
+          "raster": {
+            "count": 137,
+            "medianUs": 1472,
+            "p95Us": 2594,
+            "maxUs": 5369
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 113,
+            "medianUs": 8353,
+            "p95Us": 16714,
+            "maxUs": 25061
+          }
+        }
+      },
+      "stages": {
+        "localRead": {
+          "count": 0
+        },
+        "sourceRead": {
+          "count": 38,
+          "medianUs": 21231,
+          "p95Us": 27386,
+          "maxUs": 29876
+        },
+        "processingWait": {
+          "count": 0
+        },
+        "codecInitWait": {
+          "count": 38,
+          "medianUs": 375,
+          "p95Us": 618,
+          "maxUs": 693
+        },
+        "firstDecodeWait": {
+          "count": 38,
+          "medianUs": 51724,
+          "p95Us": 63460,
+          "maxUs": 64863
+        },
+        "displayWait": {
+          "count": 38,
+          "medianUs": 18,
+          "p95Us": 51,
+          "maxUs": 433
+        },
+        "precacheQueueWait": {
+          "count": 38,
+          "medianUs": 14,
+          "p95Us": 46,
+          "maxUs": 52
+        },
+        "precacheWait": {
+          "count": 38,
+          "medianUs": 72798,
+          "p95Us": 87331,
+          "maxUs": 89024
+        }
+      },
+      "omittedEventsForCopy": 161
+    },
+    {
+      "label": "generated",
+      "sourceFileSha256": "7916bd5e192cb5b572284676a3ee75a1ac7e0f854ca65c4f41752f16c86f1cc7",
+      "durationUs": 42556877,
+      "globalFrames": {
+        "ui": {
+          "count": 375,
+          "medianUs": 1429,
+          "p95Us": 4887,
+          "maxUs": 8229
+        },
+        "raster": {
+          "count": 375,
+          "medianUs": 2043,
+          "p95Us": 3848,
+          "maxUs": 10149
+        },
+        "totalSpan": {
+          "count": 375,
+          "medianUs": 5931,
+          "p95Us": 14800,
+          "maxUs": 23093
+        },
+        "frameBudgetUs": 8333,
+        "overBudget": 4,
+        "uiOverBudget": 0,
+        "rasterOverBudget": 4
+      },
+      "scroll": {
+        "droppedPhases": 104,
+        "drag": {
+          "ui": {
+            "count": 0
+          },
+          "raster": {
+            "count": 0
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 0
+          }
+        },
+        "settle": {
+          "ui": {
+            "count": 129,
+            "medianUs": 989,
+            "p95Us": 4859,
+            "maxUs": 7217
+          },
+          "raster": {
+            "count": 129,
+            "medianUs": 2043,
+            "p95Us": 3553,
+            "maxUs": 4310
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 105,
+            "medianUs": 8354,
+            "p95Us": 25050,
+            "maxUs": 25062
+          }
+        }
+      },
+      "stages": {
+        "localRead": {
+          "count": 0
+        },
+        "sourceRead": {
+          "count": 0
+        },
+        "processingWait": {
+          "count": 0
+        },
+        "codecInitWait": {
+          "count": 0
+        },
+        "firstDecodeWait": {
+          "count": 0
+        },
+        "displayWait": {
+          "count": 50,
+          "medianUs": 22,
+          "p95Us": 50,
+          "maxUs": 64
+        },
+        "precacheQueueWait": {
+          "count": 0
+        },
+        "precacheWait": {
+          "count": 0
+        }
+      },
+      "omittedEventsForCopy": 53,
+      "duplicateOf": "installed67-real-cached-r1; byte-identical export, not a new generated-comic capture"
+    }
+  ]
 }

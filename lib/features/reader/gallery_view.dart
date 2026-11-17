@@ -127,14 +127,14 @@ class GalleryModeState extends State<ReaderGalleryView>
 
   void _refreshPrecache() {
     _lastPrecache = null;
-    if (mounted && !_disposed) cache(page);
+    if (mounted && !_disposed) _schedulePrecache(page);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _precacheConfiguration = createLocalImageConfiguration(context);
-    cache(page);
+    _schedulePrecache(page);
   }
 
   @override
@@ -143,6 +143,7 @@ class GalleryModeState extends State<ReaderGalleryView>
     if (!identical(oldWidget.data.content, data.content) ||
         !identical(oldWidget.imageWork, widget.imageWork)) {
       _singleImageStates.clear();
+      _requestedPrecachePage = null;
     }
     if (!identical(oldWidget.imageWork, widget.imageWork)) {
       unawaited(_imageDownloads.dispose());
@@ -158,7 +159,7 @@ class GalleryModeState extends State<ReaderGalleryView>
       oldWidget.onViewportChanged(this, false);
       widget.onViewportChanged(this, true);
     }
-    cache(page);
+    _schedulePrecache(page);
   }
 
   @override
@@ -247,6 +248,31 @@ class GalleryModeState extends State<ReaderGalleryView>
   }
 
   Object? _lastPrecache;
+  bool _precacheScheduled = false;
+  int? _scheduledPrecachePage;
+
+  void _schedulePrecache(int target) {
+    if (_disposed || !mounted) return;
+    _scheduledPrecachePage = target;
+    if (!ReaderImageCachePolicy.allowActivePrecache) {
+      // Memory pressure still cancels speculative work immediately.
+      _scheduledPrecachePage = null;
+      cache(target);
+      return;
+    }
+    if (_precacheScheduled) return;
+    _precacheScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _precacheScheduled = false;
+      final requested = _scheduledPrecachePage;
+      _scheduledPrecachePage = null;
+      if (_disposed || !mounted || requested == null) return;
+      // Intermediate PageView positions must not replace a command's target.
+      cache(navigation.state.pendingPage ?? requested);
+    });
+    // Resume can arrive while the viewport is idle, without a scheduled frame.
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
 
   void _onScroll() {
     if (_disposed || !mounted || !controller.hasClients) return;
@@ -258,26 +284,31 @@ class GalleryModeState extends State<ReaderGalleryView>
     _lastScrollPage = value;
     if (delta.abs() < .0001) return;
     // Page coordinates already account for horizontal RTL and vertical mode.
-    _preparePage(delta > 0 ? value.ceil() : value.floor(), delta.sign.toInt());
+    _notePageRequest(
+      delta > 0 ? value.ceil() : value.floor(),
+      delta.sign.toInt(),
+    );
   }
 
-  void _preparePage(int target, int direction) {
+  int? _requestedPrecachePage;
+
+  void _notePageRequest(int target, int direction) {
     if (target < 1 || target > totalPages) return;
-    if (_precacheDirection == direction && target == _precacheTarget) return;
+    if (_precacheDirection == direction && target == _requestedPrecachePage) {
+      return;
+    }
+    _requestedPrecachePage = target;
     widget.imageWork.diagnostics?.recordPageTurn(
       phase: ReaderDiagnosticPagePhase.requested,
       direction: direction,
       distance: (target - _activePage.value).abs(),
     );
     _precacheDirection = direction;
-    cache(target);
   }
 
-  int? _precacheTarget;
   void cache(int startPage) {
     final configuration = _precacheConfiguration;
     if (_disposed || !mounted || configuration == null) return;
-    _precacheTarget = startPage;
     if (!ReaderImageCachePolicy.allowActivePrecache) {
       _lastPrecache = null;
       widget.imageWork.diagnostics?.recordPrecacheWindow(
@@ -454,10 +485,10 @@ class GalleryModeState extends State<ReaderGalleryView>
                 final previousActivePage = _activePage.value;
                 navigation.reportPage(i);
                 // Navigation ignores intermediate pages of a longer command.
-                // Do not replace that command's early prefetch with this page.
+                // Only an accepted selection replans the neighbour window.
                 if (_disposed || !mounted || page != i) return;
                 _activePage.value = page;
-                cache(page);
+                _schedulePrecache(page);
                 if (page != previousActivePage) {
                   widget.imageWork.diagnostics?.recordPageTurn(
                     phase: ReaderDiagnosticPagePhase.selected,
@@ -662,7 +693,7 @@ class GalleryModeState extends State<ReaderGalleryView>
   @override
   Future<void> animateToPage(int page) {
     if (_disposed || !mounted || !controller.hasClients) return Future.value();
-    _preparePage(page, page >= controller.page! ? 1 : -1);
+    _notePageRequest(page, page >= controller.page! ? 1 : -1);
     if ((page - controller.page!.round()).abs() > 1) {
       controller.jumpToPage(page > controller.page! ? page - 1 : page + 1);
     }
@@ -676,7 +707,7 @@ class GalleryModeState extends State<ReaderGalleryView>
   @override
   void toPage(int page) {
     if (_disposed || !mounted || !controller.hasClients) return;
-    _preparePage(page, page >= controller.page! ? 1 : -1);
+    _notePageRequest(page, page >= controller.page! ? 1 : -1);
     controller.jumpToPage(page);
   }
 

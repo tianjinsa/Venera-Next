@@ -127,20 +127,64 @@ void main() {
   );
 
   for (final direction in ['ltr', 'rtl', 'vertical']) {
-    testWidgets('starts the next window before the $direction page midpoint', (
+    testWidgets(
+      'updates the next window only after accepted $direction selection',
+      (tester) async {
+        final fixture = _Fixture(cache, direction);
+        try {
+          await fixture.mount(tester);
+          expect(fixture.read(2).loads, 1);
+          expect(fixture.read(3).loads, 0);
+          final position = fixture.gallery.controller.position;
+          final origin = position.pixels;
+          position.jumpTo(position.pixels + position.viewportDimension * .1);
+          expect(fixture.navigation.state.page, 1);
+          expect(fixture.read(3).loads, 0);
+          await tester.pump();
+          expect(fixture.navigation.state.page, 1);
+          expect(fixture.read(3).loads, 0);
+          position.jumpTo(origin + position.viewportDimension * .6);
+          expect(fixture.navigation.state.page, 2);
+          expect(fixture.read(3).loads, 0);
+          await tester.pump();
+          expect(fixture.read(3).loads, 1);
+          expect(fixture.read(2).loads, 1);
+        } finally {
+          await fixture.dispose(tester);
+        }
+      },
+    );
+
+    testWidgets('same-frame $direction commands only warm the final window', (
       tester,
     ) async {
       final fixture = _Fixture(cache, direction);
       try {
         await fixture.mount(tester);
-        expect(fixture.read(2).loads, 1);
-        expect(fixture.read(3).loads, 0);
-        // Advance the real scroll position without drawing another frame.
-        final position = fixture.gallery.controller.position;
-        position.jumpTo(position.pixels + position.viewportDimension * .1);
-        expect(fixture.navigation.state.page, 1);
-        expect(fixture.read(3).loads, 1);
-        expect(fixture.read(2).loads, 1);
+        fixture.gallery.toPage(3);
+        fixture.gallery.toPage(6);
+        expect(fixture.navigation.state.page, 6);
+        expect(fixture.read(4).loads, 0);
+        expect(fixture.read(7).loads, 0);
+        await tester.pump();
+        expect(fixture.read(4).loads, 0);
+        expect(fixture.read(6).loads, 1);
+        expect(fixture.read(7).loads, 1);
+      } finally {
+        await fixture.dispose(tester);
+      }
+    });
+
+    testWidgets('retired $direction gallery does not run its queued window', (
+      tester,
+    ) async {
+      final fixture = _Fixture(cache, direction);
+      try {
+        await fixture.mount(tester);
+        fixture.gallery.toPage(6);
+        await tester.pumpWidget(const SizedBox());
+        expect(fixture.read(5).loads, 0);
+        expect(fixture.read(7).loads, 0);
       } finally {
         await fixture.dispose(tester);
       }
