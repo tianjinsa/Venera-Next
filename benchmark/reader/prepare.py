@@ -159,12 +159,19 @@ def instrument(out, variant):
             ('void setPage(int page) {', "'setPage', [_page, page, _pendingPage]"),
         ]:
             replace(controller, signature, signature + f'\n    ReaderPerfProbe.event({event});')
-        replace(controller, 'onChanged();', "ReaderPerfProbe.event('notify', [_page, _pendingPage]);\n      onChanged();", count=4)
+        if '_notifyPageNavigation();' in controller.read_text(encoding='utf-8'):
+            replace(controller, '_notifyPageNavigation();', "ReaderPerfProbe.event('notify', [_page, _pendingPage]);\n      _notifyPageNavigation();", count=3)
+            replace(controller, 'onChanged();', "ReaderPerfProbe.event('notify', [_page, _pendingPage]);\n      onChanged();")
+        else:
+            replace(controller, 'onChanged();', "ReaderPerfProbe.event('notify', [_page, _pendingPage]);\n      onChanged();", count=4)
         replace(controller, 'void finish() {', "void finish() {\n        ReaderPerfProbe.event('animationEnd', [generation, _generation, _page, _pendingPage]);")
         page = out / 'lib/features/reader/reader_page.dart'
         add_import(page)
         for signature, label in [('void update() {', 'update'), ('void updateHistory() {', 'history'), ('Widget build(BuildContext context) {', 'readerBuild')]:
             replace(page, signature, signature + f"\n    ReaderPerfProbe.event('{label}', [page]);")
+        if 'void _onPageNavigationChanged() {' in page.read_text(encoding='utf-8'):
+            signature = 'void _onPageNavigationChanged() {'
+            replace(page, signature, signature + "\n    ReaderPerfProbe.event('navigationUpdate', [page]);")
         for signature, label, values in [
             ('void onViewportChanged(ReaderImageViewController viewport, bool attached) {', 'viewportBinding', '[attached, identityHashCode(viewport), identityHashCode(imageViewController)]'),
             ('void updateShell() {', 'shellUpdate', '[page, identityHashCode(imageViewController)]'),

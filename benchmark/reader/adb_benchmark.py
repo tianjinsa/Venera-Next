@@ -115,15 +115,36 @@ data_sources {{ config {{ name: "android.power" android_power_config {{
 '''
 
 
+def validate_cached_working_set(report):
+    """The same decoded working set may fit below different automatic ceilings.
+
+    This is a separate cached isolation scenario, never a strict 192 MiB run.
+    """
+    before, after = report['before'], report['after']
+    for phase in (before, after):
+        if phase['cacheLimitBytes'] < 128 << 20 or phase['pendingImages']:
+            raise ValueError('Cached isolation requires budget headroom and no pending images')
+    if (before['cacheBytes'] != 120 << 20 or after['cacheBytes'] != 120 << 20 or
+            before['cacheImages'] != 5 or after['cacheImages'] != 5):
+        raise ValueError('Cached isolation requires the identical five decoded RGB images')
+    if any(e[1] in ('imageMiss', 'sourceLoad') for e in report['events']):
+        raise ValueError('Cache miss/source load invalidates the cached isolation')
+
+
 def capture(device, args):
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', args.name):
         raise ValueError('Invalid capture name')
     folder = args.out / args.name
     folder.mkdir(parents=True, exist_ok=False)
+    if args.cached_budget_headroom and not (args.input == 'keysequence' and args.alternate and args.warm_radius == 1):
+        raise ValueError('Cached headroom applies only to the five-image alternating key scenario')
     initial = device.launch(fresh=not args.reuse_process)
     if initial.get('pageCount') != 512 or initial.get('refreshHz', 0) < 119:
         raise ValueError('Requires a ready 512-page reader at 120 Hz')
-    if args.expected_cache_mib and initial.get('cacheLimitBytes') != args.expected_cache_mib * 1024 * 1024:
+    if args.cached_budget_headroom:
+        if initial.get('cacheLimitBytes', 0) < 128 << 20:
+            raise ValueError('Insufficient automatic budget for the fixed cached working set')
+    elif args.expected_cache_mib and initial.get('cacheLimitBytes') != args.expected_cache_mib * 1024 * 1024:
         raise ValueError('Unexpected cache budget; do not mix pressure and normal baselines')
     package_path = device.run('shell', 'pm', 'path', device.package).splitlines()[0].removeprefix('package:').strip()
     installed_hash = device.run('shell', 'sha256sum', shlex.quote(package_path)).split()[0]
@@ -263,8 +284,10 @@ def capture(device, args):
             raise ValueError('Native held-key sequence mismatch; retain capture but exclude from matched A/B')
     if report['before'].get('pageCount') != 512:
         raise ValueError('Fixture was not ready: results are invalid')
+    if args.cached_budget_headroom:
+        validate_cached_working_set(report)
     for phase in ('before', 'after'):
-        if args.expected_cache_mib and report[phase].get('cacheLimitBytes') != args.expected_cache_mib * 1024 * 1024:
+        if not args.cached_budget_headroom and args.expected_cache_mib and report[phase].get('cacheLimitBytes') != args.expected_cache_mib * 1024 * 1024:
             raise ValueError('Cache budget changed; raw capture retained but excluded from matched A/B')
         if report[phase].get('refreshHz', 0) < 119:
             raise ValueError('Refresh rate changed; raw capture retained but excluded from 120 Hz A/B')
@@ -316,6 +339,7 @@ def main():
     sample.add_argument('--perfetto', action='store_true')
     sample.add_argument('--reuse-process', action='store_true', help='For explicitly labelled warm-window or memory-pressure probes')
     sample.add_argument('--expected-cache-mib', type=int, default=192, help='Use 0 only for explicitly labelled pressure-policy experiments')
+    sample.add_argument('--cached-budget-headroom', action='store_true', help='Separate cached isolation: require identical 120 MiB resident set and zero reads/misses; record actual automatic ceiling, do not change it')
     args = parser.parse_args()
     device = Device(args.adb, args.variant, args.serial)
     if args.action == 'install':

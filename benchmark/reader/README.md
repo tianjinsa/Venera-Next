@@ -129,3 +129,14 @@ python benchmark/reader/adb_benchmark.py --variant next capture --name calibrate
 [results/physical-volume-calibration.json](results/physical-volume-calibration.json)。
 后续每轮自动拒绝不匹配的原生序列。原生探针只记录 DOWN，没有测量实体 UP 的时刻；
 模拟输入验证的是阅读器实际消费的 DOWN 链路，最终仍需实体键复核体验。
+
+
+## 缓存驻留隔离与视口观察
+
+`--cached-budget-headroom` 只允许 keysequence / alternate / warm-radius=1，
+要求前后相同五张图片、120 MiB、无 pending 和任何 sourceLoad/imageMiss，实际预算至少
+128 MiB；它不改变自动预算，不适用于冷加载或一般长按。默认严格 192 MiB 校验保持不变。
+
+`analyze_viewport.py` 区分控制器整数页驻留时间、产出帧结束时位置；均非屏幕呈现。
+`analyze_cpu_schedule.py` 对齐实际采样窗口，报告 UI 线程 CPU 放置与运行时间加权频率，
+不修改频率或亲和性。Prime／官方测试／本分支执行路径见 prime-render-flow.md。

@@ -827,6 +827,7 @@ class ReaderState extends State<Reader>
     animationEnabled: () => preferences.enablePageAnimation,
     viewport: () => imageViewController,
     onChanged: update,
+    onPageNavigationChanged: _onPageNavigationChanged,
     onPageChanged: onPageChanged,
     onError: (error, stack) =>
         Log.error('Reader', 'Page navigation failed: $error', stack),
@@ -882,6 +883,21 @@ class ReaderState extends State<Reader>
           data.matches(chapters),
       select: toChapter,
     );
+  }
+
+  void _onPageNavigationChanged() {
+    if (!mode.isGallery) {
+      update();
+      return;
+    }
+    if (!_stateDisposed) _targetValidity.value++;
+    if (_sessionClosing != null || _sessionFrozen) return;
+    _updateScreenAwake();
+    _cancelOutdatedLayout();
+    // PageController and the gallery's active-page notifier own page motion.
+    // Page/animation changes only refresh shell input and presentation; chapter,
+    // layout and settings changes still rebuild the content through update().
+    updateShell();
   }
 
   void update() {

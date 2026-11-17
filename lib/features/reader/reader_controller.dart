@@ -56,6 +56,7 @@ class ReaderController {
     required this.animationEnabled,
     required this.viewport,
     required this.onChanged,
+    this.onPageNavigationChanged,
     required this.onPageChanged,
     required this.onError,
   });
@@ -65,6 +66,10 @@ class ReaderController {
   final bool Function() animationEnabled;
   final ReaderNavigationViewport? Function() viewport;
   final void Function() onChanged;
+
+  /// Current-chapter page/animation updates can retain the content subtree.
+  /// Owners without a separate presentation path receive [onChanged].
+  final void Function()? onPageNavigationChanged;
   final void Function() onPageChanged;
   final void Function(Object, StackTrace) onError;
 
@@ -251,6 +256,8 @@ class ReaderController {
     _snapshot = null;
   }
 
+  void _notifyPageNavigation() => (onPageNavigationChanged ?? onChanged)();
+
   bool toPage(int page, {bool animated = true}) {
     if (_disposed) return false;
     final view = viewport();
@@ -268,13 +275,13 @@ class ReaderController {
       _pendingPage = page;
       _snapshot = null;
       final generation = _generation;
-      onChanged();
+      _notifyPageNavigation();
       if (_disposed || generation != _generation) return true;
       void finish() {
         if (_disposed || generation != _generation) return;
         _pendingPage = null;
         _snapshot = null;
-        onChanged();
+        _notifyPageNavigation();
       }
 
       unawaited(
@@ -289,7 +296,7 @@ class ReaderController {
     } else {
       setPage(page);
       if (_disposed) return true;
-      onChanged();
+      _notifyPageNavigation();
       if (!_disposed) view.toPage(page);
     }
     return true;

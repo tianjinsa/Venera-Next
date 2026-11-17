@@ -295,3 +295,11 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 - ReaderState 保留即时视口所有权，帧后只发布最终所有者变化；同一视口回调换绑不再额外通知。Profile 原记录 100 次按键有 200 次绑定交接、250 次 shellUpdate，Perfetto 主要为 UI Running。
 - 两轮 120 Hz／192 MiB Release 校准回放选页均 77 次，UI 总时间与 ≥2 ms 帧减少，缓存按键 CPU time 2344→2046／2028 ms。UI P95 没有改善，不能宣称长尾或长按验收达成；下一轮继续限定导航更新范围。PSS 波动、预算拦截的 Profile 和完整指标见 benchmark/reader/report.md。
 - 自动模式／Gallery／连续视图定向 59 项及相关 Dart 分析通过，覆盖首挂载、同帧交接、替换、晚到卸载和 dispose。缓存预算、内存压力、存储队列与退出所有权未修改。未推送，未运行全量 Actions。
+
+
+### 2026-11-17：#178 同章节导航更新范围
+
+- R12：ReaderController 分离同章节页／动画通知，ReaderState 保留 targetValidity、唤醒与布局取消检查，仅更新 Gallery 外壳；连续视图、章节、设置和布局变化仍完整更新。真实阅读器六种方向／单双页测试确认保留内容子树，打开工具栏后页码新鲜，模式切换替换视口。
+- 120 Hz、同五张 120 MiB 驻留／192 MiB 上限、零读取解码的两轮对照：Next UI P95 4.991/4.614→4.560/4.008 ms；Prime 4.325/4.003 ms。CPU time 2339/2153→2367/2108 ms，未发现稳定整体 CPU 增益。保留最小修改；r1 仍有 10.447 ms 尖峰，不能声称长尾和实体长按验收完成。
+- 控制器／自动模式 61 项、真实阅读器定向 8 项及相关 Dart 分析通过。历史同名八项 Windows 退出集成基线失败未重新算作通过。方向、章节、压力预算和存储队列未删减。
+- 记录实际温度、频率及预算校验失败轮次；不同日期／频率的长按不作数值收益对照。Prime 渲染路径、官方新测试与 RC.3 的区别见 benchmark/reader/prime-render-flow.md，统计见 results/navigation-scope.json。未推送或启动全量 Actions。
