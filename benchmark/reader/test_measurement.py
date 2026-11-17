@@ -2,6 +2,7 @@
 import copy
 import unittest
 from summarize import summarize
+from adb_benchmark import validate_touch_window
 
 
 class MeasurementValidity(unittest.TestCase):
@@ -57,6 +58,22 @@ class MeasurementValidity(unittest.TestCase):
         result = summarize(self.report)
         self.assertEqual(result['pointerDowns'], 3)
         self.assertEqual(result['newDragWhileScrolling'], 1)
+
+    def test_fixed_touch_requires_all_downs_and_tail_inside_real_window(self):
+        self.report['events'].append([1200000, 'pointerDown', 10.0, False, 0])
+        injected = {'durationMs': 80, 'gapMs': 125, 'events': [
+            [1200000000, 1200000000, 1200, 1200, 0, 920],
+            [1600000000, 1600000000, 1600, 1200, 1, 160],
+        ]}
+        self.assertTrue(validate_touch_window(self.report, injected, 1)['valid'])
+        self.assertEqual(validate_touch_window(self.report, injected, 1)['plannedDownCadenceMs'], 205)
+        # A successful injector does not prove the capture included its final UP.
+        self.report['stoppedUs'] = 1500000
+        self.assertFalse(validate_touch_window(self.report, injected, 1)['valid'])
+        self.report['stoppedUs'] = 1750000
+        self.assertFalse(validate_touch_window(self.report, injected, 1)['valid'])
+        self.report['stoppedUs'] = 2000000
+        self.assertFalse(validate_touch_window(self.report, injected, 2)['valid'])
 
 
 if __name__ == '__main__':

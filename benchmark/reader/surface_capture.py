@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 
-from adb_benchmark import Device
+from adb_benchmark import Device, PACKAGES
 
 
 def find_layer(output, package):
@@ -56,7 +56,14 @@ def main():
     if '--reuse-process' in capture_args:
         parser.error('The wrapper owns the one fresh launch')
     device = Device(args.adb, args.variant)
-    device.launch(fresh=True)
+    # Isolate the two benchmark processes; stable user installations are never
+    # targeted. Both variants receive the same cold-process starting condition.
+    for package, _ in PACKAGES.values():
+        device.run('shell', 'am', 'force-stop', package)
+    # Allow process/GPU resources to retire before the automatic memory query.
+    # This keeps the original policy; never overwrite its selected budget.
+    time.sleep(5)
+    device.launch()
     layer = find_layer(device.run('shell', 'dumpsys SurfaceFlinger --list'), device.package)
     samples, errors = [], []
     stop = threading.Event()
@@ -86,6 +93,7 @@ def main():
         folder.mkdir(parents=True, exist_ok=True)
         (folder / 'surface-latency.json').write_text(json.dumps({
             'layer': layer, 'sampleIntervalSeconds': .5, 'samples': samples,
+            'freshProcessCooldownSeconds': 5,
             'errors': errors, 'workerStopped': not worker.is_alive(),
             'columns': ['desiredPresentNs', 'actualPresentNs', 'frameReadyNs'],
             'source': 'https://android.googlesource.com/platform/frameworks/native/+/refs/heads/main/services/surfaceflinger/FrameTracker.cpp',

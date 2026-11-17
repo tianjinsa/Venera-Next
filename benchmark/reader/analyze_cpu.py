@@ -29,6 +29,9 @@ def main():
         'topInclusive': [function(index) for index, count in inclusive.most_common(40)],
         'topExclusive': [function(index) for index, count in exclusive.most_common(40)],
         'applicationFunctions': [function(index) for index, count in inclusive.most_common() if '/code/' in (cpu['functions'][index].get('resolvedUrl') or '')][:40],
+        'readerGestureFunctions': [function(index) for index, count in inclusive.most_common()
+                                   if any(term in function(index)['name'] for term in
+                                          ('targetCurrent', '.preferences', 'ReaderSettings.resolve'))],
         'meaning': 'CPU samples only; inclusive stacks overlap and are not summed as independent durations',
     }
     (vm / 'cpu-summary.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

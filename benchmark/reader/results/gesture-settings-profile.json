@@ -1,0 +1,75 @@
+{
+  "meaning": "Matched Profile CPU/Timeline evidence only, never Release performance or GC/power acceptance. Inclusive sample stacks overlap.",
+  "runs": [
+    {
+      "name": "gesture-settings-profile-before",
+      "roiSamples": 1113,
+      "samplePeriodUs": 1000,
+      "readerGestureFunctions": [
+        {
+          "name": "createGestureRequest.targetCurrent",
+          "inclusiveSamples": 46,
+          "exclusiveSamples": 1
+        },
+        {
+          "name": "ReaderSettings.ReaderSettings.resolve",
+          "inclusiveSamples": 19,
+          "exclusiveSamples": 4
+        },
+        {
+          "name": "ReaderState.preferences",
+          "inclusiveSamples": 17,
+          "exclusiveSamples": 0
+        },
+        {
+          "name": "ReaderSettings.resolve.deviceValue",
+          "inclusiveSamples": 4,
+          "exclusiveSamples": 0
+        }
+      ],
+      "gcTimelineNames": {
+        "CollectNewGeneration": 3,
+        "Scavenge": 6
+      },
+      "cacheLimitMiB": 192.0,
+      "pageFrom": 160,
+      "pageTo": 179,
+      "pointerDowns": 20
+    },
+    {
+      "name": "gesture-settings-profile-after",
+      "roiSamples": 1232,
+      "samplePeriodUs": 1000,
+      "readerGestureFunctions": [
+        {
+          "name": "createGestureRequest.targetCurrent",
+          "inclusiveSamples": 38,
+          "exclusiveSamples": 1
+        },
+        {
+          "name": "ReaderState.preferences",
+          "inclusiveSamples": 10,
+          "exclusiveSamples": 0
+        },
+        {
+          "name": "ReaderSettings.ReaderSettings.resolve",
+          "inclusiveSamples": 9,
+          "exclusiveSamples": 0
+        },
+        {
+          "name": "ReaderSettings.resolve.deviceValue",
+          "inclusiveSamples": 3,
+          "exclusiveSamples": 0
+        }
+      ],
+      "gcTimelineNames": {
+        "CollectNewGeneration": 3,
+        "Scavenge": 6
+      },
+      "cacheLimitMiB": 192.0,
+      "pageFrom": 160,
+      "pageTo": 179,
+      "pointerDowns": 20
+    }
+  ]
+}

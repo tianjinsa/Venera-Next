@@ -131,6 +131,23 @@ def validate_cached_working_set(report):
         raise ValueError('Cache miss/source load invalidates the cached isolation')
 
 
+def validate_touch_window(report, injected, expected_downs):
+    calibration = min(report['calibration'], key=lambda c: c['dartEndUs'] - c['dartBeginUs'])
+    offset = (calibration['dartBeginUs'] + calibration['dartEndUs']) / 2 - calibration['monoNs'] / 1000
+    first = injected['events'][0][1] / 1000 + offset
+    last = injected['events'][-1][1] / 1000 + offset
+    observed = sum(e[1] == 'pointerDown' for e in report['events'])
+    result = {
+        'expectedDowns': expected_downs, 'observedDowns': observed,
+        'allInjectedWithinWindow': report['startedUs'] <= first <= last <= report['stoppedUs'],
+        'tailAfterUpMs': round((report['stoppedUs'] - last) / 1000, 3),
+        'plannedDownCadenceMs': injected['durationMs'] + injected['gapMs'],
+    }
+    result['valid'] = (result['allInjectedWithinWindow'] and observed == expected_downs
+                       and result['tailAfterUpMs'] >= 250 and not report['droppedEvents'])
+    return result
+
+
 def capture(device, args):
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', args.name):
         raise ValueError('Invalid capture name')
@@ -139,13 +156,14 @@ def capture(device, args):
     if args.cached_budget_headroom and not (args.input == 'keysequence' and args.alternate and args.warm_radius == 1):
         raise ValueError('Cached headroom applies only to the five-image alternating key scenario')
     initial = device.launch(fresh=not args.reuse_process)
+    (folder / 'initial-status.json').write_text(json.dumps(initial, indent=2), encoding='utf-8')
     if initial.get('pageCount') != 512 or initial.get('refreshHz', 0) < 119:
         raise ValueError('Requires a ready 512-page reader at 120 Hz')
     if args.cached_budget_headroom:
         if initial.get('cacheLimitBytes', 0) < 128 << 20:
             raise ValueError('Insufficient automatic budget for the fixed cached working set')
     elif args.expected_cache_mib and initial.get('cacheLimitBytes') != args.expected_cache_mib * 1024 * 1024:
-        raise ValueError('Unexpected cache budget; do not mix pressure and normal baselines')
+        raise ValueError(f"Unexpected automatic cache budget {initial.get('cacheLimitBytes', 0) / (1 << 20):.3f} MiB; expected {args.expected_cache_mib} MiB")
     package_path = device.run('shell', 'pm', 'path', device.package).splitlines()[0].removeprefix('package:').strip()
     installed_hash = device.run('shell', 'sha256sum', shlex.quote(package_path)).split()[0]
     if not re.fullmatch('[0-9a-fA-F]{64}', installed_hash):
@@ -269,6 +287,11 @@ def capture(device, args):
     metadata['captureSha256'] = hashlib.sha256((folder / 'capture.json').read_bytes()).hexdigest()
     (folder / 'procedure.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
     report = json.loads((folder / 'capture.json').read_text(encoding='utf-8'))
+    if args.input == 'swipes' and args.touch_driver == 'fixed':
+        validation = validate_touch_window(report, injected, args.count)
+        (folder / 'touch-validation.json').write_text(json.dumps(validation, indent=2), encoding='utf-8')
+        if not validation['valid']:
+            raise ValueError('Incomplete touch window or settling tail; raw capture retained but excluded')
     if args.input == 'calibrated-hold':
         keys = report['native']['keys']
         downs = [event for event in injected['events'] if event[4] == 0]
@@ -326,7 +349,7 @@ def main():
     sample.add_argument('--direction', choices=['forward', 'reverse'], default='forward')
     sample.add_argument('--hold-ms', type=int, default=8000)
     sample.add_argument('--count', type=int, default=20)
-    sample.add_argument('--interval', type=float, default=.2)
+    sample.add_argument('--interval', type=float, default=.2, help='Pause AFTER each tap/swipe UP; fixed swipe DOWN cadence is swipe-ms + interval*1000')
     sample.add_argument('--swipe-ms', type=int, default=100)
     sample.add_argument('--key-delay-ms', type=int, default=50)
     sample.add_argument('--key-timing', type=Path, default=Path(__file__).resolve().parent / 'inputs/physical-volume-20hz.json')
@@ -338,7 +361,7 @@ def main():
     sample.add_argument('--touch-dex', type=Path, default=Path(__file__).resolve().parent / 'artifacts/touch-driver/dex/classes.dex')
     sample.add_argument('--perfetto', action='store_true')
     sample.add_argument('--reuse-process', action='store_true', help='For explicitly labelled warm-window or memory-pressure probes')
-    sample.add_argument('--expected-cache-mib', type=int, default=192, help='Use 0 only for explicitly labelled pressure-policy experiments')
+    sample.add_argument('--expected-cache-mib', type=int, default=192, help='0 records the natural ceiling for a labelled diagnostic; validate actual resident capacity/work separately, never mix with strict 192 MiB A/B')
     sample.add_argument('--cached-budget-headroom', action='store_true', help='Separate cached isolation: require identical 120 MiB resident set and zero reads/misses; record actual automatic ceiling, do not change it')
     args = parser.parse_args()
     device = Device(args.adb, args.variant, args.serial)

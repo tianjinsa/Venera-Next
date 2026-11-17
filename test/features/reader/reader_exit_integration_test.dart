@@ -199,6 +199,44 @@ void main() {
     }
   }
 
+  testWidgets(
+    'gesture validity observes each live settings edit without build',
+    (tester) async {
+      final fixture = await _ReaderFixture.create(tester, imageCount: 6);
+      try {
+        await fixture.mount(
+          tester,
+          pushed: false,
+          withWindow: false,
+          initialPage: 1,
+        );
+        final reader = fixture.readerKey.currentState!;
+        final request = reader.createGestureRequest()!;
+        expect(request.isTargetCurrent(), isTrue);
+        final edits = <(String, Object)>[
+          ('enableDoubleTapToZoom', !request.preferences.enableDoubleTapToZoom),
+          ('enableTapToTurnPages', !request.preferences.enableTapToTurnPages),
+          ('reverseTapToTurnPages', !request.preferences.reverseTapToTurnPages),
+          (
+            'longPressAction',
+            request.preferences.longPressAction == 'none' ? 'zoom' : 'none',
+          ),
+        ];
+        for (final (key, value) in edits) {
+          final previous = appdata.settings[key];
+          appdata.settings[key] = value;
+          expect(request.isTargetCurrent(), isFalse, reason: key);
+          appdata.settings[key] = previous;
+          expect(request.isTargetCurrent(), isTrue, reason: '$key restored');
+        }
+        expect(reader.toPage(2, animated: false), isTrue);
+        expect(request.isTargetCurrent(), isFalse);
+      } finally {
+        await fixture.dispose(tester);
+      }
+    },
+  );
+
   for (final pressure in [false, true]) {
     testWidgets('cached page turns retain reader controls pressure=$pressure', (
       tester,

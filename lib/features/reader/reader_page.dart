@@ -335,31 +335,45 @@ class ReaderState extends State<Reader>
     final titles = chapters?.titles.toList(growable: false);
     final settings = preferences;
     final layout = pageLayout;
-    bool targetCurrent() =>
-        mounted &&
-        !_stateDisposed &&
-        !_sessionFrozen &&
-        !_session.isHeld &&
-        !controller.isDisposed &&
-        identical(controller.content, content) &&
-        identical(imageViewController, viewport) &&
-        cid == comic &&
-        type == comicType &&
-        chapter == ep &&
-        page == imagePage &&
-        size == viewportSize &&
-        mode == currentMode &&
-        identical(ComicSource.find(comicType.sourceKey), source) &&
-        (sources == null || identical(ComicSourceManager.current, sources)) &&
-        identical(widget.chapters, chapters) &&
-        listEquals(chapters?.ids.toList(growable: false), ids) &&
-        listEquals(chapters?.titles.toList(growable: false), titles) &&
-        pageLayout.imagesPerPage == layout.imagesPerPage &&
-        pageLayout.singleImageOnFirstPage == layout.singleImageOnFirstPage &&
-        preferences.enableDoubleTapToZoom == settings.enableDoubleTapToZoom &&
-        preferences.enableTapToTurnPages == settings.enableTapToTurnPages &&
-        preferences.reverseTapToTurnPages == settings.reverseTapToTurnPages &&
-        preferences.longPressAction == settings.longPressAction;
+    bool targetCurrent() {
+      if (!(mounted &&
+          !_stateDisposed &&
+          !_sessionFrozen &&
+          !_session.isHeld &&
+          !controller.isDisposed &&
+          identical(controller.content, content) &&
+          identical(imageViewController, viewport) &&
+          cid == comic &&
+          type == comicType &&
+          chapter == ep &&
+          page == imagePage &&
+          size == viewportSize &&
+          mode == currentMode &&
+          identical(ComicSource.find(comicType.sourceKey), source) &&
+          (sources == null || identical(ComicSourceManager.current, sources)) &&
+          identical(widget.chapters, chapters) &&
+          listEquals(chapters?.ids.toList(growable: false), ids) &&
+          listEquals(chapters?.titles.toList(growable: false), titles))) {
+        return false;
+      }
+      final currentLayout = pageLayout;
+      if (currentLayout.imagesPerPage != layout.imagesPerPage ||
+          currentLayout.singleImageOnFirstPage !=
+              layout.singleImageOnFirstPage) {
+        return false;
+      }
+      // Resolve the live settings once per validation, not once per property.
+      // The next pointer/callback still observes edits without a widget build.
+      final currentSettings = preferences;
+      return currentSettings.enableDoubleTapToZoom ==
+              settings.enableDoubleTapToZoom &&
+          currentSettings.enableTapToTurnPages ==
+              settings.enableTapToTurnPages &&
+          currentSettings.reverseTapToTurnPages ==
+              settings.reverseTapToTurnPages &&
+          currentSettings.longPressAction == settings.longPressAction;
+    }
+
     bool current() => targetCurrent() && (route?.isCurrent ?? true);
     void turn(bool forward) {
       if (current() && viewport != null && !content.isLoading) {
