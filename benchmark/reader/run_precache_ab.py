@@ -35,6 +35,7 @@ def main():
     parser.add_argument('--scenarios', nargs='+', choices=SCENARIOS,
                         default=['hold-forward', 'hold-reverse', 'touch-fast', 'cached'])
     parser.add_argument('--cache-cap-mib', type=int, choices=[128, 192], default=128)
+    parser.add_argument('--reader-diagnostics', action='store_true')
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,24}', args.prefix):
         parser.error('Requires a short safe prefix')
@@ -61,7 +62,9 @@ def main():
                             'install', str(apks[variant])], check=True)
             subprocess.run([sys.executable, str(here / 'surface_capture.py'), '--variant', 'next',
                             '--name', name, '--expected-cache-mib', str(args.cache_cap_mib),
-                            '--test-cache-cap-mib', str(args.cache_cap_mib), '--perfetto'] + SCENARIOS[scenario], check=True)
+                            '--test-cache-cap-mib', str(args.cache_cap_mib), '--perfetto']
+                           + (['--reader-diagnostics'] if args.reader_diagnostics else [])
+                           + SCENARIOS[scenario], check=True)
             folder = raw / name
             report = json.loads((folder / 'capture.json').read_text())
             result = summarize(report)
@@ -85,9 +88,6 @@ def main():
                                      check=True, capture_output=True, text=True)
             if 'com.github.cyrilpeng.veneranext.readerbenchmark/' not in focused.stdout:
                 raise ValueError('Benchmark is not focused; do not capture another app screen')
-            screenshot = subprocess.run(['E:/Android/Sdk/platform-tools/adb.exe', 'exec-out',
-                                         'screencap', '-p'], check=True, capture_output=True)
-            (folder / 'screen-after.png').write_bytes(screenshot.stdout)
             data['completed'].append({'name': name, 'variant': variant, 'scenario': scenario,
                                       'signature': signature})
             manifest.write_text(json.dumps(data, indent=2))

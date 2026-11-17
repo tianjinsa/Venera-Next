@@ -4,6 +4,7 @@
 本轮用户明确要求独立分支 `codex/reader-page-turn-adb-perf`，覆盖通常的固定开发分支约定。
 用户随后要求完整构建试用 B 候选，另建 `codex/reader-precache-selection-test`。
 该试用分支恢复“接受选页后帧后合并预加载”，保留资源回归记录，不代表主性能分支已采纳。
+用户四轮试用发现首显等待回归，提前量、帧请求和修复对照见[专项记录](precache-lead.md)。
 Prime 只读参考为远端 `codex/agent-center-tab`：
 `2e287566c6fad11b0085bbdf4a528e507021ec61`。
 本地 Prime 当前检出其他分支，不能用当前工作树冒充这个基线。
@@ -224,7 +225,8 @@ START／STOP。用户已确认能听到；旧 Beep 和内部通知没有可靠�
 预加载第二轮使用 `observe_precache_readiness.py` 给两份导出副本安装相同的只读探针：
 `selectionImageStatus` 记录已接受页的图片数／解码就绪数／pending 数，
 `displayResolveStatus` 记录显示消费者接入时原缓存状态。探针不启动加载或改变缓存；
-这些是就绪代理，不能直接当成空白帧数。最终仍检查实际生成图片截图与呈现时间戳。
+这些是就绪代理，不能直接当成空白帧数。后续不再自动截屏，结合读取／成功解码、
+实际页位置和呈现时间戳核验，必要的界面前置由用户完成。
 
 `analyze_cadence.py` 按 animate→jump／匹配完成区间比较 VSync、控制器位置更新、UI 执行
 与按 ready 时间分类的呈现间隔，不把动画之间的正常静止算成动画内漏帧。迟到的旧动画完成
