@@ -13,7 +13,8 @@ FrameTiming 的时间戳属于实际帧阶段；接收批次的时间不是帧�
 UI/Raster 超预算、Flutter 产帧间隔与 SurfaceFlinger 实际呈现分别统计。
 Profile 用于定位；性能验收必须复测 Release，并同时记录资源和热状态。
 
-当前状态：已提交动画交接与隐藏收藏通知修复，完成实体键校准，继续调查按键导航的重复工作。
+当前状态：动画交接、隐藏收藏通知、视口／导航范围、章节收藏缓存和实时手势设置读取已分阶段
+提交。预加载 A/B 已完成并撤回候选，正式版 16.7 ms 产帧线索另行调查；用户主观验收延后。
 详细数据和未完成验收范围见 [report.md](report.md)。
 
 ## 运行方式
@@ -160,3 +161,82 @@ ROI、去重重叠记录、排除未触发的 fence，并报告采样开销／�
 [AOSP FrameTracker::dumpStats](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/main/services/surfaceflinger/FrameTracker.cpp)。
 实际呈现间隔包含跳页后的正常静止与空闲，不能直接换算为屏幕掉帧数；这项记录补充
 当前 Perfetto 未提供应用 Surface FrameTimeline 的限制。没有可用映射时，掉帧计数保持未知。
+
+## 单方向主要对照与输入完整性
+
+主要场景持续沿一个方向前进或后退，绝不带 `--alternate`。160↔161 是另外的
+缓存命中隔离实验，不能代替长按验收。以下命令交换两版次序，默认每个场景各两轮：
+
+```powershell
+python benchmark/reader/run_oneway.py --next-apk benchmark/reader/artifacts/apks/next-final-release.apk --prime-apk benchmark/reader/artifacts/apks/prime-fixed-release.apk --prefix oneway
+# 默认：校准长按正向、反向、快速触摸；普通与单次触摸另选：
+# --rounds 1 --scenarios touch-normal touch-single
+# 中断后仅继续未完成窗口：加 --resume，不替换 APK，不覆盖失败目录。
+python benchmark/reader/analyze_series.py --series benchmark/reader/raw/oneway-series.json --product-sha <Next-SHA> --prime-sha <Prime-SHA> --out benchmark/reader/results/oneway.json --limits '<本轮限制>'
+```
+
+`--interval` 是 **UP 之后** 的间隔。80 ms 拖动加 `.125` 的间隔，DOWN 周期是
+205 ms；较早 `.045` 实验的 DOWN 周期才是 125 ms。二者各自保存实际注入时刻，
+不能混用数字。快速场景逐个核验 DOWN 到达前的滚动状态；120 ms 拖动加 350 ms
+间隔实际仍可能中断 PageView 回弹，现标为 medium、使用 14 秒窗口，不能冒充普通翻页。
+普通场景复用已验证成功的 160 ms 单次拖动路径，使用 1 秒 UP 后间隔、28 秒窗口，
+并核验 20 次均在静止后开始且完整前进 20 页。较短的冷启动首拖另保留实测结果，
+不把未发生的翻页算作收益；快速／极快速输入的既定频率保持不变。
+
+固定触摸在保存原始数据后核验完整 DOWN 数、实际首末输入是否位于采样内，及最后
+UP 后至少 250 ms 收尾；不完整窗口保留但报错排除。曾使用的 10 秒普通触摸窗口
+只采到 18 个 DOWN，已经排除。测试注入器失败／被系统终止同样不是成功轮次。
+
+每个 Surface 对照现在都先停止两款**独立测试包**，等待 5 秒资源退场再新启，不改变
+缓存策略。早期没有该等待的轮次另记为 0 秒；不能隐去首轮的系统呈现延迟异常。
+
+`run_gesture_ab.py` 提供同一 Next 包的前—后—后—前候选实验，20 次同方向拖动。
+默认核验 192 MiB；`--natural-budget` 仅作明确标注的诊断，保留自动上限，并要求
+实际解码容量、前后驻留与图片工作一致。实际四轮均 192 MiB，不能用该参数绕开
+不匹配的采样。原始文件和 APK 散列保存在本地 manifest；统计只导出明确完成的窗口。
+
+## 预加载调度的单变量实验
+
+自动预算在输入前多次降至约 150–190 MiB，严格 192 MiB 窗口会报错保留。为避免反复
+等待内存变化，新测试入口支持 `cache-cap`：只允许把实际自动上限**降低**，不能提高。
+`--test-cache-cap-mib 128 --expected-cache-mib 128` 在预热和 ROI 之前应用同一上限；
+原始自动值、实际新值及前后驻留均保存。每图仍完整解码 2048×3072／24 MiB，生产缓存
+策略与默认自动模式不变。128 MiB 结果作为独立组，不与 192 MiB 主表混算。
+
+```powershell
+python benchmark/reader/run_precache_ab.py --before-apk benchmark/reader/artifacts/apks/next-precache-before-release.apk --after-apk benchmark/reader/artifacts/apks/next-precache-postframe-release.apk --prefix precache-pilot --order before after --scenarios hold-forward touch-fast --cache-cap-mib 128
+# 重复试验可用默认 before after after before 顺序，再覆盖 hold-reverse、cached。
+# cached 仍是单独的小窗口往返隔离，长按和触摸均沿一个方向。
+```
+
+两包使用同一数值观察器，额外记录 cache 真正执行的 SchedulerPhase。必须一起比较
+sourceLoad／imageMiss、替换次数、CPU time、调度与实际 Surface 呈现，不能因为工作
+挪到了 FrameTiming.buildFinish 之后就认定屏幕更流畅。采样后检查生成图片实际可见，
+截图与大 Trace 仍只存本地；新的采样器在截图前还会核验焦点属于独立测试包。
+
+实体复核现在用 `audio_cue.py` 播放真实 PCM WAV，升调开始、降调结束，并同步显示
+START／STOP。用户已确认能听到；旧 Beep 和内部通知没有可靠传达。实际持键时长与频率
+仍按原生事件统计，不按 8 秒提示推算。2026-11-17 用户已将主观体验验收延后到完整构建。
+
+预加载第二轮使用 `observe_precache_readiness.py` 给两份导出副本安装相同的只读探针：
+`selectionImageStatus` 记录已接受页的图片数／解码就绪数／pending 数，
+`displayResolveStatus` 记录显示消费者接入时原缓存状态。探针不启动加载或改变缓存；
+这些是就绪代理，不能直接当成空白帧数。最终仍检查实际生成图片截图与呈现时间戳。
+
+`analyze_cadence.py` 按 animate→jump／匹配完成区间比较 VSync、控制器位置更新、UI 执行
+与按 ready 时间分类的呈现间隔，不把动画之间的正常静止算成动画内漏帧。迟到的旧动画完成
+不能结束新区间；它不适用于触摸弹道动画分类。
+
+`observe_diagnostics.py` 仅在 Next 导出副本开放已有 ReaderDiagnostics 的开始／停止，
+配合 `--reader-diagnostics` 保存正式统计口径，生产收集器本身不变。
+`capture_installed.py` 用于用户先准备好的现有安装，不安装、清数据、切换设置、导航或截图：
+
+```powershell
+python benchmark/reader/capture_installed.py --package com.github.cyrilpeng.veneranext --name installed-volume --user-start-page 160
+# 单独的已缓存往返隔离，加 --scenario cached-alternation；不是长按或单方向验收。
+```
+
+现有安装缺少 Dart 数值探针，故不声称精确知道通道收件数／实际页数。保存实际 APK 散列，
+必要时由用户启动并导出应用诊断，与 Android Trace 对照。出现网络请求则明确标记，
+不把等待时间或加载动画的产帧当成 UI 执行／翻页改善。用户要求页面前置操作由其完成，
+后续此路径不再自动逐屏截图点击。

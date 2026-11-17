@@ -1,0 +1,60 @@
+{
+  "frameworkVersion": "3.41.4",
+  "frameworkSha": "ff37bef603469fb030f2b72995ab929ccfc227f0",
+  "engineSha": "e4b8dca3f1b4ede4c30371002441c88c12187ed6",
+  "releaseArm64LibflutterSha256": "b80ef6a7b99dc31ffe021d03737f7ea9a374f214f426c8fc8fdb172eddf63e8a",
+  "fixture": {
+    "pages": 512,
+    "width": 2048,
+    "height": 3072,
+    "pngSha256": "d1645bbaf58cc1f69a1fd9b7217b128f264ac4b732537334075f81dd6fd35980",
+    "imageQuality": "Full decoded 24 MiB per generated image, no network, no resolution/quality reduction",
+    "favoritePages": 0
+  },
+  "variants": {
+    "prime": {
+      "productSha": "2e287566c6fad11b0085bbdf4a528e507021ec61",
+      "sourceSealFile": "prime-fixed-release-source.json",
+      "sourceSealSha256": "c88bc04dd7fcb64d21e321075e6a6fd02dbcae86762311071c03d904c1e41ac7",
+      "apks": [
+        {
+          "file": "prime-fixed-release.apk",
+          "sha256": "15f307c4276ca4ac9bd6c71972d7f773301beef59f6919b5445ae972b51e4d7f",
+          "bytes": 21110347
+        }
+      ]
+    },
+    "nextOriginal": {
+      "productSha": "97217db9f0c40549b15acef528abc339eb1998d4",
+      "sourceSealFile": "next-original-common-source.json",
+      "sourceSealSha256": "0d9f7e6fa9904e9002fc0bba76df7550679bf525901d3d5d1de9cd6d54a51391",
+      "apks": [
+        {
+          "file": "next-original-common-release.apk",
+          "sha256": "f9939071e69b73cddf5f5b29e4ad3574960a557c81484833302ebae9b24244c4",
+          "bytes": 20899606
+        }
+      ]
+    },
+    "nextCurrent": {
+      "productSha": "67be06fc235c1498fe33b41d6fad660b12f94089",
+      "sourceSealFile": "next-67be06fc-source.json",
+      "sourceSealSha256": "2bb36dfd9c270f17186526d59ac853e58a7b26c28a373f7c06aab3700db1acfc",
+      "apks": [
+        {
+          "file": "next-gesture-settings-release.apk",
+          "sha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e",
+          "bytes": 20905634
+        },
+        {
+          "file": "next-gesture-settings-profile.apk",
+          "sha256": "63061ae4521ce8777a522029de7ebf75a91bea8284706ada9db30e6ef19c9fa8",
+          "bytes": 37247737
+        }
+      ]
+    }
+  },
+  "currentProductProof": "The sealed 509fc5a1 + gesture-settings-candidate.patch product change exactly equals commit 67be06fc. Every actual source override was matched to the original candidate seal before adding the commit mapping. APK bytes unchanged.",
+  "primeProbeDifference": "Only the definition of an unused kProfileMode detailed constant differs from the current numeric collector; the collector and native probe are otherwise the same.",
+  "privacy": "Raw traces, exact source patches and device identifiers remain ignored/local."
+}

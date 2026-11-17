@@ -197,7 +197,7 @@ def instrument(out, variant, favorite_pages=0):
         gallery = out / 'lib/features/reader/gallery_view.dart'
         add_import(gallery)
         hooks = [
-            ('void cache(int startPage) {', "void cache(int startPage) {\n    ReaderPerfProbe.event('cache', [page, startPage]);"),
+            ('void cache(int startPage) {', "void cache(int startPage) {\n    ReaderPerfProbe.event('cache', [page, startPage, WidgetsBinding.instance.schedulerPhase.name]);"),
             ('if (_lastPrecache == identity) return;', "if (_lastPrecache == identity) return;\n    ReaderPerfProbe.event('cacheReplace', [page, startPage]);"),
             ('Future<void> animateToPage(int page) {', "Future<void> animateToPage(int page) {\n    ReaderPerfProbe.event('animate', [page, controller.hasClients ? controller.page : null]);"),
             ('void toPage(int page) {', "void toPage(int page) {\n    ReaderPerfProbe.event('jump', [page, controller.hasClients ? controller.page : null]);"),

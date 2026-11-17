@@ -211,6 +211,13 @@ Future<void> main() async {
         key.currentState!.toPage(args['page'] as int, animated: false);
       } else if (command == 'pressure') {
         WidgetsBinding.instance.handleMemoryPressure();
+      } else if (command == 'cache-cap') {
+        final bytes = (args['mib'] as int) << 20;
+        final cache = PaintingBinding.instance.imageCache;
+        if (bytes <= 0 || bytes > cache.maximumSizeBytes) {
+          throw ArgumentError('A benchmark cap may only lower the automatic budget');
+        }
+        cache.maximumSizeBytes = bytes;
       }
     },
   );

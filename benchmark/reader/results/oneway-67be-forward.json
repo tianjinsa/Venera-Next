@@ -1,0 +1,728 @@
+{
+  "productSha": "67be06fc235c1498fe33b41d6fad660b12f94089",
+  "primeSha": "2e287566c6fad11b0085bbdf4a528e507021ec61",
+  "limits": "Only two final-commit forward windows completed strict 120 Hz / 192 MiB. Remaining planned reverse/round-2 captures blocked before input by natural budget 149.851 MiB and later another low budget. Retained/excluded; no cache inflation. Earlier 509fc5a1 main series covers two complete rounds; later physical inputs use natural budgets and are not matched CPU A/B.",
+  "runs": [
+    {
+      "name": "final67-next-hold-forward-r1",
+      "mode": "release",
+      "seconds": 12.001,
+      "frames": 616,
+      "uiMs": {
+        "n": 616,
+        "p50": 0.8935,
+        "p95": 4.4023,
+        "p99": 4.9739,
+        "max": 5.468
+      },
+      "rasterMs": {
+        "n": 616,
+        "p50": 1.285,
+        "p95": 1.9042,
+        "p99": 2.5044,
+        "max": 5.208
+      },
+      "vsyncToBuildMs": {
+        "n": 616,
+        "p50": 0.475,
+        "p95": 0.918,
+        "p99": 1.7052,
+        "max": 2.566
+      },
+      "producedVsyncGapMs": {
+        "n": 615,
+        "p50": 8.353,
+        "p95": 50.1073,
+        "p99": 50.1437,
+        "max": 50.242
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 152,
+      "dartKeys": 152,
+      "nativeKeysPerSecond": 12.665,
+      "nativeKeyIntervalMs": {
+        "n": 151,
+        "p50": 50.5877,
+        "p95": 53.5923,
+        "p99": 54.3095,
+        "max": 247.578
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 150,
+        "p50": 50.5816,
+        "p95": 53.5425,
+        "p99": 54.2465,
+        "max": 54.3264
+      },
+      "sustainedRepeatHz": 19.77,
+      "nativeDownTimeCount": 1,
+      "nativeToDartMs": {
+        "n": 152,
+        "p50": 0.2512,
+        "p95": 0.4404,
+        "p99": 0.4705,
+        "max": 0.4945
+      },
+      "clockCalibrationRttUs": 208,
+      "requestsWhilePending": 75,
+      "successiveSameTarget": 75,
+      "pageChanges": 77,
+      "pageChangesPerSecond": 6.416,
+      "redundantPageChanges": 75,
+      "supersededAnimationCompletions": 75,
+      "eventCounts": {
+        "captureStart": 1,
+        "volume": 152,
+        "request": 152,
+        "reset": 152,
+        "notify": 154,
+        "navigationUpdate": 154,
+        "animate": 77,
+        "cache": 154,
+        "cacheReplace": 154,
+        "position": 462,
+        "selected": 77,
+        "report": 77,
+        "setPage": 152,
+        "history": 152,
+        "favoriteStatus": 77,
+        "animationEnd": 77,
+        "imageMiss": 76,
+        "sourceLoad": 76,
+        "jump": 75,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 0,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": 0,
+      "distinctMissKeys": 76,
+      "distinctSourceKeys": 76,
+      "cpuTimeMs": 5807,
+      "cpuMsPerSecond": 483.86,
+      "before": {
+        "rssBytes": 229871616,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 247078912,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 237,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "cacheExecutionPhaseCounts": {},
+      "procedure": {
+        "variant": "next",
+        "action": "capture",
+        "name": "final67-next-hold-forward-r1",
+        "seconds": 12,
+        "page": 160,
+        "settle": 3,
+        "input": "calibrated-hold",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 0.2,
+        "swipe_ms": 100,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "adb",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 192,
+        "cached_budget_headroom": false,
+        "package": "com.github.cyrilpeng.veneranext.readerbenchmark",
+        "installedApkSha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e",
+        "captureSha256": "97d1b9153977e3b0bdc4998db3b6115542312194a681d30c66aa549792d30886"
+      },
+      "repeatCountRange": [
+        0,
+        151
+      ],
+      "presentation": {
+        "presentedSurfaceBuffers": 616,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 615,
+          "p50": 8.3525,
+          "p95": 50.1302,
+          "p99": 50.1542,
+          "max": 50.4284
+        },
+        "actualMinusDesiredMs": {
+          "n": 616,
+          "p50": 21.4275,
+          "p95": 22.2673,
+          "p99": 26.4259,
+          "max": 30.5805
+        },
+        "readyToActualPresentMs": {
+          "n": 616,
+          "p50": 18.8376,
+          "p95": 19.8876,
+          "p99": 24.6831,
+          "max": 27.8449
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 45,
+          "p50": 64.6512,
+          "p95": 74.5871,
+          "p99": 80.2108,
+          "max": 83.2334
+        },
+        "hostSampleGapSeconds": {
+          "n": 44,
+          "p50": 0.5756,
+          "p95": 0.5796,
+          "p99": 0.5862,
+          "max": 0.5908
+        },
+        "clockCalibrationRttUs": 208,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "nativeInputValidation": {
+        "expectedDowns": 152,
+        "observedDowns": 152,
+        "repeatCountsConsecutive": true,
+        "oneDownTime": true,
+        "eventTimeOffsetsMatch": true
+      },
+      "cpuPlacement": [
+        {
+          "tid": "24002",
+          "name": "readerbenchmark",
+          "cpu": "0",
+          "running_ms": "0.348000",
+          "running_weighted_khz": "1804800.000000"
+        },
+        {
+          "tid": "24002",
+          "name": "readerbenchmark",
+          "cpu": "2",
+          "running_ms": "1.303000",
+          "running_weighted_khz": "1804800.000000"
+        },
+        {
+          "tid": "24002",
+          "name": "readerbenchmark",
+          "cpu": "3",
+          "running_ms": "0.691000",
+          "running_weighted_khz": "1804800.000000"
+        },
+        {
+          "tid": "24002",
+          "name": "readerbenchmark",
+          "cpu": "4",
+          "running_ms": "614.479000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "24002",
+          "name": "readerbenchmark",
+          "cpu": "5",
+          "running_ms": "684.206000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "24002",
+          "name": "readerbenchmark",
+          "cpu": "6",
+          "running_ms": "644.457000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "24002",
+          "name": "readerbenchmark",
+          "cpu": "7",
+          "running_ms": "81.566000",
+          "running_weighted_khz": "1439616.000000"
+        }
+      ],
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 152553,
+          "RSS": 280540
+        },
+        "after": {
+          "PSS": 172505,
+          "RSS": 308112
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 379,
+        "after": 379
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 7999.947,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 65.244,
+        "observedAlignedSegmentsMs": {
+          "n": 77,
+          "p50": 66.653,
+          "p95": 71.3144,
+          "p99": 98.3618,
+          "max": 179.5767
+        },
+        "producedUiFrames": 592,
+        "framesWithAlignedControllerAtUiFinish": 230,
+        "framesWithAlignedControllerPct": 38.851,
+        "calibrationRttUs": 208,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    },
+    {
+      "name": "final67-prime-hold-forward-r1",
+      "mode": "release",
+      "seconds": 12.003,
+      "frames": 639,
+      "uiMs": {
+        "n": 639,
+        "p50": 0.425,
+        "p95": 4.2616,
+        "p99": 4.6795,
+        "max": 5.38
+      },
+      "rasterMs": {
+        "n": 639,
+        "p50": 1.236,
+        "p95": 1.8554,
+        "p99": 2.5107,
+        "max": 5.446
+      },
+      "vsyncToBuildMs": {
+        "n": 639,
+        "p50": 0.472,
+        "p95": 0.8612,
+        "p99": 1.3259,
+        "max": 1.779
+      },
+      "producedVsyncGapMs": {
+        "n": 638,
+        "p50": 8.353,
+        "p95": 41.7723,
+        "p99": 50.1226,
+        "max": 50.185
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 152,
+      "dartKeys": 152,
+      "nativeKeysPerSecond": 12.664,
+      "nativeKeyIntervalMs": {
+        "n": 151,
+        "p50": 50.2424,
+        "p95": 52.4301,
+        "p99": 55.1674,
+        "max": 249.2097
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 150,
+        "p50": 50.2421,
+        "p95": 52.4131,
+        "p99": 54.1921,
+        "max": 56.025
+      },
+      "sustainedRepeatHz": 19.904,
+      "nativeDownTimeCount": 1,
+      "nativeToDartMs": {
+        "n": 152,
+        "p50": 0.6557,
+        "p95": 0.9072,
+        "p99": 0.9973,
+        "max": 1.1383
+      },
+      "clockCalibrationRttUs": 206,
+      "requestsWhilePending": 75,
+      "successiveSameTarget": 75,
+      "pageChanges": 77,
+      "pageChangesPerSecond": 6.415,
+      "redundantPageChanges": 75,
+      "supersededAnimationCompletions": 75,
+      "eventCounts": {
+        "captureStart": 1,
+        "volume": 152,
+        "request": 152,
+        "update": 154,
+        "animate": 77,
+        "position": 489,
+        "selected": 77,
+        "report": 77,
+        "setPage": 152,
+        "history": 152,
+        "cache": 77,
+        "animationEnd": 77,
+        "jump": 75,
+        "imageMiss": 76,
+        "sourceLoad": 76,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 0,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": 0,
+      "distinctMissKeys": 76,
+      "distinctSourceKeys": 76,
+      "cpuTimeMs": 5902,
+      "cpuMsPerSecond": 491.714,
+      "before": {
+        "rssBytes": 231510016,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 232173568,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 237,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "cacheExecutionPhaseCounts": {},
+      "procedure": {
+        "variant": "prime",
+        "action": "capture",
+        "name": "final67-prime-hold-forward-r1",
+        "seconds": 12,
+        "page": 160,
+        "settle": 3,
+        "input": "calibrated-hold",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 0.2,
+        "swipe_ms": 100,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "adb",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 192,
+        "cached_budget_headroom": false,
+        "package": "com.github.wgh136.venera.prime.readerbenchmark",
+        "installedApkSha256": "15f307c4276ca4ac9bd6c71972d7f773301beef59f6919b5445ae972b51e4d7f",
+        "captureSha256": "6157c6562c3a605619ba593317de17f1d4720911c514a03d9524906423e16d23"
+      },
+      "repeatCountRange": [
+        0,
+        151
+      ],
+      "presentation": {
+        "presentedSurfaceBuffers": 639,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 638,
+          "p50": 8.3554,
+          "p95": 41.7805,
+          "p99": 50.1292,
+          "max": 50.1673
+        },
+        "actualMinusDesiredMs": {
+          "n": 639,
+          "p50": 21.9006,
+          "p95": 22.4579,
+          "p99": 22.6636,
+          "max": 22.793
+        },
+        "readyToActualPresentMs": {
+          "n": 639,
+          "p50": 19.2522,
+          "p95": 20.299,
+          "p99": 20.5415,
+          "max": 20.8091
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 45,
+          "p50": 64.932,
+          "p95": 75.0722,
+          "p99": 89.3604,
+          "max": 94.5047
+        },
+        "hostSampleGapSeconds": {
+          "n": 44,
+          "p50": 0.5764,
+          "p95": 0.5822,
+          "p99": 0.5993,
+          "max": 0.6047
+        },
+        "clockCalibrationRttUs": 206,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "nativeInputValidation": {
+        "expectedDowns": 152,
+        "observedDowns": 152,
+        "repeatCountsConsecutive": true,
+        "oneDownTime": true,
+        "eventTimeOffsetsMatch": true
+      },
+      "cpuPlacement": [
+        {
+          "tid": "25407",
+          "name": "readerbenchmark",
+          "cpu": "0",
+          "running_ms": "2.389000",
+          "running_weighted_khz": "1563766.000000"
+        },
+        {
+          "tid": "25407",
+          "name": "readerbenchmark",
+          "cpu": "1",
+          "running_ms": "1.922000",
+          "running_weighted_khz": "1564912.000000"
+        },
+        {
+          "tid": "25407",
+          "name": "readerbenchmark",
+          "cpu": "2",
+          "running_ms": "1.951000",
+          "running_weighted_khz": "1560830.000000"
+        },
+        {
+          "tid": "25407",
+          "name": "readerbenchmark",
+          "cpu": "3",
+          "running_ms": "5.682000",
+          "running_weighted_khz": "1800604.000000"
+        },
+        {
+          "tid": "25407",
+          "name": "readerbenchmark",
+          "cpu": "4",
+          "running_ms": "557.749000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "25407",
+          "name": "readerbenchmark",
+          "cpu": "5",
+          "running_ms": "587.991000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "25407",
+          "name": "readerbenchmark",
+          "cpu": "6",
+          "running_ms": "584.161000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "25407",
+          "name": "readerbenchmark",
+          "cpu": "7",
+          "running_ms": "115.137000",
+          "running_weighted_khz": "1363499.000000"
+        }
+      ],
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 164584,
+          "RSS": 292728
+        },
+        "after": {
+          "PSS": 168746,
+          "RSS": 303832
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 380,
+        "after": 380
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 7999.985,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 62.419,
+        "observedAlignedSegmentsMs": {
+          "n": 77,
+          "p50": 63.236,
+          "p95": 67.9024,
+          "p99": 97.3219,
+          "max": 178.9583
+        },
+        "producedUiFrames": 615,
+        "framesWithAlignedControllerAtUiFinish": 230,
+        "framesWithAlignedControllerPct": 37.398,
+        "calibrationRttUs": 206,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    }
+  ],
+  "series": {
+    "apks": {
+      "next": {
+        "file": "next-gesture-settings-release.apk",
+        "sha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e"
+      },
+      "prime": {
+        "file": "prime-fixed-release.apk",
+        "sha256": "15f307c4276ca4ac9bd6c71972d7f773301beef59f6919b5445ae972b51e4d7f"
+      }
+    },
+    "expectedCacheMiB": 192,
+    "expectedRefreshHz": 120,
+    "alternatingPages": false,
+    "plan": [
+      {
+        "variant": "next",
+        "scenario": "hold-forward",
+        "captureArgs": [
+          "--input",
+          "calibrated-hold",
+          "--direction",
+          "forward",
+          "--seconds",
+          "12"
+        ],
+        "name": "final67-next-hold-forward-r1"
+      },
+      {
+        "variant": "prime",
+        "scenario": "hold-forward",
+        "captureArgs": [
+          "--input",
+          "calibrated-hold",
+          "--direction",
+          "forward",
+          "--seconds",
+          "12"
+        ],
+        "name": "final67-prime-hold-forward-r1"
+      },
+      {
+        "variant": "prime",
+        "scenario": "hold-reverse",
+        "captureArgs": [
+          "--input",
+          "calibrated-hold",
+          "--direction",
+          "reverse",
+          "--seconds",
+          "12"
+        ],
+        "name": "final67-prime-hold-reverse-r1-a2"
+      },
+      {
+        "variant": "next",
+        "scenario": "hold-reverse",
+        "captureArgs": [
+          "--input",
+          "calibrated-hold",
+          "--direction",
+          "reverse",
+          "--seconds",
+          "12"
+        ],
+        "name": "final67-next-hold-reverse-r1"
+      },
+      {
+        "variant": "prime",
+        "scenario": "hold-forward",
+        "captureArgs": [
+          "--input",
+          "calibrated-hold",
+          "--direction",
+          "forward",
+          "--seconds",
+          "12"
+        ],
+        "name": "final67-prime-hold-forward-r2"
+      },
+      {
+        "variant": "next",
+        "scenario": "hold-forward",
+        "captureArgs": [
+          "--input",
+          "calibrated-hold",
+          "--direction",
+          "forward",
+          "--seconds",
+          "12"
+        ],
+        "name": "final67-next-hold-forward-r2"
+      },
+      {
+        "variant": "next",
+        "scenario": "hold-reverse",
+        "captureArgs": [
+          "--input",
+          "calibrated-hold",
+          "--direction",
+          "reverse",
+          "--seconds",
+          "12"
+        ],
+        "name": "final67-next-hold-reverse-r2"
+      },
+      {
+        "variant": "prime",
+        "scenario": "hold-reverse",
+        "captureArgs": [
+          "--input",
+          "calibrated-hold",
+          "--direction",
+          "reverse",
+          "--seconds",
+          "12"
+        ],
+        "name": "final67-prime-hold-reverse-r2"
+      }
+    ],
+    "completed": [
+      "final67-next-hold-forward-r1",
+      "final67-prime-hold-forward-r1"
+    ],
+    "excludedAttempts": [
+      "final67-prime-hold-reverse-r1"
+    ]
+  }
+}

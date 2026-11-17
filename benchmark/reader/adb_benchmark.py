@@ -155,8 +155,18 @@ def capture(device, args):
     folder.mkdir(parents=True, exist_ok=False)
     if args.cached_budget_headroom and not (args.input == 'keysequence' and args.alternate and args.warm_radius == 1):
         raise ValueError('Cached headroom applies only to the five-image alternating key scenario')
+    if args.test_cache_cap_mib and args.expected_cache_mib != args.test_cache_cap_mib:
+        raise ValueError('Test cap requires the same explicitly declared expected-cache-mib')
     initial = device.launch(fresh=not args.reuse_process)
     (folder / 'initial-status.json').write_text(json.dumps(initial, indent=2), encoding='utf-8')
+    if args.test_cache_cap_mib:
+        if args.test_cache_cap_mib << 20 > initial.get('cacheLimitBytes', 0):
+            raise ValueError('Test cap cannot raise the automatic budget')
+        device.command('cache-cap', mib=args.test_cache_cap_mib)
+        initial = device.wait_status('cache-cap')
+        (folder / 'test-cache-cap-status.json').write_text(json.dumps(initial, indent=2), encoding='utf-8')
+        if initial.get('cacheLimitBytes') != args.test_cache_cap_mib << 20:
+            raise ValueError('Benchmark APK did not apply the common lower cache cap')
     if initial.get('pageCount') != 512 or initial.get('refreshHz', 0) < 119:
         raise ValueError('Requires a ready 512-page reader at 120 Hz')
     if args.cached_budget_headroom:
@@ -191,6 +201,13 @@ def capture(device, args):
         launch = device.run('shell', 'perfetto', '--txt', '-c', '-', '-o', remote + '.pftrace', '--background-wait', input_bytes=config.read_bytes())
         (folder / 'perfetto-launch.txt').write_text(launch, encoding='utf-8')
         trace_started = time.monotonic()
+    if args.reader_diagnostics:
+        if args.variant != 'next':
+            raise ValueError('The production diagnostics command requires the Next diagnostic export')
+        device.command('diagnostic-start')
+        diagnostic_status = device.wait_status('diagnostic-start')
+        if diagnostic_status.get('productionDiagnosticsRecording') is not True:
+            raise ValueError('Installed benchmark did not activate production diagnostics')
     device.command('capture', name=args.name, seconds=args.seconds)
     status = device.wait_status('capture')
     (folder / 'start-status.json').write_text(json.dumps(status, indent=2), encoding='utf-8')
@@ -277,6 +294,13 @@ def capture(device, args):
     device.wait_status('saved', timeout=15)
     device.run('pull', device.remote + '/' + args.name + '.json', str(folder / 'capture.json'))
     device.snapshot(folder, 'after')
+    if args.reader_diagnostics:
+        device.command('diagnostic-stop')
+        diagnostic_status = device.wait_status('diagnostic-stop')
+        if diagnostic_status.get('productionDiagnosticsRecording') is not False:
+            raise ValueError('Production diagnostics did not stop')
+        device.run('pull', device.remote + '/production-diagnostics.json',
+                   str(folder / 'production-diagnostics.json'))
     if args.perfetto:
         while time.monotonic() - trace_started < trace_duration + .7:
             time.sleep(.3)
@@ -360,8 +384,10 @@ def main():
     sample.add_argument('--touch-step-ms', type=int, default=4)
     sample.add_argument('--touch-dex', type=Path, default=Path(__file__).resolve().parent / 'artifacts/touch-driver/dex/classes.dex')
     sample.add_argument('--perfetto', action='store_true')
+    sample.add_argument('--reader-diagnostics', action='store_true', help='Explicit Next-only diagnostic export: also run the unchanged production ReaderDiagnostics and save its scroll-phase summary')
     sample.add_argument('--reuse-process', action='store_true', help='For explicitly labelled warm-window or memory-pressure probes')
     sample.add_argument('--expected-cache-mib', type=int, default=192, help='0 records the natural ceiling for a labelled diagnostic; validate actual resident capacity/work separately, never mix with strict 192 MiB A/B')
+    sample.add_argument('--test-cache-cap-mib', type=int, default=0, choices=range(0, 513), help='Isolated APK diagnostic only: lower (never raise) automatic ceiling to a shared cap; use the same expected-cache-mib and label separately from default-budget A/B')
     sample.add_argument('--cached-budget-headroom', action='store_true', help='Separate cached isolation: require identical 120 MiB resident set and zero reads/misses; record actual automatic ceiling, do not change it')
     args = parser.parse_args()
     device = Device(args.adb, args.variant, args.serial)
