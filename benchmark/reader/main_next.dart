@@ -105,6 +105,52 @@ Future<void> main() async {
     createdAt: DateTime(2026),
   );
   await local.add(comic);
+  // NEXT_FAVORITES_FIXTURE_BEGIN
+  // Only the isolated benchmark's generated comic, never installed user data.
+  const fixtureFavoritePages = 0;
+  await historyStore.accessImageFavorites((repository, _) {
+    repository.save(
+      ImageFavoritesComic(
+        comic.id,
+        [
+          for (var offset = 0; offset < fixtureFavoritePages; offset += 100)
+            ImageFavoritesEp(
+              offset == 0 ? 'one' : 'generated-$offset',
+              offset ~/ 100 + 1,
+              [
+                for (
+                  var n = offset;
+                  n < offset + 100 && n < fixtureFavoritePages;
+                  n++
+                )
+                  ImageFavorite(
+                    n - offset + 1,
+                    'generated/$n',
+                    false,
+                    offset == 0 ? 'one' : 'generated-$offset',
+                    comic.id,
+                    offset ~/ 100 + 1,
+                    'local',
+                    'Generated',
+                  ),
+              ],
+              'Generated',
+              512,
+            ),
+        ],
+        comic.title,
+        'local',
+        [],
+        [],
+        DateTime(2026),
+        '',
+        {},
+        '',
+        512,
+      ),
+    );
+  });
+  // NEXT_FAVORITES_FIXTURE_END
   final history = History.fromModel(model: comic, ep: 1, page: 160);
   final key = GlobalKey<ReaderState>();
   runApp(

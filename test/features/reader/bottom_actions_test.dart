@@ -214,16 +214,8 @@ void main() {
         tester.widget<IconButton>(find.byType(IconButton).first).onPressed,
         isNull,
       );
-      if (status == ReaderImageFavoriteStatus.loading) {
-        expect(
-          tester
-              .widget<CircularProgressIndicator>(
-                find.byType(CircularProgressIndicator),
-              )
-              .value,
-          0.5,
-        );
-      }
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
     }
     expect(calls, isEmpty);
   });

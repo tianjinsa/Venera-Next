@@ -140,3 +140,23 @@ python benchmark/reader/adb_benchmark.py --variant next capture --name calibrate
 `analyze_viewport.py` 区分控制器整数页驻留时间、产出帧结束时位置；均非屏幕呈现。
 `analyze_cpu_schedule.py` 对齐实际采样窗口，报告 UI 线程 CPU 放置与运行时间加权频率，
 不修改频率或亲和性。Prime／官方测试／本分支执行路径见 prime-render-flow.md。
+
+## 收藏状态数据集
+
+Next 导出支持 `prepare.py --favorite-pages 1000`：在独立测试包内，为固定生成漫画写入
+10 章各 100 条收藏，不访问网络或用户漫画。默认 0，仅移除这条生成漫画的测试收藏。
+真实入口的包路径检查始终保留。`favoriteStatus` 计进入原队列的请求，`favoriteSql` /
+`favoriteSqlEnd` 计同步数据库读取加解析；其间隔为墙钟耗时，不直接当作 CPU time。
+`analyze_favorite_status.py` 拒绝页数、输入、读取／解码、驻留集合或预算不同的对照。
+
+## SurfaceView 实际呈现时间戳
+
+`surface_capture.py` 接受与 capture 相同的输入参数，先新启独立测试包，再每 .5 秒
+读取其唯一 BLAST SurfaceView 的 127 行循环记录，不清空统计、不更改设备设置。
+只与同样启用该采样器的窗口比较。`analyze_presentation.py` 按原生单调时钟校准筛选
+ROI、去重重叠记录、排除未触发的 fence，并报告采样开销／环覆盖风险。
+
+三列为 desiredPresent、actualPresent、frameReady，定义见
+[AOSP FrameTracker::dumpStats](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/main/services/surfaceflinger/FrameTracker.cpp)。
+实际呈现间隔包含跳页后的正常静止与空闲，不能直接换算为屏幕掉帧数；这项记录补充
+当前 Perfetto 未提供应用 Surface FrameTimeline 的限制。没有可用映射时，掉帧计数保持未知。

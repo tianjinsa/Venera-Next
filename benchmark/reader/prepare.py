@@ -61,7 +61,7 @@ def observe_image_loads(out, variant):
             "Future<Uint8List> load(chunkEvents, checkStop) async {\n    ReaderPerfProbe.event('sourceLoad', [hashCode]);")
 
 
-def instrument(out, variant):
+def instrument(out, variant, favorite_pages=0):
     fixture_png(out)
     package = "venera_next" if variant == "next" else "venera"
     native_package = "com.github.cyrilpeng.veneranext" if variant == "next" else "com.github.wgh136.venera"
@@ -104,8 +104,12 @@ def instrument(out, variant):
     shutil.copyfile(HERE / 'probe.dart', out / 'lib/foundation/reader_perf_probe.dart')
     observe_image_loads(out, variant)
     main = (HERE / 'main_next.dart').read_text(encoding='utf-8')
+    main = main.replace('const fixtureFavoritePages = 0;', f'const fixtureFavoritePages = {favorite_pages};')
     main = main.replace("import 'probe.dart';", f"import 'package:{package}/foundation/reader_perf_probe.dart';")
     if variant == 'prime':
+        begin = main.index('  // NEXT_FAVORITES_FIXTURE_BEGIN')
+        end = main.index('  // NEXT_FAVORITES_FIXTURE_END', begin)
+        main = main[:begin] + main[end:].split('\n', 1)[1]
         imports = {
             'features/comic_source/models.dart': 'foundation/comic_source/comic_source.dart',
             'features/history/history.dart': 'foundation/history.dart',
@@ -150,6 +154,16 @@ def instrument(out, variant):
         replace(path, old, old + f"\nimport 'package:{package}/foundation/reader_perf_probe.dart';")
 
     if variant == 'next':
+        favorite = out / 'lib/features/history/image_favorites.dart'
+        favorite.write_text(f"import 'package:{package}/foundation/reader_perf_probe.dart';\n" + favorite.read_text(encoding='utf-8'), encoding='utf-8')
+        replace(favorite, '}) => history.accessImageFavorites((repository, _) {',
+                "}) => history.accessImageFavorites((repository, _) {\n    ReaderPerfProbe.event('favoriteStatus', [page]);")
+        repository = out / 'lib/features/history/image_favorites_repository.dart'
+        repository.write_text(f"import 'package:{package}/foundation/reader_perf_probe.dart';\n" + repository.read_text(encoding='utf-8'), encoding='utf-8')
+        replace(repository, 'ImageFavoritesComic? find(String id, String sourceKey) {',
+                "ImageFavoritesComic? find(String id, String sourceKey) {\n    ReaderPerfProbe.event('favoriteSql');\n    try {")
+        replace(repository, 'return imageFavoritesComicFromRow(row.first);\n  }',
+                "return imageFavoritesComicFromRow(row.first);\n    } finally { ReaderPerfProbe.event('favoriteSqlEnd'); }\n  }")
         controller = out / 'lib/features/reader/reader_controller.dart'
         add_import(controller)
         for signature, event in [
@@ -227,7 +241,10 @@ def main():
     parser.add_argument('--ref', required=True)
     parser.add_argument('--variant', required=True, choices=['next', 'prime'])
     parser.add_argument('--out', required=True, type=Path)
+    parser.add_argument('--favorite-pages', type=int, default=0, help='Next-only generated favorite rows, before the ROI; never reads user data')
     args = parser.parse_args()
+    if not 0 <= args.favorite_pages <= 10000 or (args.variant == 'prime' and args.favorite_pages):
+        parser.error('Generated favorites require Next and 0..10000 pages')
     if args.out.exists():
         parser.error('Output must not exist; existing sources/builds are never overwritten')
     sha = subprocess.check_output(['git', '-C', str(args.repo), 'rev-parse', args.ref], text=True).strip()
@@ -235,10 +252,11 @@ def main():
     args.out.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tree:
         tree.extractall(args.out, filter='data')
-    appid = instrument(args.out, args.variant)
+    appid = instrument(args.out, args.variant, args.favorite_pages)
     manifest = {
         'sourceSha': sha, 'variant': args.variant, 'applicationId': appid,
         'fixturePages': 512, 'fixtureWidth': 2048, 'fixtureHeight': 3072,
+        'fixtureFavoritePages': args.favorite_pages,
         'observers': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [HERE / 'prepare.py', HERE / 'main_next.dart', HERE / 'probe.dart', HERE / 'NativeReaderProbe.kt']},
     }
     (args.out / 'reader-benchmark-source.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
