@@ -64,7 +64,26 @@ class ReaderBenchmarkBinding extends WidgetsFlutterBinding {
     manifest.write_text(json.dumps(data, indent=2))
 
 
+def profile_stacks(source):
+    main = source / 'lib/reader_benchmark.dart'
+    anchor = "ReaderPerfProbe.event('frameRequest', [transientCallbackCount, schedulerPhase.index]);"
+    replace(main, anchor, anchor + '''
+      if (ReaderPerfProbe.detailed && transientCallbackCount == 0 &&
+          pageState?.call().last == false) {
+        ReaderPerfProbe.event('frameRequestStack', [StackTrace.current.toString()]);
+      }''')
+    manifest = source / 'reader-benchmark-source.json'
+    data = json.loads(manifest.read_text())
+    data['profileFrameRequestStacks'] = {
+        'profileOnly': True, 'stationaryPagerOnly': True,
+        'scriptSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    }
+    manifest.write_text(json.dumps(data, indent=2))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
-    instrument(parser.parse_args().source)
+    parser.add_argument('--stacks-only', action='store_true')
+    args = parser.parse_args()
+    (profile_stacks if args.stacks_only else instrument)(args.source)

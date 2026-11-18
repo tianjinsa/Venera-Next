@@ -36,6 +36,9 @@ def main():
                         default=['hold-forward', 'hold-reverse', 'touch-fast', 'cached'])
     parser.add_argument('--cache-cap-mib', type=int, choices=[128, 192], default=128)
     parser.add_argument('--reader-diagnostics', action='store_true')
+    parser.add_argument('--expected-pages', type=int, default=512)
+    parser.add_argument('--forward-page', type=int, default=160)
+    parser.add_argument('--reverse-page', type=int, default=160)
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,24}', args.prefix):
         parser.error('Requires a short safe prefix')
@@ -51,6 +54,8 @@ def main():
         'cacheCapMiB': args.cache_cap_mib,
         'budgetRegime': 'explicit shared LOWER cap; actual automatic ceilings saved before cap',
         'order': args.order, 'scenarios': args.scenarios, 'completed': [],
+        'expectedPages': args.expected_pages,
+        'forwardPage': args.forward_page, 'reversePage': args.reverse_page,
     }
     manifest.write_text(json.dumps(data, indent=2))
     signatures = {}
@@ -64,9 +69,15 @@ def main():
                             '--name', name, '--expected-cache-mib', str(args.cache_cap_mib),
                             '--test-cache-cap-mib', str(args.cache_cap_mib), '--perfetto']
                            + (['--reader-diagnostics'] if args.reader_diagnostics else [])
+                           + ['--expected-pages', str(args.expected_pages), '--page',
+                              str(args.reverse_page if scenario == 'hold-reverse' else args.forward_page)]
                            + SCENARIOS[scenario], check=True)
             folder = raw / name
             report = json.loads((folder / 'capture.json').read_text())
+            if args.reader_diagnostics:
+                diagnostic = json.loads((folder / 'production-diagnostics.json').read_text())
+                if diagnostic['stopReason'] != 'review':
+                    raise ValueError('Reader left capture before explicit stop; preserve but exclude this run')
             result = summarize(report)
             signature = [result[k] for k in ['nativeKeys', 'dartKeys', 'pointerDowns',
                          'newDragWhileScrolling', 'pageChanges']]

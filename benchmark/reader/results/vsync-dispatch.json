@@ -1,0 +1,795 @@
+{
+  "method": "Same command animation only. FrameTiming and OEM wake times are joined on CLOCK_MONOTONIC; binder attribution uses the immediate reader-main sched_waking event. Unmatched cases remain unknown. No screen FPS inference.",
+  "runs": [
+    {
+      "name": "pclead-main-hold-forward-after-2",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 776,
+      "allGapsAboveOneAndHalfPeriods": 92,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 409,
+        "p50": 8.353,
+        "p95": 8.3686,
+        "p99": 8.3965,
+        "max": 8.693
+      },
+      "sameAnimationLongGaps": [],
+      "observedLateNativeRequests": 0,
+      "stationaryCallbacksWithoutTransientTicker": 207,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 73,
+        "postFrameRequest": 59,
+        "clockAlignment": {
+          "pairs": 154,
+          "maxDeviationUs": 11.0,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "60d0a311de273cb26085a0fd47df659f7d532e4d25151ff780a862e9c5fcf86a"
+    },
+    {
+      "name": "pclead-main-hold-forward-after-3",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 769,
+      "allGapsAboveOneAndHalfPeriods": 93,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 404,
+        "p50": 8.353,
+        "p95": 8.374,
+        "p99": 8.4009,
+        "max": 8.642
+      },
+      "sameAnimationLongGaps": [],
+      "observedLateNativeRequests": 0,
+      "stationaryCallbacksWithoutTransientTicker": 206,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 73,
+        "postFrameRequest": 58,
+        "clockAlignment": {
+          "pairs": 154,
+          "maxDeviationUs": 7.0,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "a9cdbe1ced4d69e3b2fbf1c012ee05251ef707f6bf3288ed9237c30189012610"
+    },
+    {
+      "name": "pclead-main-hold-forward-before-1",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 630,
+      "allGapsAboveOneAndHalfPeriods": 78,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 401,
+        "p50": 8.353,
+        "p95": 8.372,
+        "p99": 8.532,
+        "max": 16.703
+      },
+      "sameAnimationLongGaps": [
+        {
+          "fromCaptureMs": 4308.772,
+          "gapMs": 16.702,
+          "previousUiMs": 5.296,
+          "previousRasterMs": 1.432,
+          "previousVsyncToBuildMs": 2.362,
+          "nextVsyncToBuildMs": 0.513,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -6.1906,
+            8.6701
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -5.8141
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            -0.2631
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.0079
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            -0.1259
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 6639.386,
+          "gapMs": 16.703,
+          "previousUiMs": 3.449,
+          "previousRasterMs": 1.612,
+          "previousVsyncToBuildMs": 5.878,
+          "nextVsyncToBuildMs": 0.349,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -2.7272,
+            8.4779
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -1.0046
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            1.2794
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            1.4562
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            1.4237
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        }
+      ],
+      "observedLateNativeRequests": 2,
+      "stationaryCallbacksWithoutTransientTicker": 73,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 0,
+        "postFrameRequest": 0,
+        "clockAlignment": {
+          "pairs": 77,
+          "maxDeviationUs": 2,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "59af2cca0a234a4dd94c4d0dccdd6740c3219f70aaf40e6abca8d597815b91f0"
+    },
+    {
+      "name": "pclead-main-hold-forward-before-4",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 628,
+      "allGapsAboveOneAndHalfPeriods": 81,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 399,
+        "p50": 8.353,
+        "p95": 8.367,
+        "p99": 8.3948,
+        "max": 16.701
+      },
+      "sameAnimationLongGaps": [
+        {
+          "fromCaptureMs": 4718.038,
+          "gapMs": 16.697,
+          "previousUiMs": 3.511,
+          "previousRasterMs": 1.937,
+          "previousVsyncToBuildMs": 1.585,
+          "nextVsyncToBuildMs": 0.353,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -6.9905,
+            8.5139
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -6.6874
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.8186
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            1.011
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.97
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 6839.797,
+          "gapMs": 16.701,
+          "previousUiMs": 4.222,
+          "previousRasterMs": 1.374,
+          "previousVsyncToBuildMs": 3.297,
+          "nextVsyncToBuildMs": 0.516,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -5.2052,
+            8.6552
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -5.0283
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            -0.1953
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.0493
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.002
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        }
+      ],
+      "observedLateNativeRequests": 2,
+      "stationaryCallbacksWithoutTransientTicker": 72,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 0,
+        "postFrameRequest": 0,
+        "clockAlignment": {
+          "pairs": 77,
+          "maxDeviationUs": 5,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "545847e6b2f5ef459f211d95f0bd3f8fcbc5e494bef60bd185988f28cff8577d"
+    },
+    {
+      "name": "pclead-main-hold-reverse-after-2",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 769,
+      "allGapsAboveOneAndHalfPeriods": 96,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 402,
+        "p50": 8.353,
+        "p95": 8.3699,
+        "p99": 8.387,
+        "max": 16.739
+      },
+      "sameAnimationLongGaps": [
+        {
+          "fromCaptureMs": 2324.483,
+          "gapMs": 16.739,
+          "previousUiMs": 1.198,
+          "previousRasterMs": 1.0,
+          "previousVsyncToBuildMs": 3.831,
+          "nextVsyncToBuildMs": 0.366,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -4.7981,
+            8.5491
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -4.428
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.712
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.9304
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.8781
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        }
+      ],
+      "observedLateNativeRequests": 1,
+      "stationaryCallbacksWithoutTransientTicker": 207,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 71,
+        "postFrameRequest": 61,
+        "clockAlignment": {
+          "pairs": 154,
+          "maxDeviationUs": 52.0,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "6a653004d5901114f034cd79a56d4374fca5432880c7fdaa93c762b804e27f2b"
+    },
+    {
+      "name": "pclead-main-hold-reverse-after-3",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 773,
+      "allGapsAboveOneAndHalfPeriods": 93,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 405,
+        "p50": 8.353,
+        "p95": 8.363,
+        "p99": 8.3858,
+        "max": 8.891
+      },
+      "sameAnimationLongGaps": [],
+      "observedLateNativeRequests": 0,
+      "stationaryCallbacksWithoutTransientTicker": 212,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 74,
+        "postFrameRequest": 63,
+        "clockAlignment": {
+          "pairs": 154,
+          "maxDeviationUs": 7.0,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "e1af491f508fcd84d4fdc942f8c7c809bf7c8ed4d9cfa50137a633ef6f8b13a5"
+    },
+    {
+      "name": "pclead-main-hold-reverse-before-1",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 628,
+      "allGapsAboveOneAndHalfPeriods": 82,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 399,
+        "p50": 8.353,
+        "p95": 8.3641,
+        "p99": 16.6912,
+        "max": 16.733
+      },
+      "sameAnimationLongGaps": [
+        {
+          "fromCaptureMs": 2408.173,
+          "gapMs": 16.702,
+          "previousUiMs": 4.243,
+          "previousRasterMs": 2.339,
+          "previousVsyncToBuildMs": 3.112,
+          "nextVsyncToBuildMs": 0.543,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -5.3759,
+            8.7141
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -2.6756
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            -0.1166
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.2126
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.1685
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 3118.228,
+          "gapMs": 16.7,
+          "previousUiMs": 4.244,
+          "previousRasterMs": 1.338,
+          "previousVsyncToBuildMs": 4.79,
+          "nextVsyncToBuildMs": 0.416,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -3.753,
+            8.5784
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -1.2709
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            1.0381
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            1.2453
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            1.1884
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 4939.234,
+          "gapMs": 16.733,
+          "previousUiMs": 4.429,
+          "previousRasterMs": 1.468,
+          "previousVsyncToBuildMs": 3.133,
+          "nextVsyncToBuildMs": 0.287,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -5.4864,
+            8.5388
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -5.0925
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.3315
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.8195
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.7844
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 5849.759,
+          "gapMs": 16.7,
+          "previousUiMs": 3.131,
+          "previousRasterMs": 1.652,
+          "previousVsyncToBuildMs": 4.738,
+          "nextVsyncToBuildMs": 0.288,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -3.8593,
+            8.4936
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -2.29
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.108
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.5408
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.2973
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 6350.958,
+          "gapMs": 16.691,
+          "previousUiMs": 4.561,
+          "previousRasterMs": 1.413,
+          "previousVsyncToBuildMs": 3.48,
+          "nextVsyncToBuildMs": 0.94,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -5.0331,
+            9.1513
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -4.8332
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            -0.0142
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.1519
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.1062
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        }
+      ],
+      "observedLateNativeRequests": 5,
+      "stationaryCallbacksWithoutTransientTicker": 75,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 0,
+        "postFrameRequest": 0,
+        "clockAlignment": {
+          "pairs": 77,
+          "maxDeviationUs": 62,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "ef12e9cccaa0cf6b6bf324ddc50b106c191f9699f65bc8e2f6942b8609b07b12"
+    },
+    {
+      "name": "pclead-main-hold-reverse-before-4",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 631,
+      "allGapsAboveOneAndHalfPeriods": 81,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 402,
+        "p50": 8.353,
+        "p95": 8.362,
+        "p99": 16.6227,
+        "max": 16.742
+      },
+      "sameAnimationLongGaps": [
+        {
+          "fromCaptureMs": 2304.907,
+          "gapMs": 16.728,
+          "previousUiMs": 4.772,
+          "previousRasterMs": 1.135,
+          "previousVsyncToBuildMs": 4.215,
+          "nextVsyncToBuildMs": 0.422,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -4.3478,
+            8.5901
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -4.1216
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            1.0844
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            1.2862
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            1.2278
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 2605.623,
+          "gapMs": 16.742,
+          "previousUiMs": 3.497,
+          "previousRasterMs": 1.13,
+          "previousVsyncToBuildMs": 4.981,
+          "nextVsyncToBuildMs": 0.459,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -3.6029,
+            8.6119
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -1.833
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.457
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.6518
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.6103
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 7567.52,
+          "gapMs": 16.706,
+          "previousUiMs": 2.614,
+          "previousRasterMs": 1.55,
+          "previousVsyncToBuildMs": 5.565,
+          "nextVsyncToBuildMs": 0.321,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -2.9432,
+            8.5458
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -2.7457
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.4123
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.6552
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.5945
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 7667.754,
+          "gapMs": 16.701,
+          "previousUiMs": 3.377,
+          "previousRasterMs": 1.327,
+          "previousVsyncToBuildMs": 4.575,
+          "nextVsyncToBuildMs": 0.29,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -3.9786,
+            8.4854
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -3.7568
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.3252
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.5598
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.5044
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 9480.432,
+          "gapMs": 16.705,
+          "previousUiMs": 3.982,
+          "previousRasterMs": 2.376,
+          "previousVsyncToBuildMs": 3.993,
+          "nextVsyncToBuildMs": 0.893,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -4.7221,
+            9.0892
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -2.0582
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.1688
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.4733
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.3605
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        }
+      ],
+      "observedLateNativeRequests": 5,
+      "stationaryCallbacksWithoutTransientTicker": 72,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 0,
+        "postFrameRequest": 0,
+        "clockAlignment": {
+          "pairs": 77,
+          "maxDeviationUs": 4,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "8f98ea3f378a770935b2c0d4156fd6a7530336f8e4668f945f1d3f258e875539"
+    },
+    {
+      "name": "pclead-real2-hold-forward-after-2",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 720,
+      "allGapsAboveOneAndHalfPeriods": 89,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 397,
+        "p50": 8.353,
+        "p95": 8.3702,
+        "p99": 8.4106,
+        "max": 16.713
+      },
+      "sameAnimationLongGaps": [
+        {
+          "fromCaptureMs": 7680.101,
+          "gapMs": 16.713,
+          "previousUiMs": 3.779,
+          "previousRasterMs": 1.257,
+          "previousVsyncToBuildMs": 4.178,
+          "nextVsyncToBuildMs": 0.388,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -4.3987,
+            8.6006
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -4.0156
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.3024
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.5017
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.4578
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        }
+      ],
+      "observedLateNativeRequests": 1,
+      "stationaryCallbacksWithoutTransientTicker": 168,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 36,
+        "postFrameRequest": 57,
+        "clockAlignment": {
+          "pairs": 154,
+          "maxDeviationUs": 11.0,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "7c8bbb4aee7a5185a5ede80236079616ef2f8fa89babc2388de9031cbfa4a1cf"
+    },
+    {
+      "name": "pclead-real2-hold-forward-after-3",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 751,
+      "allGapsAboveOneAndHalfPeriods": 114,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 400,
+        "p50": 8.353,
+        "p95": 8.373,
+        "p99": 8.4636,
+        "max": 16.728
+      },
+      "sameAnimationLongGaps": [
+        {
+          "fromCaptureMs": 3084.992,
+          "gapMs": 16.706,
+          "previousUiMs": 1.129,
+          "previousRasterMs": 1.062,
+          "previousVsyncToBuildMs": 3.684,
+          "nextVsyncToBuildMs": 0.568,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -4.9788,
+            8.6437
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -4.5237
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.6623
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.8989
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.8519
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        },
+        {
+          "fromCaptureMs": 7428.713,
+          "gapMs": 16.728,
+          "previousUiMs": 7.538,
+          "previousRasterMs": 1.962,
+          "previousVsyncToBuildMs": 0.511,
+          "nextVsyncToBuildMs": 0.77,
+          "missedAppPulses": 1,
+          "observedLateNativeRequest": true,
+          "appCallbacksFromMissedDispatchMs": [
+            -8.0449,
+            8.9632
+          ],
+          "dartRequestsFromMissedDispatchMs": [
+            -7.6939
+          ],
+          "drawEndsFromMissedDispatchMs": [
+            0.6751
+          ],
+          "surfaceFlingerRequestsFromMissedDispatchMs": [
+            0.9328
+          ],
+          "binderWakesFromMissedDispatchMs": [
+            0.8726
+          ],
+          "precacheReplacementsBeforeNextCallback": 0
+        }
+      ],
+      "observedLateNativeRequests": 2,
+      "stationaryCallbacksWithoutTransientTicker": 193,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 55,
+        "postFrameRequest": 63,
+        "clockAlignment": {
+          "pairs": 154,
+          "maxDeviationUs": 6.0,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "5932491055e73bdc057971b9f145100de81babbc09b3af7694eb4a43673c79ff"
+    },
+    {
+      "name": "pclead-real2-hold-forward-before-1",
+      "refreshHzAtStart": 120.00000762939453,
+      "producedFrames": 647,
+      "allGapsAboveOneAndHalfPeriods": 76,
+      "sameCommandAnimationVsyncGapMs": {
+        "n": 414,
+        "p50": 8.353,
+        "p95": 8.3713,
+        "p99": 8.3913,
+        "max": 8.845
+      },
+      "sameAnimationLongGaps": [],
+      "observedLateNativeRequests": 0,
+      "stationaryCallbacksWithoutTransientTicker": 79,
+      "stationaryRequests": {
+        "idleRequestWithin250UsAfterPrecache": 4,
+        "postFrameRequest": 0,
+        "clockAlignment": {
+          "pairs": 77,
+          "maxDeviationUs": 4,
+          "meaning": "Median adjacent marker offset; includes small unmeasured call overhead"
+        },
+        "meaning": "Stationary callback with no transient ticker. Nearby completion is a time association; exact request owners need call stacks."
+      },
+      "traceSha256": "db7d48d5418f0eab403277a6b2aae31da007deb3dc6a9aec0e1e3d544f8c9bb0"
+    }
+  ]
+}

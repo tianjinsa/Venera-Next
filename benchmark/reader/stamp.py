@@ -40,6 +40,9 @@ def main():
                 hashes[name] = sha256(path)
                 patch.extend(difflib.unified_diff(original.decode('utf-8').splitlines(True), actual.decode('utf-8').splitlines(True), fromfile='a/' + name, tofile='b/' + name))
     assets = list((args.source / 'assets').glob('reader_benchmark.*'))
+    chapter = args.source / 'assets/reader_chapter'
+    if chapter.exists():
+        assets += sorted(p for p in chapter.iterdir() if p.is_file())
     for path in [args.source / 'lib/reader_benchmark.dart', args.source / 'lib/foundation/reader_perf_probe.dart'] + assets + list((args.source / 'android/app/src/main/kotlin').rglob('NativeReaderProbe.kt')):
         hashes[path.relative_to(args.source).as_posix()] = sha256(path)
     manifest['actualSourceOverridesSha256'] = hashes

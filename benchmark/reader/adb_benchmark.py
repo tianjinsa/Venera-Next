@@ -167,8 +167,8 @@ def capture(device, args):
         (folder / 'test-cache-cap-status.json').write_text(json.dumps(initial, indent=2), encoding='utf-8')
         if initial.get('cacheLimitBytes') != args.test_cache_cap_mib << 20:
             raise ValueError('Benchmark APK did not apply the common lower cache cap')
-    if initial.get('pageCount') != 512 or initial.get('refreshHz', 0) < 119:
-        raise ValueError('Requires a ready 512-page reader at 120 Hz')
+    if initial.get('pageCount') != args.expected_pages or initial.get('refreshHz', 0) < 119:
+        raise ValueError(f'Requires a ready {args.expected_pages}-page reader at 120 Hz')
     if args.cached_budget_headroom:
         if initial.get('cacheLimitBytes', 0) < 128 << 20:
             raise ValueError('Insufficient automatic budget for the fixed cached working set')
@@ -178,13 +178,13 @@ def capture(device, args):
     installed_hash = device.run('shell', 'sha256sum', shlex.quote(package_path)).split()[0]
     if not re.fullmatch('[0-9a-fA-F]{64}', installed_hash):
         raise ValueError('Cannot identify installed benchmark APK')
-    for page in range(max(1, args.page - args.warm_radius), min(512, args.page + args.warm_radius) + 1) if args.warm_radius else ():
+    for page in range(max(1, args.page - args.warm_radius), min(args.expected_pages, args.page + args.warm_radius) + 1) if args.warm_radius else ():
         device.command('position', page=page)
         device.wait_status('position')
         time.sleep(.6)
     # Visit a neighbour first, so a preceding double-tap/zoom probe cannot leave
     # the next swipe scenario inside a zoomed PhotoView at the same page.
-    device.command('position', page=args.page + 1 if args.page < 512 else args.page - 1)
+    device.command('position', page=args.page + 1 if args.page < args.expected_pages else args.page - 1)
     device.wait_status('position')
     time.sleep(.3)
     device.command('position', page=args.page)
@@ -329,7 +329,7 @@ def capture(device, args):
         if (len(keys) != len(downs) or not validation['repeatCountsConsecutive'] or
                 not validation['oneDownTime'] or not validation['eventTimeOffsetsMatch']):
             raise ValueError('Native held-key sequence mismatch; retain capture but exclude from matched A/B')
-    if report['before'].get('pageCount') != 512:
+    if any(report[phase].get('pageCount') != args.expected_pages for phase in ('before', 'after')):
         raise ValueError('Fixture was not ready: results are invalid')
     if args.cached_budget_headroom:
         validate_cached_working_set(report)
@@ -385,6 +385,7 @@ def main():
     sample.add_argument('--touch-dex', type=Path, default=Path(__file__).resolve().parent / 'artifacts/touch-driver/dex/classes.dex')
     sample.add_argument('--perfetto', action='store_true')
     sample.add_argument('--reader-diagnostics', action='store_true', help='Explicit Next-only diagnostic export: also run the unchanged production ReaderDiagnostics and save its scroll-phase summary')
+    sample.add_argument('--expected-pages', type=int, default=512, help='Exact fixture page count; original offline chapters keep their actual page count')
     sample.add_argument('--reuse-process', action='store_true', help='For explicitly labelled warm-window or memory-pressure probes')
     sample.add_argument('--expected-cache-mib', type=int, default=192, help='0 records the natural ceiling for a labelled diagnostic; validate actual resident capacity/work separately, never mix with strict 192 MiB A/B')
     sample.add_argument('--test-cache-cap-mib', type=int, default=0, choices=range(0, 513), help='Isolated APK diagnostic only: lower (never raise) automatic ceiling to a shared cap; use the same expected-cache-mib and label separately from default-budget A/B')

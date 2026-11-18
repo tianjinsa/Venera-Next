@@ -13,13 +13,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--variant', choices=['next', 'prime'], required=True)
     parser.add_argument('--name', required=True)
-    parser.add_argument('--input', choices=['swipes', 'keysequence'], default='swipes')
+    parser.add_argument('--input', choices=['swipes', 'keysequence', 'calibrated-hold'], default='swipes')
     parser.add_argument('--count', type=int, default=20)
     parser.add_argument('--widget-builds', action='store_true', help='Diagnostic build tracking adds overhead; never compare its timings with Release')
     parser.add_argument('--touch-driver', choices=['adb', 'fixed'], default='adb')
     parser.add_argument('--interval', type=float, default=.02)
     parser.add_argument('--alternate', action='store_true')
     parser.add_argument('--warm-radius', type=int, choices=range(3), default=0)
+    parser.add_argument('--expected-pages', type=int, default=512)
+    parser.add_argument('--page', type=int, default=160)
+    parser.add_argument('--direction', choices=['forward', 'reverse'], default='forward')
+    parser.add_argument('--reader-diagnostics', action='store_true')
     parser.add_argument('--expected-cache-mib', type=int, default=192,
                         help='0 permits a diagnostic with its actual budget; do not use it for matched Release A/B')
     parser.add_argument('--adb', default='E:/Android/Sdk/platform-tools/adb.exe')
@@ -55,6 +59,10 @@ def main():
             raise RuntimeError(''.join(lines))
         command = [sys.executable, str(Path(__file__).with_name('adb_benchmark.py')), '--adb', args.adb, '--variant', args.variant, 'capture', '--name', args.name, '--out', str(args.out), '--seconds', '14', '--input', args.input, '--count', str(args.count), '--interval', str(args.interval), '--swipe-ms', '80', '--key-delay-ms', '50', '--perfetto', '--reuse-process', '--touch-driver', args.touch_driver, '--warm-radius', str(args.warm_radius)]
         command += ['--expected-cache-mib', str(args.expected_cache_mib)]
+        command += ['--expected-pages', str(args.expected_pages), '--page', str(args.page),
+                    '--direction', args.direction]
+        if args.reader_diagnostics:
+            command += ['--reader-diagnostics']
         if args.alternate:
             command += ['--alternate']
         subprocess.run(command, check=True)

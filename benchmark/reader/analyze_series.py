@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 
 from analyze_viewport import analyze as viewport_alignment
+from analyze_frame_requests import analyze as frame_requests
 from summarize import distribution, summarize
 
 
@@ -22,6 +23,9 @@ def collect(folder):
     selected = [e for e in report['events'] if e[1] == 'selectionImageStatus']
     display = [e for e in report['events'] if e[1] == 'displayResolveStatus']
     if selected or display:
+        first_display = {}
+        for event in display:
+            first_display.setdefault(event[2], event)
         result['imageReadinessProxies'] = {
             'acceptedSelectionsObserved': len(selected),
             'selectionsWithAllImagesReady': sum(e[4] == e[3] for e in selected),
@@ -29,8 +33,24 @@ def collect(folder):
             'displayResolves': len(display),
             'displayResolvesReady': sum(e[3] or (e[4] and not e[5]) for e in display),
             'displayResolvesPending': sum(e[5] for e in display),
+            'firstDisplayLookups': len(first_display),
+            'firstDisplayReady': sum(e[3] or (e[4] and not e[5]) for e in first_display.values()),
+            'firstDisplayPending': sum(e[5] for e in first_display.values()),
             'meaning': 'Lookup-only decoded/live cache status, not proof of screen content or blank-frame count',
         }
+    diagnostics = folder / 'production-diagnostics.json'
+    if diagnostics.exists():
+        data = json.loads(diagnostics.read_text())
+        result['productionDiagnostics'] = {
+            key: data[key] for key in ['limits', 'droppedEvents', 'omittedEventsForCopy',
+                                      'droppedFrames', 'retainedStageSamples']
+        }
+        result['productionDiagnostics']['scrollFrameSamples'] = {
+            key: data['scrollFrameSamples'][key]
+            for key in ['drag', 'settle', 'droppedPhases']
+        }
+    if any(e[1] == 'frameBegin' for e in report['events']):
+        result['frameRequests'] = frame_requests(report)
     cap = folder / 'test-cache-cap-status.json'
     if cap.exists():
         initial = json.loads((folder / 'initial-status.json').read_text())
