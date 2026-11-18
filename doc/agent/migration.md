@@ -38,7 +38,7 @@
 | O04 | 独立作者规则，精确作者名称及 author/artist 标签；复用不可变快照，支持规则原地修改 | `features/comic_widgets/comic_blocking.dart`；保留 Next 的包含/独立词/精确标签及大小写选项，不降为旧 Prime 匹配器；作者与现有关键词回归 |
 | O05 | 历史、本地漫画、本地/网络收藏、稍后再看、追更、Agent 展示不做关键词/作者过滤；普通发现/搜索保留过滤 | 网格和两种分页列表共享过滤开关；收藏选择逻辑也绕过屏蔽；关键词管理可独立扫描本地收藏并编辑、删除命中规则 |
 | O06 | 键盘及无关阅读设置不触发整份列表重查；收藏默认展示不查历史，已读筛选缓存结果；查询所有权、搜索与选择保留；晚到追更结果不能恢复已关闭状态 | `foundation/context.dart` 使用 `MediaQuery` 分项订阅；沿用 Next 收藏查询与追更 generation 门禁 |
-| O07 | 可用内存 1/16，32–192 MiB；压力时最多 32 MiB 并暂停预解码；退出 1 秒后收缩，重入取消旧收缩；TV 上限继续有效 | `features/reader/image_cache_policy.dart`、预加载与阅读页面；缓存策略及阅读生命周期回归 |
+| O07 | 取可用内存的 1/16，按 32 MiB 分档并限 32–192 MiB，受 TV 上限约束。前台定期复查。压力时最多 32 MiB 并暂停预解码，冷却后按新读数和余量逐档恢复。退出 1 秒后收缩，重入取消旧收缩 | `features/reader/image_cache_policy.dart`、预加载与阅读页面。缓存策略及阅读生命周期回归 |
 | O08 | 最后进度、前台阅读时长、控制器/计时器/监听清理、旧异步回调门禁；返回后由原会话继续后台收尾 | 沿用 Next 的 `ReadingSessionTracker`、进度队列、`ImageWork` 与各视口所有权；根覆盖层显示保存/持久错误图标；画廊按命令／拖动提前合并预取，保留当前页加载并局部重置缩放，瀑布流仅在位置变化时通知外壳 |
 | O09 | 线条增强及强度，暗色/暖色/红色夜览；黑线不变浅、纸白不提亮；调节画面菜单与阅读设置集中呈现，实时调整不重建阅读子树，评论可跳过增强但保留夜览 | 类型化 `ReaderPreferences`、`reader_appearance.dart`；真实像素颜色回归、单漫画/设备优先级和控制器保护 |
 | O10 | 历史后台读不阻塞进度保存；WAL 快照、恢复前等待读取；锁/权限错误保留数据 | 历史连接选择 WAL，读取受 Next `AppDataOperations` 保护；修复旧单 ID 主键，保留 Next 的章节名称、总页数与阅读时长列；继续使用 Next SQLite 快照；Pica 跨库导入在独占门禁下临时切回 DELETE，成功或失败后恢复 WAL，保留原子事务检查 |
@@ -248,3 +248,10 @@
 - 两种 Android Release 构建恢复 Flutter 默认平台准备流程；前置锁文件校验不变，不删除测试依赖、不把测试插件加入正式依赖、不手改生成文件、不清理原生缓存。修正现有 Python 构建回归的两种 flavor 断言。按用户要求仅推送后用 Actions 构建（`skip_tests=true`），云端不编译，也不轮询构建完成。
 
 验证：`python3 -m unittest discover -s .github/scripts/tests -p test_ci_optimization.py -k AndroidBuildTests`，3 项通过；`git diff --check` 通过。未在云端编译 Android，实际构建交给 Actions。
+
+## 阅读图片缓存压力恢复（2026-11-18）
+
+- 开发基线 `97217db9f0c40549b15acef528abc339eb1998d4`，分支 `codex/agent-center-tab`。已有策略在进入阅读器时读取一次可用内存。压力信号将预算降到至多 32 MiB，后续读数也无法解除压力标记。本次复用已有平台内存读数和 Flutter 的压力回调。
+- 初次可靠读数按可用物理内存的 1/16 向下取到 32 MiB 档位，受 32–192 MiB 与 TV 上限约束。阅读器前台每 30 秒异步复查，低读数可立即降档。提高一级需要可用内存达到新预算的 16 倍并另留 128 MiB，以免在档位附近反复切换。
+- 收到压力即降至最多 32 MiB 并取消主动预解码。末次压力信号后至少冷却 30 秒，以新读数确认达到可预解码档（通常为 64 MiB）的恢复条件。较小的 TV 上限继续生效，无可靠读数时保留现有预算。后台暂停采样，退出和重入时丢弃过期查询。
+- Windows、Flutter 3.41.4 定向测试 `image_cache_policy_test.dart`、`image_precache_pressure_test.dart`、`image_precache_test.dart`、`gallery_precache_test.dart` 共 54 项通过。覆盖降级、压力冷却重启、迟到读数、逐档恢复与滞回、后台、退出和预加载交接。Android 真机内存和缓存时间线尚未复测。

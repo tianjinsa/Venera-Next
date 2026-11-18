@@ -1459,6 +1459,7 @@ class ReaderState extends State<Reader>
         .enableTurnPageByVolumeKey) {
       handleVolumeEvent();
     }
+    _imageCachePolicy.setForeground(_volumeForeground);
     setImageCacheSize();
     final favorites = FavoritesScope.read(context);
     final favoriteGeneration = favorites.connectionGeneration;
@@ -1939,6 +1940,7 @@ class ReaderState extends State<Reader>
       readerDiagnostics.stop(ReaderDiagnosticStop.background);
     }
     _volumeForeground = state == AppLifecycleState.resumed;
+    _imageCachePolicy.setForeground(_volumeForeground);
     _session.setForeground(state == AppLifecycleState.resumed);
     _observeVolume(_updateVolume());
   }

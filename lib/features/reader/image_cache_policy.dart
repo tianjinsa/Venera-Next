@@ -23,8 +23,18 @@ class ReaderImageCachePolicy {
   }
 
   static const defaultLimit = 100 << 20;
+  static const _step = 32 << 20;
+  static const _maximumLimit = 192 << 20;
+  static const _memoryDivisor = 16;
+  static const _growthHeadroom = 128 << 20;
+  static const _sampleInterval = Duration(seconds: 30);
+  static const _pressureCooldown = Duration(seconds: 30);
+
   static int limitForMemory(int availableBytes) =>
-      (availableBytes ~/ 16).clamp(32 << 20, 192 << 20);
+      (availableBytes ~/ (_memoryDivisor * _step) * _step).clamp(
+        _step,
+        _maximumLimit,
+      );
   static int _currentSession = 0;
   static Timer? _restore;
   static bool _activeUnderPressure = false;
@@ -46,7 +56,13 @@ class ReaderImageCachePolicy {
   final int _session;
   int _generation = 0;
   bool _disposed = false;
+  bool _foreground = true;
+  bool _configured = false;
+  bool _reading = false;
+  bool _hasSampledMemory = false;
   bool _underPressure = false;
+  bool _coolingDown = false;
+  Timer? _nextSample;
   int _limit = defaultLimit;
   int _pressureEvents = 0;
   int? _availableBytes, _ceilingBytes;
@@ -74,64 +90,139 @@ class ReaderImageCachePolicy {
     onChanged?.call(snapshot);
   }
 
+  void _cancelSample() {
+    _nextSample?.cancel();
+    _nextSample = null;
+  }
+
+  void _scheduleSample() {
+    if (!_current || !_foreground || !_configured || _nextSample != null) {
+      return;
+    }
+    _nextSample = Timer(_coolingDown ? _pressureCooldown : _sampleInterval, () {
+      _nextSample = null;
+      _coolingDown = false;
+      unawaited(configure());
+    });
+  }
+
+  void setForeground(bool foreground) {
+    if (!_current || _foreground == foreground) return;
+    _foreground = foreground;
+    ++_generation;
+    _cancelSample();
+    if (_memoryQuery == ReaderDiagnosticMemoryQuery.pending) {
+      _memoryQuery = ReaderDiagnosticMemoryQuery.notQueried;
+    }
+    if (foreground && _configured) unawaited(configure());
+  }
+
   Future<void> configure() async {
     if (!_current) return;
-    final generation = ++_generation;
-    _memoryQuery = ReaderDiagnosticMemoryQuery.pending;
-    _availableBytes = null;
+    _configured = true;
+    final generation = _generation;
+    final previousQuery = _memoryQuery;
+    var startedRead = false;
     try {
       final ceiling = maximumBytes?.call();
       _ceilingBytes = ceiling;
-      if (ceiling != null) {
+      if (ceiling != null && ceiling < _limit) {
         _setLimit(
-          _underPressure ? math.min(ceiling, 32 << 20) : ceiling,
+          ceiling,
           _underPressure
               ? ReaderDiagnosticCacheReason.memoryPressure
               : ReaderDiagnosticCacheReason.platformCeiling,
         );
-      } else {
-        onChanged?.call(snapshot);
       }
+      if (!_current || !_foreground || _coolingDown || _reading) return;
+      _cancelSample();
+      _reading = startedRead = true;
+      _memoryQuery = ReaderDiagnosticMemoryQuery.pending;
+      _availableBytes = null;
+      onChanged?.call(snapshot);
       final memory = await readAvailableMemory();
       if (!_current || generation != _generation) return;
       _availableBytes = memory != null && memory > 0 ? memory : null;
       _memoryQuery = _availableBytes == null
           ? ReaderDiagnosticMemoryQuery.unavailable
           : ReaderDiagnosticMemoryQuery.available;
-      if (_underPressure || _availableBytes == null) {
+      if (_availableBytes case final int available) {
+        _updateLimitForAvailableMemory(available);
+      } else {
         onChanged?.call(snapshot);
-        return;
       }
-      final detected = limitForMemory(_availableBytes!);
-      final limit = ceiling == null ? detected : math.min(ceiling, detected);
-      _setLimit(
-        limit,
-        ceiling != null && ceiling <= detected
-            ? ReaderDiagnosticCacheReason.platformCeiling
-            : ReaderDiagnosticCacheReason.availableMemory,
-      );
-      onConfigured?.call(_availableBytes!, limit);
     } catch (error, stack) {
       if (_current && generation == _generation) {
         _memoryQuery = ReaderDiagnosticMemoryQuery.failed;
         onChanged?.call(snapshot);
-        onError(error, stack);
+        if (previousQuery != ReaderDiagnosticMemoryQuery.failed) {
+          onError(error, stack);
+        }
       }
+    } finally {
+      if (startedRead) _reading = false;
+      _scheduleSample();
+    }
+  }
+
+  void _updateLimitForAvailableMemory(int available) {
+    final ceiling = _ceilingBytes ?? _maximumLimit;
+    final detected = limitForMemory(available);
+    final target = math.min(ceiling, detected);
+    final wasUnderPressure = _underPressure;
+    final initial = !_hasSampledMemory;
+    _hasSampledMemory = true;
+    final nextTier = math.min(target, (_limit ~/ _step + 1) * _step);
+
+    if (wasUnderPressure) {
+      // Recover only once the system can fund the first useful preload tier
+      // (or the smaller platform ceiling) with room for fluctuations.
+      final recoveryTier = math.min(2 * _step, ceiling);
+      if (available < recoveryTier * _memoryDivisor + _growthHeadroom) {
+        onChanged?.call(snapshot);
+        return;
+      }
+      _underPressure = _activeUnderPressure = false;
+    }
+
+    // Drop to the measured target on a low sample. Growth needs extra headroom
+    // and happens one tier at a time after the initial sizing.
+    final targetLimit = target <= _limit || (initial && !wasUnderPressure)
+        ? target
+        : available >= nextTier * _memoryDivisor + _growthHeadroom
+        ? nextTier
+        : _limit;
+    final reason = _ceilingBytes != null && targetLimit == ceiling
+        ? ReaderDiagnosticCacheReason.platformCeiling
+        : ReaderDiagnosticCacheReason.availableMemory;
+    if (targetLimit != _limit || reason != _reason || wasUnderPressure) {
+      _setLimit(targetLimit, reason);
+      onConfigured?.call(available, targetLimit);
+    } else {
+      onChanged?.call(snapshot);
     }
   }
 
   void handleMemoryPressure() {
     if (!_current) return;
     _underPressure = true;
+    _coolingDown = true;
     _pressureEvents++;
     _activeUnderPressure = true;
+    ++_generation;
+    _cancelSample();
+    if (_memoryQuery == ReaderDiagnosticMemoryQuery.pending) {
+      _memoryQuery = ReaderDiagnosticMemoryQuery.notQueried;
+    }
     _setLimit(
-      math.min(_limit, 32 << 20),
+      math.min(_limit, _step),
       ReaderDiagnosticCacheReason.memoryPressure,
     );
+    _scheduleSample();
   }
 
   void dispose() {
+    _cancelSample();
     if (!_current) {
       _disposed = true;
       return;

@@ -36,10 +36,10 @@ void main() {
         pressure.snapshot.reason,
         ReaderDiagnosticCacheReason.memoryPressure,
       );
-      expect(pressure.snapshot.availableBytes, 8 << 30);
+      expect(pressure.snapshot.availableBytes, isNull);
       expect(
         pressure.snapshot.memoryQuery,
-        ReaderDiagnosticMemoryQuery.available,
+        ReaderDiagnosticMemoryQuery.notQueried,
       );
       expect(pressure.snapshot.pressureEvents, 1);
       expect(pressure.snapshot.underPressure, isTrue);
@@ -65,6 +65,8 @@ void main() {
   test('available memory reserves one sixteenth within 32–192 MiB', () {
     expect(ReaderImageCachePolicy.limitForMemory(256 << 20), 32 << 20);
     expect(ReaderImageCachePolicy.limitForMemory(1 << 30), 64 << 20);
+    expect(ReaderImageCachePolicy.limitForMemory(1500 << 20), 64 << 20);
+    expect(ReaderImageCachePolicy.limitForMemory(1600 << 20), 96 << 20);
     expect(ReaderImageCachePolicy.limitForMemory(2 << 30), 128 << 20);
     expect(ReaderImageCachePolicy.limitForMemory(8 << 30), 192 << 20);
   });
@@ -95,12 +97,15 @@ void main() {
     (tester) async {
       final limits = <int>[];
       final query = Completer<int?>();
+      var reads = 0;
       final policy = ReaderImageCachePolicy(
-        readAvailableMemory: () => query.future,
+        readAvailableMemory: () =>
+            ++reads == 1 ? Future.value(8 << 30) : query.future,
         maximumBytes: () => 192 << 20,
         setLimit: limits.add,
         onError: (_, _) => fail('unexpected error'),
       );
+      await policy.configure();
       final pending = policy.configure();
       policy.handleMemoryPressure();
       query.complete(8 << 30);
@@ -112,6 +117,105 @@ void main() {
       expect(limits.last, 32 << 20);
     },
   );
+
+  testWidgets(
+    'each pressure signal restarts cooldown and recovery is gradual',
+    (tester) async {
+      var memory = 6 << 30;
+      var reads = 0;
+      final limits = <int>[];
+      final policy = ReaderImageCachePolicy(
+        readAvailableMemory: () async {
+          reads++;
+          return memory;
+        },
+        setLimit: limits.add,
+        onError: (error, _) => fail('$error'),
+      );
+      await policy.configure();
+      expect(limits.last, 192 << 20);
+      policy.handleMemoryPressure();
+      expect(limits.last, 32 << 20);
+      expect(ReaderImageCachePolicy.allowActivePrecache, isFalse);
+      await tester.pump(const Duration(seconds: 29));
+      policy.handleMemoryPressure();
+      await tester.pump(const Duration(seconds: 29));
+      expect(reads, 1);
+      expect(policy.snapshot.pressureEvents, 2);
+
+      // A valid but low memory sample cannot release the pressure gate.
+      memory = 1 << 30;
+      await tester.pump(const Duration(seconds: 1));
+      expect(reads, 2);
+      expect(policy.snapshot.underPressure, isTrue);
+      expect(limits.last, 32 << 20);
+      memory = 6 << 30;
+      await tester.pump(const Duration(seconds: 30));
+      expect(policy.snapshot.underPressure, isFalse);
+      expect(limits.last, 64 << 20);
+      expect(ReaderImageCachePolicy.allowActivePrecache, isTrue);
+      for (final tier in [96, 128, 160, 192]) {
+        await tester.pump(const Duration(seconds: 30));
+        expect(limits.last, tier << 20);
+      }
+      policy.dispose();
+      await tester.pump(const Duration(seconds: 1));
+    },
+  );
+
+  testWidgets('foreground samples shrink quickly and grow with headroom', (
+    tester,
+  ) async {
+    var memory = 2 << 30;
+    final limits = <int>[];
+    final policy = ReaderImageCachePolicy(
+      readAvailableMemory: () async => memory,
+      setLimit: limits.add,
+      onError: (error, _) => fail('$error'),
+    );
+    await policy.configure();
+    expect(limits, [128 << 20]);
+    memory = 1 << 30;
+    await tester.pump(const Duration(seconds: 30));
+    expect(limits.last, 64 << 20);
+    memory = 1550 << 20;
+    await tester.pump(const Duration(seconds: 30));
+    expect(limits, [128 << 20, 64 << 20]);
+    memory = 1700 << 20;
+    await tester.pump(const Duration(seconds: 30));
+    expect(limits.last, 96 << 20);
+    policy.dispose();
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('background and disposal stop sampling and ignore old replies', (
+    tester,
+  ) async {
+    final reply = Completer<int?>();
+    var reads = 0;
+    final limits = <int>[];
+    final policy = ReaderImageCachePolicy(
+      readAvailableMemory: () {
+        return ++reads == 1 ? reply.future : Future.value(1 << 30);
+      },
+      setLimit: limits.add,
+      onError: (error, _) => fail('$error'),
+    );
+    final initial = policy.configure();
+    policy.setForeground(false);
+    await tester.pump(const Duration(minutes: 3));
+    reply.complete(6 << 30);
+    await initial;
+    expect(reads, 1);
+    expect(limits, isEmpty);
+    policy.setForeground(true);
+    await tester.pump();
+    expect(reads, 2);
+    expect(limits, [64 << 20]);
+    policy.dispose();
+    await tester.pump(const Duration(minutes: 3));
+    expect(reads, 2);
+  });
 
   testWidgets('quick re-entry cancels delayed shrink from the old session', (
     tester,

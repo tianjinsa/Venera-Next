@@ -51,7 +51,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | O04 | 作者独立规则，作者名称及 author/artist 标签精确匹配；不可变快照兼容原地规则修改；继续保留 Next 的关键词匹配方式及大小写选项 | `lib/features/comic_widgets/comic_blocking.dart`；`test/prime_migration/comic_blocking_test.dart`、`test/foundation/keyword_rules_test.dart` |
 | O05 | 收藏、历史、本地漫画、稍后再看、追更和 Agent 展示不按关键词/作者隐藏；发现/搜索继续过滤；独立扫描收藏用于调规则 | R00、R08、R09；`test/features/comic_widgets/keyword_filter_consumers_test.dart`、`test/agent/agent_showcase_filtering_test.dart` |
 | O06 | 无关键盘/阅读设置不重查全列表；收藏默认展示不逐本查历史，已读筛选缓存；查询/搜索/选择所有权及追更 generation 门禁保留 | R01；`lib/foundation/context.dart`、`lib/features/favorites/local_favorites_page.dart`；`test/features/favorites/local_favorites_refresh_test.dart`、`favorite_updates_service_test.dart` |
-| O07 | 阅读图像缓存取可用内存 1/16 并限 32–192 MiB；内存压力下最多 32 MiB 且取消主动预解码及排队订阅，可见图片不受取消影响；分页预解码最多两并发，连续／瀑布流串行，每视图最多准入四个请求，原生收尾前不归还名额；保留进入当前页的解码并按方向调整相邻窗口；退出 1 秒后收缩，重入取消旧收缩；TV 及继承的较小上限保留 | `lib/features/reader/image_cache_policy.dart`、`image_precache.dart`；`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart`、`image_precache_pressure_test.dart` |
+| O07 | 取可用内存的 1/16，按 32 MiB 分档，上限 192 MiB 并受 TV 上限约束。前台每 30 秒复查，低读数可降档，有额外余量才逐档回升。压力时降至最多 32 MiB 并取消主动预解码及排队订阅，可见图片继续显示，冷却后用新读数恢复。后台暂停检查。分页预解码最多两并发，连续／瀑布流串行，每视图最多准入四个请求，原生收尾后归还名额。保留进入当前页的解码，按方向调整相邻窗口。退出 1 秒后收缩，重入取消旧收缩并继承现有额度 | `lib/features/reader/image_cache_policy.dart`、`image_precache.dart`，`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart`、`image_precache_pressure_test.dart` |
 | O08 | 最后进度、前台时长准确提交；控制器/计时器/监听清理、旧回调门禁和任务所有权有效；返回后由原会话后台收尾 | R05、R12；`lib/features/reader/reading_session.dart`；`test/features/reader/reader_exit_integration_test.dart`、`reading_session_test.dart` |
 | O09 | 线条增强及强度、暗色/暖色/红色夜览；黑线不变浅、纸白不提亮；评论可跳过增强而保留夜览；实时调整不重置缩放/进度 | `lib/foundation/reader_preferences.dart`、`lib/features/settings/reader_appearance.dart`；`test/prime_migration/reader_color_effects_test.dart`、`test/features/settings/reader_settings_persistence_test.dart` |
 | O10 | 历史后台读取与保存互不阻塞；WAL 快照、恢复前等待读取；主键 `(id, type)` 保留 Next 全部扩展列及每日时长事务；Pica 跨库导入临时 DELETE 后恢复 WAL，失败保留数据 | `lib/features/history/`、Next 导入/恢复队列；`test/prime_migration/history_pagination_test.dart`、`test/features/history/history_repository_test.dart`、`agent_statistics_test.dart` |
@@ -127,6 +127,11 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
 
 ## 最近验证与维护记录
+
+### 2026-11-18 阅读图片缓存压力恢复
+
+- 在 `codex/agent-center-tab` 的 `97217db9` 基线上继续使用 O07 的可用内存读取、压力通知和缓存上限。前台低频复查，按 32 MiB 档位调整。收到压力后先冷却，再以新读数判定恢复，增长阈值另留 128 MiB 可用内存。
+- Windows、Flutter 3.41.4 下，缓存预算、压力取消、预加载及画廊 54 项定向测试通过。设备上的预算变化和内存占用尚待 Android 测量。详见[迁移记录](migration.md#阅读图片缓存压力恢复2026-11-18)。
 
 ### 2026-11-15：Android Release 开发插件注册修复
 
