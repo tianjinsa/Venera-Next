@@ -67,3 +67,9 @@ Next 连翻保留下来的 14 次请求连续向前，各差一页。请求间�
 - Prime 用 `legacy.framesColumns` 解码 `legacy.frames`，按 `vsyncStartUs` 排序并求相邻差。P50 遵循诊断的中间元素约定，其余分位数用排序后的 `ceil(n * p) - 1`。
 - Next 的全局、阶段和图片等待从 `retainedFrameSamples`、`scrollFrameSamples`、`retainedStageSamples` 读取。用 `slowestColumns` 解码慢帧，与归一时间轴的 `imageEvents.atUs` 对齐。
 - 请求与跳页按 `targetOffset` 配对。首显查询和解码按 `image` 配对，使用第一条可见查询和成功的 `firstDecodeWait` 完成事件。
+
+## 跳页进度去重
+
+另对已有的 `pclead-real2-hold-forward-after-2` 和 `-3` 独立 Release 捕捉按相对时间复算。两轮各 77 次选页、75 次跳页、152 次 `updateHistory` 入口。75 条 `setPage` 事件的前后逻辑页相同，顺序为先更新逻辑页和进度，再正位跳页，最后视口回报同页并再次更新进度。这是进度通知次数，数据库写入由独立队列合并。
+
+Gallery 依据当前逻辑页决定是否调用 `reportPage`，仍通知实际视口选页、保留预加载窗口与 EInk 刷新。LTR、RTL、纵向和单／双页六组组件测试在修复前的第一次交接均回调两次，修复后的 24 次快速正反交接每次只回调一次。普通动画经过的选页继续发布。用户四份日志中，跳页后 9.303 ms 的慢帧值得在后续设备复测对照，正常动画选页的 10.422 ms 仍需帧内栈。尚未测得本次变更后的手机 UI P95。

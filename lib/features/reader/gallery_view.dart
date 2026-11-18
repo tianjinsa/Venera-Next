@@ -507,7 +507,9 @@ class GalleryModeState extends State<ReaderGalleryView>
                 }
               } else {
                 final previousActivePage = _activePage.value;
-                navigation.reportPage(i);
+                // A command that jumps has already published the logical
+                // page. Still acknowledge the viewport change below.
+                if (page != i) navigation.reportPage(i);
                 // Navigation ignores intermediate pages of a longer command.
                 // Reconcile the window with the accepted selection.
                 if (_disposed || !mounted || page != i) return;

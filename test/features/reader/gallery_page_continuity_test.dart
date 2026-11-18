@@ -26,6 +26,7 @@ void main() {
             await fixture.mount(tester);
             for (final target in [2, 1, 2, 1]) {
               fixture.reports.clear();
+              fixture.pageChanges = 0;
               expect(fixture.navigation.toPage(target), isTrue);
               await tester.pump();
               await tester.pump(const Duration(milliseconds: 16));
@@ -51,6 +52,7 @@ void main() {
               expect(fixture.navigation.state.page, target);
               expect(fixture.gallery.controller.page, closeTo(target, .001));
               expect(fixture.reports, contains((false, true)));
+              expect(fixture.pageChanges, 1);
             }
             expect(tester.takeException(), isNull);
           } finally {
@@ -134,6 +136,7 @@ class _Fixture {
   final String direction;
   final int imagesPerPage;
   final reports = <(bool, bool)>[];
+  var pageChanges = 0;
   final directory = Directory.systemTemp.createTempSync('gallery-continuity-');
   final work = ImageWork();
   final viewport = ReaderViewportBinding();
@@ -147,7 +150,7 @@ class _Fixture {
     animationEnabled: () => true,
     viewport: () => viewport.current,
     onChanged: () {},
-    onPageChanged: () {},
+    onPageChanged: () => pageChanges++,
     onError: (error, stack) => fail('$error\n$stack'),
   );
   GalleryModeState get gallery => key.currentState!;
