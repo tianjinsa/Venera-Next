@@ -217,6 +217,42 @@ void main() {
     expect(reads, 2);
   });
 
+  for (final backgroundSeconds in [20, 40]) {
+    testWidgets(
+      'pressure cooldown keeps elapsed time during ${backgroundSeconds}s in background',
+      (tester) async {
+        var reads = 0;
+        final policy = ReaderImageCachePolicy(
+          readAvailableMemory: () async {
+            reads++;
+            return 6 << 30;
+          },
+          setLimit: (_) {},
+          onError: (error, _) => fail('$error'),
+        );
+        try {
+          await policy.configure();
+          policy.handleMemoryPressure();
+          policy.setForeground(false);
+          await tester.pump(Duration(seconds: backgroundSeconds));
+          expect(reads, 1);
+          policy.setForeground(true);
+          await tester.pump();
+          if (backgroundSeconds < 30) {
+            expect(reads, 1);
+            await tester.pump(Duration(seconds: 30 - backgroundSeconds));
+          }
+          expect(reads, 2);
+          expect(policy.snapshot.limitBytes, 64 << 20);
+          expect(ReaderImageCachePolicy.allowActivePrecache, isTrue);
+        } finally {
+          policy.dispose();
+          await tester.pump(const Duration(seconds: 1));
+        }
+      },
+    );
+  }
+
   testWidgets('quick re-entry cancels delayed shrink from the old session', (
     tester,
   ) async {

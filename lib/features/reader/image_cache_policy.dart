@@ -96,13 +96,16 @@ class ReaderImageCachePolicy {
   }
 
   void _scheduleSample() {
-    if (!_current || !_foreground || !_configured || _nextSample != null) {
+    if (!_current ||
+        !_configured ||
+        _nextSample != null ||
+        (!_foreground && !_coolingDown)) {
       return;
     }
     _nextSample = Timer(_coolingDown ? _pressureCooldown : _sampleInterval, () {
       _nextSample = null;
       _coolingDown = false;
-      unawaited(configure());
+      if (_foreground) unawaited(configure());
     });
   }
 
@@ -110,7 +113,8 @@ class ReaderImageCachePolicy {
     if (!_current || _foreground == foreground) return;
     _foreground = foreground;
     ++_generation;
-    _cancelSample();
+    // Pressure counts from the last signal, even while memory reads are paused.
+    if (!_coolingDown) _cancelSample();
     if (_memoryQuery == ReaderDiagnosticMemoryQuery.pending) {
       _memoryQuery = ReaderDiagnosticMemoryQuery.notQueried;
     }
