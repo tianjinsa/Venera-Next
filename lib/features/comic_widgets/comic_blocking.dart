@@ -43,31 +43,45 @@ class ComicBlockFilter {
     return _snapshot!;
   }
 
-  bool blocks(Comic comic, {bool filterBlockedWords = true}) =>
-      firstReason(comic, filterBlockedWords: filterBlockedWords) != null;
+  bool blocks(Comic comic, {bool filterBlockedWords = true}) {
+    final checkKeywords = filterBlockedWords && words.isNotEmpty;
+    if (_authors.isEmpty && !checkKeywords) return false;
+    final data = _BlockingData(comic);
+    if (_authors.isNotEmpty && data.authors.any(_authors.contains)) return true;
+    return checkKeywords &&
+        _keywords.blocksComic(
+          title: data.title,
+          subtitle: data.subtitle,
+          description: data.description,
+          tags: data.tags,
+        );
+  }
+
   String? firstReason(Comic comic, {bool filterBlockedWords = true}) {
     if (_authors.isEmpty && (!filterBlockedWords || words.isEmpty)) return null;
     final data = _BlockingData(comic);
-    for (final author in authors) {
-      if (author.trim().isNotEmpty && data.authors.contains(author.trim())) {
-        return author;
-      }
-    }
-    if (!filterBlockedWords || words.isEmpty) return null;
-    return _keywords.firstComicMatch(
-      title: data.title,
-      subtitle: data.subtitle,
-      description: data.description,
-      tags: data.tags,
-    );
+    return _firstAuthor(data) ??
+        (filterBlockedWords && words.isNotEmpty
+            ? _keywordMatch(data)?.rule.keyword
+            : null);
   }
 
-  String? firstAuthorReason(Comic comic) {
-    final data = _BlockingData(comic);
+  KeywordMatch? keywordMatch(Comic comic) =>
+      _keywordMatch(_BlockingData(comic));
+
+  KeywordMatch? _keywordMatch(_BlockingData data) => _keywords.comicMatch(
+    title: data.title,
+    subtitle: data.subtitle,
+    description: data.description,
+    tags: data.tags,
+  );
+
+  String? firstAuthorReason(Comic comic) => _firstAuthor(_BlockingData(comic));
+
+  String? _firstAuthor(_BlockingData data) {
     for (final author in authors) {
-      if (author.trim().isNotEmpty && data.authors.contains(author.trim())) {
-        return author;
-      }
+      final key = author.trim();
+      if (key.isNotEmpty && data.authors.contains(key)) return author;
     }
     return null;
   }
@@ -89,14 +103,6 @@ class _BlockingData {
     for (final tag in tags)
       if (_authorFromTag(tag) case final String author) author,
   };
-  late final Set<String> tagWords = {
-    for (final tag in tags) ...[
-      tag,
-      // Keep the legacy tag.split(':')[1] semantics, including empty values.
-      if (tag.contains(':')) tag.split(':')[1],
-    ],
-  };
-
   static String? _authorFromTag(String tag) {
     final separator = tag.indexOf(':');
     if (separator < 0) return null;

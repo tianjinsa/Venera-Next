@@ -68,6 +68,139 @@ void main() {
     },
   );
 
+  test('Unicode word search advances past a rejected supplementary letter', () {
+    final filter = KeywordFilter.rules([
+      const KeywordRule('𐐨', mode: KeywordMatchMode.wholeWord),
+    ]);
+    expect(filter.blocksComic(title: '𐐀bl', description: ''), isFalse);
+    final match = filter.comicMatch(title: '𐐀bl (𐐀)', description: '')!;
+    expect(match.text.substring(match.start, match.end), '𐐀');
+    expect(match.start, 6);
+    expect(filter.blocksComic(title: match.text, description: ''), isTrue);
+  });
+
+  test(
+    'literal text detection follows matching suffixes of shared prefixes',
+    () {
+      final filter = KeywordFilter.rules([
+        const KeywordRule.legacy('abcdx'),
+        const KeywordRule.legacy('bc'),
+      ]);
+      expect(filter.blocksComic(title: 'abc', description: ''), isTrue);
+      expect(filter.blocksComic(title: 'abxd', description: ''), isFalse);
+    },
+  );
+
+  test('fast detection agrees with reasons across Unicode and tag modes', () {
+    final texts = [
+      '',
+      'able BL-stories',
+      'black and white',
+      'BL漫画',
+      '校园恋爱故事',
+      '千年の旅',
+      'xſx Ｓ s S',
+      'Kelvin story',
+      'ÄBC Äbc',
+      'İstanbul ı ß SS',
+      '𐐀bl 😀 𐐨',
+      'bl\u0301',
+      'literal [a+b].',
+      'literal axb',
+      'a-a-a',
+      'x${String.fromCharCode(0xd800)}y',
+    ];
+    final words = [
+      'bl',
+      '校园',
+      'の旅',
+      's',
+      'kelvin',
+      'äbc',
+      'i',
+      'ß',
+      '𐐨',
+      '[a+b].',
+      'a-a',
+      String.fromCharCode(0xd800),
+      '',
+    ];
+    final tags = [
+      <String>[],
+      ['genre:BL'],
+      ['genre:bl:extra'],
+      ['genre:extra:BL'],
+      ['genre:'],
+      ['genre: BL '],
+      ['genre:ÄBC'],
+      ['artist:[a+b].'],
+      ['genre:kelvin:'],
+      ['artist:𐐨'],
+      ['genre:校园'],
+      ['genre:の旅'],
+      ['genre:Kelvin'],
+      ['a:b:c'],
+    ];
+    for (final mode in KeywordMatchMode.values) {
+      for (final sensitive in [false, true]) {
+        // Singletons catch false positives even when another rule would hide
+        // the same comic. Batches exercise the merged regex and tag index.
+        for (final set in [
+          words,
+          for (final word in words) [word],
+        ]) {
+          final filter = KeywordFilter.rules([
+            for (final word in set)
+              KeywordRule(word, mode: mode, caseSensitive: sensitive),
+          ]);
+          for (final title in texts) {
+            for (final comicTags in tags) {
+              expect(
+                filter.blocksComic(
+                  title: title,
+                  description: '',
+                  tags: comicTags,
+                ),
+                filter.comicMatch(
+                      title: title,
+                      description: '',
+                      tags: comicTags,
+                    ) !=
+                    null,
+                reason: '$mode, sensitive=$sensitive, $set, $title, $comicTags',
+              );
+            }
+          }
+        }
+      }
+    }
+  });
+
+  test(
+    'a rule in a later batch still matches subtitle, description or tag',
+    () {
+      final filter = KeywordFilter.rules([
+        for (var i = 0; i < 256; i++) KeywordRule('missing word #$i'),
+        const KeywordRule('校园'),
+        const KeywordRule('genre:BL:licensed', mode: KeywordMatchMode.exactTag),
+      ]);
+      expect(
+        filter.blocksComic(title: 'foo', subtitle: '校园日记', description: ''),
+        isTrue,
+      );
+      expect(filter.blocksComic(title: 'foo', description: '校园日记'), isTrue);
+      expect(
+        filter.blocksComic(
+          title: 'foo',
+          description: '',
+          tags: ['Genre:BL:licensed'],
+        ),
+        isTrue,
+      );
+      expect(filter.blocksComic(title: 'foo', description: ''), isFalse);
+    },
+  );
+
   test('literal punctuation never becomes regular expression syntax', () {
     for (final keyword in ['[BL]', 'a+b', 'a.b', r'\d+', '(cat|dog)']) {
       final rule = KeywordRule(keyword);

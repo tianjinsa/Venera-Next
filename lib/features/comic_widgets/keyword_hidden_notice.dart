@@ -83,8 +83,19 @@ class _KeywordHiddenDialog extends StatefulWidget {
   State<_KeywordHiddenDialog> createState() => _KeywordHiddenDialogState();
 }
 
+class _ReviewEntry {
+  _ReviewEntry(this.comic, this.filter, this.filterBlockedWords);
+  final Comic comic;
+  final ComicBlockFilter filter;
+  final bool filterBlockedWords;
+  late final author = filter.firstAuthorReason(comic);
+  late final match = author == null && filterBlockedWords
+      ? filter.keywordMatch(comic)
+      : null;
+}
+
 class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
-  var _hidden = <(Comic, KeywordMatch?, String?)>[];
+  var _hidden = <_ReviewEntry>[];
   var _scanning = true;
   var _generation = 0;
 
@@ -99,9 +110,9 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
 
   Future<void> _scan() async {
     final generation = ++_generation;
-    final filter = KeywordFilter.fromSettings(appdata.settings);
-    final authors = ComicBlockFilter.fromSettings(appdata.settings);
-    final hidden = <(Comic, KeywordMatch?, String?)>[];
+    final filter = ComicBlockFilter.fromSettings(appdata.settings);
+    final filterBlockedWords = widget.filterBlockedWords;
+    final hidden = <_ReviewEntry>[];
     final comics = widget.comics();
     if (!_scanning) setState(() => _scanning = true);
     // Let the dialog paint, then yield in batches for large library scans.
@@ -109,17 +120,8 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
     for (var i = 0; i < comics.length; i++) {
       if (!mounted || generation != _generation) return;
       final comic = comics[i];
-      final author = authors.firstAuthorReason(comic);
-      if (author != null) {
-        hidden.add((comic, null, author));
-      } else if (widget.filterBlockedWords) {
-        final match = filter.comicMatch(
-          title: comic.title,
-          subtitle: comic.subtitle,
-          description: comic.description,
-          tags: comic.tags ?? const [],
-        );
-        if (match != null) hidden.add((comic, match, null));
+      if (filter.blocks(comic, filterBlockedWords: filterBlockedWords)) {
+        hidden.add(_ReviewEntry(comic, filter, filterBlockedWords));
       }
       if (i % 40 == 39) await Future<void>.delayed(Duration.zero);
     }
@@ -142,9 +144,9 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
         ? comicAuthorRuleEditor == null
               ? null
               : () => comicAuthorRuleEditor!(context, author)
-        : comicKeywordRuleEditor == null
+        : match == null || comicKeywordRuleEditor == null
         ? null
-        : () => comicKeywordRuleEditor!(context, match!.rule);
+        : () => comicKeywordRuleEditor!(context, match.rule);
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: edit,
@@ -200,8 +202,8 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
                   if (author != null) ...[
                     Text('Author blocking'.tl),
                     Text('Author: @a'.tlParams({'a': author})),
-                  ] else ...[
-                    Text('Matched in @a'.tlParams({'a': match!.field.label})),
+                  ] else if (match != null) ...[
+                    Text('Matched in @a'.tlParams({'a': match.field.label})),
                     if (match.field != KeywordMatchField.title)
                       KeywordMatchPreview(match: match),
                     Text(
@@ -249,8 +251,8 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
                     itemCount: _hidden.length,
                     separatorBuilder: (_, _) => const Divider(),
                     itemBuilder: (context, index) {
-                      final (comic, match, author) = _hidden[index];
-                      return _reason(comic, match, author);
+                      final entry = _hidden[index];
+                      return _reason(entry.comic, entry.match, entry.author);
                     },
                   ),
           ),

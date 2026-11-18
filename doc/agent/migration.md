@@ -35,7 +35,7 @@
 | O01 | 历史首批 60 条后台读取，稳定时间/ID/类型游标、整库搜索、跨页选择与删除、过期结果丢弃 | `features/history/history_paging.dart`、`history_pager.dart`、`history_page.dart`；`test/prime_migration/history_*test.dart` |
 | O02 | 历史封面按卡片尺寸解码；有效封面不请求详情；无效封面去重、限并发和失败冷却；过滤/更新保留图片状态；标签和键盘变化复用已解析配置，真实配置改变及热重载仍可重新解析 | `history_image_provider.dart`、`components/image.dart`、漫画列表身份键及缩略图 `ResizeImagePolicy.fit`；历史页和图像生命周期回归 |
 | O03 | 封面最多 6 个并发，同 key 合并、30 秒失败冷却；所有消费者取消时撤销排队 | `network/thumbnail_request_queue.dart` 在 Next `SharedImageRequests` 内调度，保留流式进度和原生请求清理；队列与网络回归 |
-| O04 | 独立作者规则，精确作者名称及 author/artist 标签；复用不可变快照，支持规则原地修改 | `features/comic_widgets/comic_blocking.dart`；保留 Next 的包含/独立词/精确标签及大小写选项，不降为旧 Prime 匹配器；作者与现有关键词回归 |
+| O04 | 作者名称及 author/artist 标签精确匹配。漫画列表用不可变快照检测任意规则命中，兼容规则原地修改。关键词和大小写选项由共享编译计划处理 | `features/comic_widgets/comic_blocking.dart`、`foundation/keyword_filter.dart`，作者、关键词和原因回归 |
 | O05 | 历史、本地漫画、本地/网络收藏、稍后再看、追更、Agent 展示不做关键词/作者过滤；普通发现/搜索保留过滤 | 网格和两种分页列表共享过滤开关；收藏选择逻辑也绕过屏蔽；关键词管理可独立扫描本地收藏并编辑、删除命中规则 |
 | O06 | 键盘及无关阅读设置不触发整份列表重查；收藏默认展示不查历史，已读筛选缓存结果；查询所有权、搜索与选择保留；晚到追更结果不能恢复已关闭状态 | `foundation/context.dart` 使用 `MediaQuery` 分项订阅；沿用 Next 收藏查询与追更 generation 门禁 |
 | O07 | 取可用内存的 1/16，按 32 MiB 分档并限 32–192 MiB，受 TV 上限约束。前台定期复查。压力时最多 32 MiB 并暂停预解码，冷却后按新读数和余量逐档恢复。退出 1 秒后收缩，重入取消旧收缩 | `features/reader/image_cache_policy.dart`、预加载与阅读页面。缓存策略及阅读生命周期回归 |
@@ -255,3 +255,9 @@
 - 初次可靠读数按可用物理内存的 1/16 向下取到 32 MiB 档位，受 32–192 MiB 与 TV 上限约束。阅读器前台每 30 秒异步复查，低读数可立即降档。提高一级需要可用内存达到新预算的 16 倍并另留 128 MiB，以免在档位附近反复切换。
 - 收到压力即降至最多 32 MiB 并取消主动预解码。末次压力信号后至少冷却 30 秒，以新读数确认达到可预解码档（通常为 64 MiB）的恢复条件。较小的 TV 上限继续生效，无可靠读数时保留现有预算。后台暂停采样，退出和重入时丢弃过期查询。
 - Windows、Flutter 3.41.4 定向测试 `image_cache_policy_test.dart`、`image_precache_pressure_test.dart`、`image_precache_test.dart`、`gallery_precache_test.dart` 共 54 项通过。覆盖降级、压力冷却重启、迟到读数、逐档恢复与滞回、后台、退出和预加载交接。Android 真机内存和缓存时间线尚未复测。
+
+## 关键词列表检测与原因定位（2026-11-18）
+
+- 开发起点 `97217db9`，在缓存提交 `0cf20471` 之后独立提交。O04 将漫画列表的逐规则详细匹配改为任意命中检测。按字段、大小写和边界编译现有类型化规则。作者和标签用精确索引，区分大小写文字用 AC 自动机，忽略大小写文字用转义后的合并 Unicode 正则，独立词复用原文边界判定。
+- R08、R09 的原因页与列表共用快照，异步分批找出命中的漫画。可见行计算实际命中、原文字段和高亮范围。回归覆盖一条原因、封面详情、独立规则编辑与删除、收藏只读扫描和旧配置。Unicode 回归覆盖搜索推进、重叠命中、组合标记和多段标签。
+- 关键词相关 9 个文件共 106 项通过，与缓存及画廊测试一起完成 160 项。受影响文件的严格 Dart 分析、导入边界检查和差异检查通过。Dart AOT 的合成数据对照和执行命令见[关键词过滤基准](../experiments/keyword_filter_performance.zh.md)，设备上的列表帧耗时待测。

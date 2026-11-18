@@ -1,6 +1,7 @@
 import 'application_preferences.dart';
 import 'global_preference_store.dart';
 import 'keyword_rule.dart';
+import 'literal_substring_matcher.dart';
 import 'reader_preference_settings.dart';
 
 export 'keyword_rule.dart';
@@ -38,6 +39,7 @@ class KeywordFilter {
     rules.map((rule) => rule.keyword),
   );
   late final _compiled = rules.map(_CompiledRule.new).toList(growable: false);
+  late final _comicPlan = _ComicMatchPlan(_compiled);
 
   bool blocksComment(String content) => commentMatch(content) != null;
 
@@ -49,6 +51,22 @@ class KeywordFilter {
       if (match != null) return match;
     }
     return null;
+  }
+
+  /// Fast membership test for lists. Only review and preview need a rule and
+  /// the original field offsets.
+  bool blocksComic({
+    required String title,
+    String? subtitle,
+    required String description,
+    Iterable<String> tags = const [],
+  }) {
+    if (rules.isEmpty) return false;
+    final plan = _comicPlan;
+    return plan.matchesText(title) ||
+        (subtitle != null && plan.matchesText(subtitle)) ||
+        plan.matchesText(description) ||
+        tags.any(plan.matchesTag);
   }
 
   String? firstComicMatch({
@@ -86,10 +104,105 @@ class KeywordFilter {
   }
 }
 
+typedef _TextShape = ({bool caseSensitive, bool wholeWord});
+
+class _ComicMatchPlan {
+  _ComicMatchPlan(List<_CompiledRule> rules) {
+    final groups = <_TextShape, List<_CompiledRule>>{};
+    for (final compiled in rules) {
+      final rule = compiled.rule;
+      // Text rules also match exact tag values.
+      if (rule.caseSensitive) {
+        _tags.add(rule.keyword);
+      } else {
+        _foldedTags.add(compiled.foldedKeyword);
+      }
+      if (compiled.textShape case final shape?) {
+        (groups[shape] ??= []).add(compiled);
+      }
+    }
+    // Bound each regex's alternation size even for large imported rule lists.
+    const batchSize = 128;
+    for (final MapEntry(key: shape, value: group) in groups.entries) {
+      for (var start = 0; start < group.length; start += batchSize) {
+        final end = (start + batchSize).clamp(0, group.length);
+        _texts.add(_TextBatch(shape, group.sublist(start, end)));
+      }
+    }
+  }
+
+  final _tags = <String>{};
+  final _foldedTags = <String>{};
+  final _texts = <_TextBatch>[];
+
+  bool matchesText(String text) => _texts.any((batch) => batch.matches(text));
+
+  bool _matchesTagKey(String text) =>
+      _tags.contains(text) ||
+      (_foldedTags.isNotEmpty && _foldedTags.contains(text.toLowerCase()));
+
+  bool matchesTag(String tag) {
+    if (_matchesTagKey(tag)) return true;
+    final range = _tagValueRange(tag);
+    return range != null && _matchesTagKey(tag.substring(range.$1, range.$2));
+  }
+}
+
+class _TextBatch {
+  _TextBatch(this.shape, this.rules) : _probe = _compileProbe(shape, rules);
+
+  final _TextShape shape;
+  final List<_CompiledRule> rules;
+  final bool Function(String) _probe;
+
+  static bool Function(String) _compileProbe(
+    _TextShape shape,
+    List<_CompiledRule> rules,
+  ) {
+    final words = rules.map((rule) => rule.rule.keyword).toSet();
+    if (shape.caseSensitive) {
+      return LiteralSubstringMatcher(words).hasMatch;
+    }
+    // Retain RegExp's Unicode case folding for insensitive text searches.
+    return RegExp(
+      '(?:${words.map(RegExp.escape).join('|')})',
+      caseSensitive: false,
+      unicode: true,
+    ).hasMatch;
+  }
+
+  bool matches(String text) {
+    if (!_probe(text)) return false;
+    // Only verify boundaries for batches that could contain a whole word.
+    // Use the same offsets/Unicode boundary check as the reason view.
+    return !shape.wholeWord ||
+        rules.any((rule) => rule.textRange(text) != null);
+  }
+}
+
+(int, int)? _tagValueRange(String tag) {
+  final colon = tag.indexOf(':');
+  if (colon < 0) return null;
+  final next = tag.indexOf(':', colon + 1);
+  return (colon + 1, next < 0 ? tag.length : next);
+}
+
 class _CompiledRule {
   _CompiledRule(this.rule);
   final KeywordRule rule;
-  // Escaping keeps metacharacters literal and prevents pattern backtracking.
+  late final foldedKeyword = rule.keyword.toLowerCase();
+  late final _TextShape? textShape = switch (rule.mode) {
+    KeywordMatchMode.exactTag => null,
+    KeywordMatchMode.contains => (
+      caseSensitive: rule.caseSensitive,
+      wholeWord: false,
+    ),
+    KeywordMatchMode.wholeWord =>
+      rule.keyword.isEmpty
+          ? null
+          : (caseSensitive: rule.caseSensitive, wholeWord: true),
+  };
+  // Escaping keeps user text literal, including regex metacharacters.
   late final _insensitive = RegExp(
     RegExp.escape(rule.keyword),
     caseSensitive: false,
@@ -98,10 +211,20 @@ class _CompiledRule {
   static final _wordCharacter = RegExp(r'[\p{L}\p{N}\p{M}]', unicode: true);
 
   KeywordMatch? textMatch(String text, KeywordMatchField field) {
-    if (rule.mode == KeywordMatchMode.exactTag) return null;
-    if (rule.keyword.isEmpty && rule.mode == KeywordMatchMode.wholeWord) {
-      return null;
-    }
+    final range = textRange(text);
+    if (range == null) return null;
+    return KeywordMatch(
+      rule: rule,
+      field: field,
+      text: text,
+      start: range.$1,
+      end: range.$2,
+    );
+  }
+
+  (int, int)? textRange(String text) {
+    final shape = textShape;
+    if (shape == null) return null;
     var from = 0;
     while (from <= text.length) {
       final insensitive = rule.caseSensitive
@@ -114,20 +237,22 @@ class _CompiledRule {
       final end = rule.caseSensitive
           ? start + rule.keyword.length
           : insensitive!.end;
-      if (rule.mode != KeywordMatchMode.wholeWord ||
+      if (!shape.wholeWord ||
           (!_hasWordCharacterBefore(text, start) &&
               !_hasWordCharacterAfter(text, end))) {
-        return KeywordMatch(
-          rule: rule,
-          field: field,
-          text: text,
-          start: start,
-          end: end,
-        );
+        return (start, end);
       }
       // Check overlapping occurrences too; a later occurrence may have a
       // boundary even when the first one was part of a larger word.
       from = start + 1;
+      // A Unicode regex can round an offset inside a surrogate pair back
+      // to the start of that pair. Resume at the next complete character.
+      if (!shape.caseSensitive &&
+          from < text.length &&
+          _isHighSurrogate(text.codeUnitAt(start)) &&
+          _isLowSurrogate(text.codeUnitAt(from))) {
+        from++;
+      }
     }
     return null;
   }
@@ -135,7 +260,7 @@ class _CompiledRule {
   KeywordMatch? tagMatch(String tag) {
     bool equal(String value) => rule.caseSensitive
         ? value == rule.keyword
-        : value.toLowerCase() == rule.keyword.toLowerCase();
+        : value.toLowerCase() == foldedKeyword;
     if (equal(tag)) {
       return KeywordMatch(
         rule: rule,
@@ -145,24 +270,21 @@ class _CompiledRule {
         end: tag.length,
       );
     }
-    final colon = tag.indexOf(':');
-    if (colon < 0) return null;
-    final nextColon = tag.indexOf(':', colon + 1);
-    final end = nextColon < 0 ? tag.length : nextColon;
-    if (!equal(tag.substring(colon + 1, end))) return null;
+    final range = _tagValueRange(tag);
+    if (range == null || !equal(tag.substring(range.$1, range.$2))) return null;
     return KeywordMatch(
       rule: rule,
       field: KeywordMatchField.tag,
       text: tag,
-      start: colon + 1,
-      end: end,
+      start: range.$1,
+      end: range.$2,
     );
   }
 
   KeywordMatch? legacyCommentMatch(String text) {
     // Preserve the old lowercase/substring semantics, including empty words.
     final folded = text.toLowerCase();
-    final keyword = rule.keyword.toLowerCase();
+    final keyword = foldedKeyword;
     final start = folded.indexOf(keyword);
     if (start < 0) return null;
     var originalStart = start;
