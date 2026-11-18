@@ -340,3 +340,9 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 - R12／O07：用户四轮日志复核为旧首显 pending 0/49、新策略 50/55，预加载领先量约101→41ms；产帧改善与图片等待必须分别验收。脱敏数字和散列在 benchmark/reader/results/precache-lead-user.json，原始内容只保留本地。
 - 增加可选的采集相对页坐标导航诊断接口、独立包真实纹理解码夹具与纯帧请求观察器；不强制额外产帧，不修改生产缓存或采样容量。两项 Python 配对语义验证通过；Gallery 候选和诊断合计77项定向回归、相关Dart分析通过，候选真机结论另记。
 - 沿用用户指定的 codex/reader-precache-selection-test 独立试用分支，不合入通常开发分支；后续预加载修复和最终测量分阶段提交。流程和边界见 benchmark/reader/precache-lead.md。
+
+### 2026-11-18：提前排队与 VSync 订阅定位
+
+- R12／O07 的 `gallery_view.dart` 在命令或拖动初期登记目标后，统一由帧后回调执行邻页窗口，保留 pendingPage 优先、同帧合并、共享任务、压力即时取消和退出清理。诊断关闭时直接返回原动画 Future。
+- `gallery_precache_test.dart` 补验 LTR、RTL 和纵向在接受选页前就启动下一张，以及下一次命令交接共享读图。77 项定向回归、21 项基准脚本测试和定向 Dart 分析通过。
+- 原图第 1–50 页首次显示就绪由 40/49 到两轮 49/49，动画内产帧 P95 约 8.37 ms。原图仅三轮有效，资源结果保留限制。旧 Trace 的 18 次长间隔可定位到原生订阅晚于中间一次 VSync 分发。详见 [首显与对照](../../benchmark/reader/precache-lead.md)和 [VSync 分析](../../benchmark/reader/vsync-dispatch.md)。

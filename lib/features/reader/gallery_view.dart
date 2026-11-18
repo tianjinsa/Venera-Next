@@ -262,6 +262,10 @@ class GalleryModeState extends State<ReaderGalleryView>
     }
     if (_precacheScheduled) return;
     _precacheScheduled = true;
+    _recordNavigation(
+      ReaderDiagnosticNavigationPhase.precacheScheduled,
+      target,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precacheScheduled = false;
       final requested = _scheduledPrecachePage;
@@ -292,18 +296,34 @@ class GalleryModeState extends State<ReaderGalleryView>
 
   int? _requestedPrecachePage;
 
+  void _recordNavigation(ReaderDiagnosticNavigationPhase phase, int target) {
+    final diagnostics = widget.imageWork.diagnostics;
+    if (diagnostics == null || !diagnostics.isRecording) return;
+    diagnostics.recordNavigation(
+      phase: phase,
+      page: page,
+      target: target,
+      pendingPage: navigation.state.pendingPage,
+      position: controller.hasClients ? controller.page : null,
+    );
+  }
+
   void _notePageRequest(int target, int direction) {
     if (target < 1 || target > totalPages) return;
     if (_precacheDirection == direction && target == _requestedPrecachePage) {
       return;
     }
     _requestedPrecachePage = target;
+    _recordNavigation(ReaderDiagnosticNavigationPhase.requested, target);
     widget.imageWork.diagnostics?.recordPageTurn(
       phase: ReaderDiagnosticPagePhase.requested,
       direction: direction,
       distance: (target - _activePage.value).abs(),
     );
     _precacheDirection = direction;
+    // Schedule from intent, before PageView crosses its selection threshold.
+    // Only the frame-end callback constructs/replaces the look-ahead window.
+    _schedulePrecache(target);
   }
 
   void cache(int startPage) {
@@ -338,6 +358,10 @@ class GalleryModeState extends State<ReaderGalleryView>
     );
     if (_lastPrecache == identity) return;
     _lastPrecache = identity;
+    _recordNavigation(
+      ReaderDiagnosticNavigationPhase.precacheStarted,
+      startPage,
+    );
     final decoded = <ReaderImageProvider>[];
     final retained = <ReaderImageProvider>[];
     void addPage(int target, List<ReaderImageProvider> images) {
@@ -485,7 +509,7 @@ class GalleryModeState extends State<ReaderGalleryView>
                 final previousActivePage = _activePage.value;
                 navigation.reportPage(i);
                 // Navigation ignores intermediate pages of a longer command.
-                // Only an accepted selection replans the neighbour window.
+                // Reconcile the window with the accepted selection.
                 if (_disposed || !mounted || page != i) return;
                 _activePage.value = page;
                 _schedulePrecache(page);
@@ -697,11 +721,20 @@ class GalleryModeState extends State<ReaderGalleryView>
     if ((page - controller.page!.round()).abs() > 1) {
       controller.jumpToPage(page > controller.page! ? page - 1 : page + 1);
     }
-    return controller.animateToPage(
+    final animation = controller.animateToPage(
       page,
       duration: const Duration(milliseconds: 200),
       curve: Curves.ease,
     );
+    if (widget.imageWork.diagnostics?.isRecording != true) return animation;
+    return animation.whenComplete(() {
+      if (!_disposed && mounted) {
+        _recordNavigation(
+          ReaderDiagnosticNavigationPhase.animationCompleted,
+          page,
+        );
+      }
+    });
   }
 
   @override
@@ -709,6 +742,7 @@ class GalleryModeState extends State<ReaderGalleryView>
     if (_disposed || !mounted || !controller.hasClients) return;
     _notePageRequest(page, page >= controller.page! ? 1 : -1);
     controller.jumpToPage(page);
+    _recordNavigation(ReaderDiagnosticNavigationPhase.jumpApplied, page);
   }
 
   @override

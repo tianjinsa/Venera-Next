@@ -3,8 +3,8 @@
 工作起点：Next `97217db9f0c40549b15acef528abc339eb1998d4`。
 本轮用户明确要求独立分支 `codex/reader-page-turn-adb-perf`，覆盖通常的固定开发分支约定。
 用户随后要求完整构建试用 B 候选，另建 `codex/reader-precache-selection-test`。
-该试用分支恢复“接受选页后帧后合并预加载”，保留资源回归记录，不代表主性能分支已采纳。
-用户四轮试用发现首显等待回归，提前量、帧请求和修复对照见[专项记录](precache-lead.md)。
+该试用分支最初只在接受选页后安排帧后预加载。用户四轮试用发现首显等待回归，
+现已改为翻页时登记、帧后执行。提前量、帧请求和试用范围见[专项记录](precache-lead.md)。
 Prime 只读参考为远端 `codex/agent-center-tab`：
 `2e287566c6fad11b0085bbdf4a528e507021ec61`。
 本地 Prime 当前检出其他分支，不能用当前工作树冒充这个基线。
@@ -16,9 +16,9 @@ FrameTiming 的时间戳属于实际帧阶段；接收批次的时间不是帧�
 UI/Raster 超预算、Flutter 产帧间隔与 SurfaceFlinger 实际呈现分别统计。
 Profile 用于定位；性能验收必须复测 Release，并同时记录资源和热状态。
 
-当前状态：动画交接、隐藏收藏通知、视口／导航范围、章节收藏缓存和实时手势设置读取已分阶段
-提交。预加载 A/B 已完成，默认主线撤回候选；本试用分支按用户要求独立恢复 B，
-正式版 16.7 ms 产帧线索另行调查；主观验收范围见报告。
+动画交接、隐藏收藏通知、视口／导航范围、章节收藏缓存和实时手势设置读取已分阶段
+提交。本试用分支保留提前排队策略，离线 Trace 已定位部分 16.7 ms 间隔的订阅延迟。
+资源和主观验收范围见报告。
 详细数据和未完成验收范围见 [report.md](report.md)。
 
 ## 运行方式
@@ -231,6 +231,16 @@ START／STOP。用户已确认能听到；旧 Beep 和内部通知没有可靠�
 `analyze_cadence.py` 按 animate→jump／匹配完成区间比较 VSync、控制器位置更新、UI 执行
 与按 ready 时间分类的呈现间隔，不把动画之间的正常静止算成动画内漏帧。迟到的旧动画完成
 不能结束新区间；它不适用于触摸弹道动画分类。
+
+`analyze_vsync_dispatch.py` 用既有 capture 和 Perfetto 对齐帧请求、Dart 帧结束、
+SurfaceFlinger 分发与阅读器的 Android 回调。它只据含相应 Trace 标记的案例定位
+订阅是否晚到。[分析与复算命令](vsync-dispatch.md)
+
+真实图片负载可用 `fixture_chapter.py` 从本地 CBZ 复制页图到独立导出副本。
+`verify_chapter_apk.py` 核验构建包中的页图与原字节一致，
+`analyze_page_window.py` 选取第 1–50 页等指定区间。
+`run_original_chapter.py` 复用 120 Hz 门禁和单方向输入计划。夹具、APK 和原始 Trace 留在忽略目录。
+[真实章节记录](precache-lead.md)
 
 `observe_diagnostics.py` 仅在 Next 导出副本开放已有 ReaderDiagnostics 的开始／停止，
 配合 `--reader-diagnostics` 保存正式统计口径，生产收集器本身不变。

@@ -128,7 +128,7 @@ void main() {
 
   for (final direction in ['ltr', 'rtl', 'vertical']) {
     testWidgets(
-      'updates the next window only after accepted $direction selection',
+      'warms the next $direction window after the frame before selection',
       (tester) async {
         final fixture = _Fixture(cache, direction);
         try {
@@ -142,10 +142,10 @@ void main() {
           expect(fixture.read(3).loads, 0);
           await tester.pump();
           expect(fixture.navigation.state.page, 1);
-          expect(fixture.read(3).loads, 0);
+          expect(fixture.read(3).loads, 1);
           position.jumpTo(origin + position.viewportDimension * .6);
           expect(fixture.navigation.state.page, 2);
-          expect(fixture.read(3).loads, 0);
+          expect(fixture.read(3).loads, 1);
           await tester.pump();
           expect(fixture.read(3).loads, 1);
           expect(fixture.read(2).loads, 1);
@@ -154,6 +154,30 @@ void main() {
         }
       },
     );
+
+    testWidgets('an animated $direction command warms before selected', (
+      tester,
+    ) async {
+      final fixture = _Fixture(cache, direction);
+      try {
+        await fixture.mount(tester);
+        expect(fixture.navigation.toPage(2), isTrue);
+        expect(fixture.navigation.state.page, 1);
+        expect(fixture.navigation.state.pendingPage, 2);
+        expect(fixture.read(3).loads, 0);
+        await tester.pump();
+        expect(fixture.navigation.state.page, 1);
+        expect(fixture.read(3).loads, 1);
+        // A second legal request interrupts the animation and moves forward;
+        // the already-running next image load must survive that handoff.
+        expect(fixture.navigation.toPage(3), isTrue);
+        await tester.pump();
+        expect(fixture.navigation.state.page, 3);
+        expect(fixture.read(3).loads, 1);
+      } finally {
+        await fixture.dispose(tester);
+      }
+    });
 
     testWidgets('same-frame $direction commands only warm the final window', (
       tester,
