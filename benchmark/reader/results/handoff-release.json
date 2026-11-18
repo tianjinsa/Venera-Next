@@ -1,0 +1,619 @@
+{
+  "scope": "Rapid discrete DOWN/UP pairs, not a physical hold. Handoff-only candidate, 120 Hz, 192 MiB, 512 local images.",
+  "baselineNext": "97217db9f0c40549b15acef528abc339eb1998d4",
+  "baselinePrime": "2e287566c6fad11b0085bbdf4a528e507021ec61",
+  "runs": [
+    {
+      "name": "prime-release-keysequence-r1",
+      "mode": "release",
+      "seconds": 12.001,
+      "frames": 409,
+      "uiMs": {
+        "n": 409,
+        "p50": 0.362,
+        "p95": 3.7264,
+        "p99": 4.1498,
+        "max": 4.519
+      },
+      "rasterMs": {
+        "n": 409,
+        "p50": 1.143,
+        "p95": 1.6958,
+        "p99": 2.1268,
+        "max": 3.602
+      },
+      "vsyncToBuildMs": {
+        "n": 409,
+        "p50": 0.441,
+        "p95": 0.9462,
+        "p99": 1.4551,
+        "max": 1.882
+      },
+      "producedVsyncGapMs": {
+        "n": 408,
+        "p50": 8.353,
+        "p95": 50.1163,
+        "p99": 50.1289,
+        "max": 50.197
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 100,
+      "dartKeys": 100,
+      "nativeKeysPerSecond": 8.333,
+      "nativeKeyIntervalMs": {
+        "n": 99,
+        "p50": 53.2461,
+        "p95": 55.3973,
+        "p99": 55.9587,
+        "max": 56.4592
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 100,
+      "nativeToDartMs": {
+        "n": 100,
+        "p50": 0.8066,
+        "p95": 1.0324,
+        "p99": 1.0797,
+        "max": 1.0976
+      },
+      "clockCalibrationRttUs": 104,
+      "requestsWhilePending": 50,
+      "successiveSameTarget": 50,
+      "pageChanges": 50,
+      "pageChangesPerSecond": 4.166,
+      "redundantPageChanges": 50,
+      "supersededAnimationCompletions": 50,
+      "eventCounts": {
+        "captureStart": 1,
+        "volume": 100,
+        "request": 100,
+        "update": 100,
+        "animate": 50,
+        "setPage": 100,
+        "history": 100,
+        "jump": 50,
+        "selected": 50,
+        "report": 50,
+        "animationEnd": 50,
+        "cache": 50,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 0,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": null,
+      "distinctMissKeys": 0,
+      "distinctSourceKeys": 0,
+      "cpuTimeMs": 3338,
+      "cpuMsPerSecond": 278.145,
+      "before": {
+        "rssBytes": 209227776,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 212193280,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 2,
+        "pendingImages": 0,
+        "page": 210,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "captureSha256": "d8cdc482f9718ec0e34f9f83415dc26301927e9e4b3f575d8563569a44d1d4da",
+      "apkSha256": "4a3142fc2491cabb9cb1babb73ec52e483fe7b7f9107a70f4d8b06e2b161546c",
+      "pssMiB": {
+        "before": 136.33,
+        "after": 139.71
+      }
+    },
+    {
+      "name": "next-release-keysequence-r1",
+      "mode": "release",
+      "seconds": 12.003,
+      "frames": 656,
+      "uiMs": {
+        "n": 656,
+        "p50": 0.6515,
+        "p95": 3.943,
+        "p99": 4.7736,
+        "max": 5.699
+      },
+      "rasterMs": {
+        "n": 656,
+        "p50": 1.1285,
+        "p95": 1.748,
+        "p99": 2.2482,
+        "max": 3.057
+      },
+      "vsyncToBuildMs": {
+        "n": 656,
+        "p50": 0.411,
+        "p95": 0.9455,
+        "p99": 1.5642,
+        "max": 2.136
+      },
+      "producedVsyncGapMs": {
+        "n": 655,
+        "p50": 8.352,
+        "p95": 8.3736,
+        "p99": 8.3915,
+        "max": 8.424
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 100,
+      "dartKeys": 100,
+      "nativeKeysPerSecond": 8.331,
+      "nativeKeyIntervalMs": {
+        "n": 99,
+        "p50": 52.9415,
+        "p95": 56.3228,
+        "p99": 60.4954,
+        "max": 61.2225
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 100,
+      "nativeToDartMs": {
+        "n": 100,
+        "p50": 0.1627,
+        "p95": 0.2409,
+        "p99": 0.2887,
+        "max": 0.3612
+      },
+      "clockCalibrationRttUs": 207,
+      "requestsWhilePending": 99,
+      "successiveSameTarget": 66,
+      "pageChanges": 34,
+      "pageChangesPerSecond": 2.833,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 99,
+      "eventCounts": {
+        "captureStart": 1,
+        "volume": 100,
+        "request": 100,
+        "reset": 100,
+        "notify": 101,
+        "update": 101,
+        "animate": 100,
+        "cache": 269,
+        "cacheReplace": 268,
+        "readerBuild": 101,
+        "galleryBuild": 101,
+        "position": 555,
+        "animationEnd": 100,
+        "selected": 34,
+        "report": 34,
+        "setPage": 34,
+        "history": 34,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 0,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": null,
+      "distinctMissKeys": 0,
+      "distinctSourceKeys": 0,
+      "cpuTimeMs": 5909,
+      "cpuMsPerSecond": 492.291,
+      "before": {
+        "rssBytes": 226930688,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 236408832,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 194,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "captureSha256": "e60a273c9f91e89d12b523264e05cd32bb3f53447dfee9289de88ac14b075443",
+      "apkSha256": "3e91cf47c83645ae6086727c889de4ea4ed942078dea9bc72414933071f2ce37",
+      "pssMiB": {
+        "before": 140.48,
+        "after": 155.19
+      }
+    },
+    {
+      "name": "next-handoff-release-keysequence-r1",
+      "mode": "release",
+      "seconds": 12.002,
+      "frames": 450,
+      "uiMs": {
+        "n": 450,
+        "p50": 0.8215,
+        "p95": 4.0499,
+        "p99": 5.113,
+        "max": 6.333
+      },
+      "rasterMs": {
+        "n": 450,
+        "p50": 1.1515,
+        "p95": 1.7675,
+        "p99": 2.3392,
+        "max": 2.789
+      },
+      "vsyncToBuildMs": {
+        "n": 450,
+        "p50": 0.41,
+        "p95": 1.0116,
+        "p99": 1.4993,
+        "max": 2.459
+      },
+      "producedVsyncGapMs": {
+        "n": 449,
+        "p50": 8.353,
+        "p95": 41.761,
+        "p99": 41.7866,
+        "max": 41.806
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 100,
+      "dartKeys": 100,
+      "nativeKeysPerSecond": 8.332,
+      "nativeKeyIntervalMs": {
+        "n": 99,
+        "p50": 53.3795,
+        "p95": 55.2413,
+        "p99": 55.9635,
+        "max": 58.3416
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 100,
+      "nativeToDartMs": {
+        "n": 100,
+        "p50": 0.2701,
+        "p95": 0.3689,
+        "p99": 0.4042,
+        "max": 0.4538
+      },
+      "clockCalibrationRttUs": 191,
+      "requestsWhilePending": 50,
+      "successiveSameTarget": 50,
+      "pageChanges": 50,
+      "pageChangesPerSecond": 4.166,
+      "redundantPageChanges": 50,
+      "supersededAnimationCompletions": 50,
+      "eventCounts": {
+        "captureStart": 1,
+        "volume": 100,
+        "request": 100,
+        "reset": 100,
+        "notify": 100,
+        "update": 100,
+        "animate": 50,
+        "cache": 250,
+        "cacheReplace": 200,
+        "readerBuild": 100,
+        "galleryBuild": 100,
+        "position": 298,
+        "setPage": 100,
+        "history": 100,
+        "jump": 50,
+        "selected": 50,
+        "report": 50,
+        "animationEnd": 50,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 0,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": null,
+      "distinctMissKeys": 0,
+      "distinctSourceKeys": 0,
+      "cpuTimeMs": 4710,
+      "cpuMsPerSecond": 392.45,
+      "before": {
+        "rssBytes": 234168320,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 234831872,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 210,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "captureSha256": "210c783898c7cbf81b0748b71a129df8a6d3b23f9248c0218ed18a95c5d9a7d7",
+      "apkSha256": "1041311bd48eb542d1e083b0c82919f6162239594b2e20fb7226071e4c6e9728",
+      "pssMiB": {
+        "before": 150.31,
+        "after": 151.75
+      }
+    },
+    {
+      "name": "prime-release-keysequence-reverse-r2",
+      "mode": "release",
+      "seconds": 12.001,
+      "frames": 404,
+      "uiMs": {
+        "n": 404,
+        "p50": 0.3685,
+        "p95": 3.77,
+        "p99": 4.2727,
+        "max": 5.271
+      },
+      "rasterMs": {
+        "n": 404,
+        "p50": 1.1705,
+        "p95": 1.7028,
+        "p99": 2.1216,
+        "max": 2.374
+      },
+      "vsyncToBuildMs": {
+        "n": 404,
+        "p50": 0.431,
+        "p95": 0.8549,
+        "p99": 1.6582,
+        "max": 1.897
+      },
+      "producedVsyncGapMs": {
+        "n": 403,
+        "p50": 8.353,
+        "p95": 50.1085,
+        "p99": 50.125,
+        "max": 50.155
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 100,
+      "dartKeys": 100,
+      "nativeKeysPerSecond": 8.333,
+      "nativeKeyIntervalMs": {
+        "n": 99,
+        "p50": 53.2284,
+        "p95": 54.6383,
+        "p99": 55.7091,
+        "max": 55.7236
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 100,
+      "nativeToDartMs": {
+        "n": 100,
+        "p50": 0.7621,
+        "p95": 1.0256,
+        "p99": 1.2787,
+        "max": 1.5951
+      },
+      "clockCalibrationRttUs": 190,
+      "requestsWhilePending": 50,
+      "successiveSameTarget": 50,
+      "pageChanges": 50,
+      "pageChangesPerSecond": 4.166,
+      "redundantPageChanges": 50,
+      "supersededAnimationCompletions": 50,
+      "eventCounts": {
+        "captureStart": 1,
+        "volume": 100,
+        "request": 100,
+        "update": 100,
+        "animate": 50,
+        "setPage": 100,
+        "history": 100,
+        "jump": 50,
+        "selected": 50,
+        "report": 50,
+        "animationEnd": 50,
+        "cache": 50,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 0,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": null,
+      "distinctMissKeys": 0,
+      "distinctSourceKeys": 0,
+      "cpuTimeMs": 3306,
+      "cpuMsPerSecond": 275.48,
+      "before": {
+        "rssBytes": 204009472,
+        "cacheBytes": 176160768,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 7,
+        "liveImages": 2,
+        "pendingImages": 0,
+        "page": 300,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 206315520,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 2,
+        "pendingImages": 0,
+        "page": 250,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "captureSha256": "97cbc36cce35a5ed790add242e109e70f2dee37697158d3ad79f1805af4eac31",
+      "apkSha256": "4a3142fc2491cabb9cb1babb73ec52e483fe7b7f9107a70f4d8b06e2b161546c",
+      "pssMiB": {
+        "before": 132.06,
+        "after": 134.77
+      }
+    },
+    {
+      "name": "next-handoff-release-keysequence-reverse-r2",
+      "mode": "release",
+      "seconds": 12.001,
+      "frames": 445,
+      "uiMs": {
+        "n": 445,
+        "p50": 0.8,
+        "p95": 4.047,
+        "p99": 4.8583,
+        "max": 5.367
+      },
+      "rasterMs": {
+        "n": 445,
+        "p50": 1.121,
+        "p95": 1.7042,
+        "p99": 2.0047,
+        "max": 2.64
+      },
+      "vsyncToBuildMs": {
+        "n": 445,
+        "p50": 0.394,
+        "p95": 0.89,
+        "p99": 1.4182,
+        "max": 2.019
+      },
+      "producedVsyncGapMs": {
+        "n": 444,
+        "p50": 8.353,
+        "p95": 41.759,
+        "p99": 41.7803,
+        "max": 41.836
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 100,
+      "dartKeys": 100,
+      "nativeKeysPerSecond": 8.333,
+      "nativeKeyIntervalMs": {
+        "n": 99,
+        "p50": 53.4417,
+        "p95": 55.0061,
+        "p99": 56.1614,
+        "max": 56.614
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 100,
+      "nativeToDartMs": {
+        "n": 100,
+        "p50": 0.247,
+        "p95": 0.3862,
+        "p99": 0.4147,
+        "max": 0.4202
+      },
+      "clockCalibrationRttUs": 191,
+      "requestsWhilePending": 50,
+      "successiveSameTarget": 50,
+      "pageChanges": 50,
+      "pageChangesPerSecond": 4.166,
+      "redundantPageChanges": 50,
+      "supersededAnimationCompletions": 50,
+      "eventCounts": {
+        "captureStart": 1,
+        "volume": 100,
+        "request": 100,
+        "reset": 100,
+        "notify": 100,
+        "update": 100,
+        "animate": 50,
+        "cache": 250,
+        "cacheReplace": 200,
+        "readerBuild": 100,
+        "galleryBuild": 100,
+        "position": 295,
+        "setPage": 100,
+        "history": 100,
+        "jump": 50,
+        "selected": 50,
+        "report": 50,
+        "animationEnd": 50,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 0,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": null,
+      "distinctMissKeys": 0,
+      "distinctSourceKeys": 0,
+      "cpuTimeMs": 4544,
+      "cpuMsPerSecond": 378.638,
+      "before": {
+        "rssBytes": 214630400,
+        "cacheBytes": 176160768,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 7,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 300,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 220692480,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 250,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "captureSha256": "b7c0bebfe8ccb2b7d56999cee45f1f8bd8e53c0e03aa12f5475c79cf9d7eb641",
+      "apkSha256": "1041311bd48eb542d1e083b0c82919f6162239594b2e20fb7226071e4c6e9728",
+      "pssMiB": {
+        "before": 142.06,
+        "after": 148.63
+      }
+    }
+  ]
+}

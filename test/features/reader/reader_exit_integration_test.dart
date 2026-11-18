@@ -111,6 +111,132 @@ void main() {
         .setMockMethodCallHandler(const MethodChannel('window_manager'), null);
   });
 
+  for (final mode in [
+    ReaderMode.galleryLeftToRight,
+    ReaderMode.galleryRightToLeft,
+    ReaderMode.galleryTopToBottom,
+  ]) {
+    for (final imagesPerPage in [1, 2]) {
+      testWidgets(
+        'gallery navigation retains content ${mode.key} x$imagesPerPage',
+        (tester) async {
+          final fixture = await _ReaderFixture.create(tester, imageCount: 6);
+          try {
+            appdata.settings['readerMode'] = mode.key;
+            appdata.settings['readerScreenPicNumberForLandscape'] =
+                imagesPerPage;
+            appdata.settings['readerScreenPicNumberForPortrait'] =
+                imagesPerPage;
+            appdata.settings['enablePageAnimation'] = true;
+            await fixture.mount(
+              tester,
+              pushed: false,
+              withWindow: false,
+              initialPage: 1,
+            );
+            final reader = fixture.readerKey.currentState!;
+            final gallery = reader.imageViewController! as GalleryModeState;
+            final content = tester.widget<ReaderImagesHost>(
+              find.byType(ReaderImagesHost),
+            );
+            final view = tester.widget<ReaderGalleryView>(
+              find.byType(ReaderGalleryView),
+            );
+            expect(reader.toPage(2), isTrue);
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 16));
+            expect(reader.isPageAnimating, isTrue);
+            expect(
+              tester.widget<ReaderImagesHost>(find.byType(ReaderImagesHost)),
+              same(content),
+            );
+            expect(
+              tester.widget<ReaderGalleryView>(find.byType(ReaderGalleryView)),
+              same(view),
+            );
+            expect(reader.toPage(2), isTrue);
+            await tester.pumpAndSettle();
+            expect(reader.page, 2);
+            expect(reader.isPageAnimating, isFalse);
+            expect(gallery.controller.page, closeTo(2, .001));
+            expect(
+              tester.widget<ReaderGalleryView>(find.byType(ReaderGalleryView)),
+              same(view),
+            );
+            expect(
+              tester
+                  .widget<ReaderScaffold>(find.byType(ReaderScaffold))
+                  .progress
+                  .page,
+              2,
+            );
+            reader.scaffoldKey.currentState!.openOrClose();
+            await tester.pumpAndSettle();
+            expect(reader.toPage(1, animated: false), isTrue);
+            await tester.pumpAndSettle();
+            expect(
+              tester
+                  .widget<ReaderScaffold>(find.byType(ReaderScaffold))
+                  .progress
+                  .page,
+              1,
+            );
+            expect(gallery.controller.page, closeTo(1, .001));
+            reader.applyReadingMode(
+              mode == ReaderMode.galleryRightToLeft
+                  ? ReaderMode.galleryLeftToRight
+                  : ReaderMode.galleryRightToLeft,
+            );
+            await tester.pumpAndSettle();
+            expect(reader.imageViewController, isA<GalleryModeState>());
+            expect(identical(reader.imageViewController, gallery), isFalse);
+            expect(tester.takeException(), isNull);
+          } finally {
+            await fixture.dispose(tester);
+          }
+        },
+      );
+    }
+  }
+
+  testWidgets(
+    'gesture validity observes each live settings edit without build',
+    (tester) async {
+      final fixture = await _ReaderFixture.create(tester, imageCount: 6);
+      try {
+        await fixture.mount(
+          tester,
+          pushed: false,
+          withWindow: false,
+          initialPage: 1,
+        );
+        final reader = fixture.readerKey.currentState!;
+        final request = reader.createGestureRequest()!;
+        expect(request.isTargetCurrent(), isTrue);
+        final edits = <(String, Object)>[
+          ('enableDoubleTapToZoom', !request.preferences.enableDoubleTapToZoom),
+          ('enableTapToTurnPages', !request.preferences.enableTapToTurnPages),
+          ('reverseTapToTurnPages', !request.preferences.reverseTapToTurnPages),
+          (
+            'longPressAction',
+            request.preferences.longPressAction == 'none' ? 'zoom' : 'none',
+          ),
+        ];
+        for (final (key, value) in edits) {
+          final previous = appdata.settings[key];
+          appdata.settings[key] = value;
+          expect(request.isTargetCurrent(), isFalse, reason: key);
+          appdata.settings[key] = previous;
+          expect(request.isTargetCurrent(), isTrue, reason: '$key restored');
+        }
+        expect(reader.toPage(2, animated: false), isTrue);
+        expect(request.isTargetCurrent(), isFalse);
+      } finally {
+        await fixture.dispose(tester);
+      }
+    },
+  );
+
   for (final pressure in [false, true]) {
     testWidgets('cached page turns retain reader controls pressure=$pressure', (
       tester,

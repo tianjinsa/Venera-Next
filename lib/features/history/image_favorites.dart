@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:sqlite3/sqlite3.dart';
 import 'package:venera_next/foundation/persistence_failure.dart';
 import 'history_manager.dart';
 import 'image_favorite_actions.dart';
@@ -26,12 +29,53 @@ class ImageFavoriteManager with ChangeNotifier {
   final Future<void> Function(ImageFavorite) _deleteCache;
   final Future<ImageFavoritesComputed> Function(String) _readStatistics;
 
+  // Retain only the active chapter's page numbers, not decoded comic records.
+  // Cache hits still enter HistoryManager's ordered admission below.
+  Object? _chapterKey;
+  Set<int> _chapterPages = const {};
+  Database? _observedDatabase;
+  StreamSubscription<SqliteUpdate>? _databaseChanges;
+  bool _disposed = false;
+
+  void _invalidateChapter() {
+    _chapterKey = null;
+    _chapterPages = const {};
+  }
+
+  void _observeDatabase(Database database) {
+    if (_disposed || identical(database, _observedDatabase)) return;
+    _invalidateChapter();
+    unawaited(_databaseChanges?.cancel());
+    _observedDatabase = database;
+    _databaseChanges = database.updatesSync.listen(
+      (update) {
+        // This hook runs inside SQLite: invalidate only, never query or notify.
+        if (identical(database, _observedDatabase) &&
+            update.tableName == 'image_favorites') {
+          _invalidateChapter();
+        }
+      },
+      onDone: () {
+        if (identical(database, _observedDatabase)) {
+          _observedDatabase = null;
+          _databaseChanges = null;
+          _invalidateChapter();
+        }
+      },
+    );
+  }
+
   /// Capture before an asynchronous selection; it cannot move to a reopened
   /// database or another application instance while the user chooses an image.
   ImageFavoriteAccess capture() => ImageFavoriteAccess._(this, _history());
 
   @override
-  void notifyListeners() => _history().publishChange(super.notifyListeners);
+  void notifyListeners() {
+    // Whole-store imports also use this path; SQLite's row hook alone cannot
+    // report replacement connections or truncating DELETE statements.
+    _invalidateChapter();
+    _history().publishChange(super.notifyListeners);
+  }
 
   Future<List<ImageFavoritesComic>> getAll([String? keyword]) => _history()
       .accessImageFavorites((repository, _) => repository.getAll(keyword));
@@ -51,11 +95,19 @@ class ImageFavoriteManager with ChangeNotifier {
     void Function()? checkActive,
   }) => history.accessImageFavorites((repository, _) {
     checkActive?.call();
-    return repository
-            .find(id, sourceKey)
-            ?.images
-            .any((image) => image.eid == eid && image.page == page) ??
-        false;
+    _observeDatabase(repository.db);
+    final key = (history, history.connectionGeneration, id, sourceKey, eid);
+    if (_chapterKey == key) return _chapterPages.contains(page);
+    final pages = <int>{
+      for (final image
+          in repository.find(id, sourceKey)?.images ?? const <ImageFavorite>[])
+        if (image.eid == eid) image.page,
+    };
+    if (!_disposed) {
+      _chapterKey = key;
+      _chapterPages = pages;
+    }
+    return pages.contains(page);
   });
 
   /// Capture the intent now; read and mutate current data only after admission.
@@ -72,6 +124,7 @@ class ImageFavoriteManager with ChangeNotifier {
     final snapshot = input.detached();
     return history.accessImageFavorites((repository, _) async {
       checkActive?.call();
+      _invalidateChapter();
       final removed = <ImageFavorite>[];
       var changed = false;
       final result = ImageFavoriteActions(
@@ -96,6 +149,7 @@ class ImageFavoriteManager with ChangeNotifier {
     if (images.isEmpty) return Future.value();
     final history = _history();
     return history.accessImageFavorites((repository, _) async {
+      _invalidateChapter();
       repository.removeImages(images);
       await _finishCommit(history, images);
     });
@@ -136,6 +190,16 @@ class ImageFavoriteManager with ChangeNotifier {
   }
 
   void notifyChanges() => notifyListeners();
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _invalidateChapter();
+    _observedDatabase = null;
+    unawaited(_databaseChanges?.cancel());
+    _databaseChanges = null;
+    super.dispose();
+  }
 
   Future<ImageFavoritesComputed> compute() =>
       _history().accessImageFavorites((repository, path) {

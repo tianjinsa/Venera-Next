@@ -145,6 +145,8 @@ class ReaderState extends State<Reader>
   late final imageFavorites = HistoryScope.readImages(context);
   final _targetValidity = ValueNotifier(0);
   final _shellChanges = ValueNotifier(0);
+  ReaderImageViewController? _publishedViewport;
+  bool _viewportPublicationPending = false;
   int _diagnosticsRequest = 0;
   Listenable get shellChanges => _shellChanges;
 
@@ -201,9 +203,19 @@ class ReaderState extends State<Reader>
 
   void onViewportChanged(ReaderImageViewController viewport, bool attached) {
     viewportBinding.update(viewport, attached);
+    if (_viewportPublicationPending || _stateDisposed) return;
+    _viewportPublicationPending = true;
     // Attachment happens while building content. Refresh input after the tree
-    // has installed the viewport, without rebuilding that content subtree.
-    WidgetsBinding.instance.addPostFrameCallback((_) => updateShell());
+    // has installed the viewport. Callback replacement can detach and reattach
+    // the same viewport in this frame; publish only an actual ownership change.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _viewportPublicationPending = false;
+      if (_stateDisposed || !mounted) return;
+      final current = imageViewController;
+      if (identical(_publishedViewport, current)) return;
+      _publishedViewport = current;
+      updateShell();
+    });
   }
 
   ReaderImagePickContext? readImagePickContext() {
@@ -323,31 +335,45 @@ class ReaderState extends State<Reader>
     final titles = chapters?.titles.toList(growable: false);
     final settings = preferences;
     final layout = pageLayout;
-    bool targetCurrent() =>
-        mounted &&
-        !_stateDisposed &&
-        !_sessionFrozen &&
-        !_session.isHeld &&
-        !controller.isDisposed &&
-        identical(controller.content, content) &&
-        identical(imageViewController, viewport) &&
-        cid == comic &&
-        type == comicType &&
-        chapter == ep &&
-        page == imagePage &&
-        size == viewportSize &&
-        mode == currentMode &&
-        identical(ComicSource.find(comicType.sourceKey), source) &&
-        (sources == null || identical(ComicSourceManager.current, sources)) &&
-        identical(widget.chapters, chapters) &&
-        listEquals(chapters?.ids.toList(growable: false), ids) &&
-        listEquals(chapters?.titles.toList(growable: false), titles) &&
-        pageLayout.imagesPerPage == layout.imagesPerPage &&
-        pageLayout.singleImageOnFirstPage == layout.singleImageOnFirstPage &&
-        preferences.enableDoubleTapToZoom == settings.enableDoubleTapToZoom &&
-        preferences.enableTapToTurnPages == settings.enableTapToTurnPages &&
-        preferences.reverseTapToTurnPages == settings.reverseTapToTurnPages &&
-        preferences.longPressAction == settings.longPressAction;
+    bool targetCurrent() {
+      if (!(mounted &&
+          !_stateDisposed &&
+          !_sessionFrozen &&
+          !_session.isHeld &&
+          !controller.isDisposed &&
+          identical(controller.content, content) &&
+          identical(imageViewController, viewport) &&
+          cid == comic &&
+          type == comicType &&
+          chapter == ep &&
+          page == imagePage &&
+          size == viewportSize &&
+          mode == currentMode &&
+          identical(ComicSource.find(comicType.sourceKey), source) &&
+          (sources == null || identical(ComicSourceManager.current, sources)) &&
+          identical(widget.chapters, chapters) &&
+          listEquals(chapters?.ids.toList(growable: false), ids) &&
+          listEquals(chapters?.titles.toList(growable: false), titles))) {
+        return false;
+      }
+      final currentLayout = pageLayout;
+      if (currentLayout.imagesPerPage != layout.imagesPerPage ||
+          currentLayout.singleImageOnFirstPage !=
+              layout.singleImageOnFirstPage) {
+        return false;
+      }
+      // Resolve the live settings once per validation, not once per property.
+      // The next pointer/callback still observes edits without a widget build.
+      final currentSettings = preferences;
+      return currentSettings.enableDoubleTapToZoom ==
+              settings.enableDoubleTapToZoom &&
+          currentSettings.enableTapToTurnPages ==
+              settings.enableTapToTurnPages &&
+          currentSettings.reverseTapToTurnPages ==
+              settings.reverseTapToTurnPages &&
+          currentSettings.longPressAction == settings.longPressAction;
+    }
+
     bool current() => targetCurrent() && (route?.isCurrent ?? true);
     void turn(bool forward) {
       if (current() && viewport != null && !content.isLoading) {
@@ -815,6 +841,7 @@ class ReaderState extends State<Reader>
     animationEnabled: () => preferences.enablePageAnimation,
     viewport: () => imageViewController,
     onChanged: update,
+    onPageNavigationChanged: _onPageNavigationChanged,
     onPageChanged: onPageChanged,
     onError: (error, stack) =>
         Log.error('Reader', 'Page navigation failed: $error', stack),
@@ -870,6 +897,21 @@ class ReaderState extends State<Reader>
           data.matches(chapters),
       select: toChapter,
     );
+  }
+
+  void _onPageNavigationChanged() {
+    if (!mode.isGallery) {
+      update();
+      return;
+    }
+    if (!_stateDisposed) _targetValidity.value++;
+    if (_sessionClosing != null || _sessionFrozen) return;
+    _updateScreenAwake();
+    _cancelOutdatedLayout();
+    // PageController and the gallery's active-page notifier own page motion.
+    // Page/animation changes only refresh shell input and presentation; chapter,
+    // layout and settings changes still rebuild the content through update().
+    updateShell();
   }
 
   void update() {

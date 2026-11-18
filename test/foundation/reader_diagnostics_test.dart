@@ -77,10 +77,46 @@ void main() {
       concurrencyLimit: 2,
     );
     diagnostics.recordScrollPhase(ReaderDiagnosticScrollPhase.drag);
+    diagnostics.recordNavigation(
+      phase: ReaderDiagnosticNavigationPhase.requested,
+      page: 160,
+      target: 161,
+      pendingPage: 161,
+      position: 160.25,
+    );
     expect(diagnostics.hasCapture, isFalse);
     expect(attaches, 0);
     expect(detaches, 0);
     expect(clockReads, 0);
+  });
+
+  test('navigation positions are relative and reset for each capture', () {
+    start();
+    diagnostics.recordNavigation(
+      phase: ReaderDiagnosticNavigationPhase.requested,
+      page: 160,
+      target: 161,
+      pendingPage: 161,
+      position: 160.25,
+    );
+    final event = report()['imageEvents'].single;
+    expect(event['pageOffset'], 0);
+    expect(event['targetOffset'], 1);
+    expect(event['pendingOffset'], 1);
+    expect(event['positionOffset'], .25);
+    start();
+    diagnostics.recordNavigation(
+      phase: ReaderDiagnosticNavigationPhase.jumpApplied,
+      page: 75,
+      target: 75,
+      pendingPage: null,
+      position: 75,
+    );
+    expect(report()['imageEvents'].single['positionOffset'], 0);
+    expect(
+      report()['imageEvents'].single.containsKey('pendingOffset'),
+      isFalse,
+    );
   });
 
   test('pressure before capture retains its cause and query evidence', () {

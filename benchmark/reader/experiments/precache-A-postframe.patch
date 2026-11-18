@@ -1,0 +1,51 @@
+diff --git a/lib/features/reader/gallery_view.dart b/lib/features/reader/gallery_view.dart
+index 4a35cb30..40a30375 100644
+--- a/lib/features/reader/gallery_view.dart
++++ b/lib/features/reader/gallery_view.dart
+@@ -130 +130 @@ class GalleryModeState extends State<ReaderGalleryView>
+-    if (mounted && !_disposed) cache(page);
++    if (mounted && !_disposed) _schedulePrecache(page);
+@@ -137 +137 @@ class GalleryModeState extends State<ReaderGalleryView>
+-    cache(page);
++    _schedulePrecache(page);
+@@ -161 +161 @@ class GalleryModeState extends State<ReaderGalleryView>
+-    cache(page);
++    _schedulePrecache(page);
+@@ -249,0 +250,25 @@ class GalleryModeState extends State<ReaderGalleryView>
++  bool _precacheScheduled = false;
++  int? _scheduledPrecachePage;
++
++  void _schedulePrecache(int target) {
++    if (_disposed || !mounted) return;
++    _scheduledPrecachePage = target;
++    if (!ReaderImageCachePolicy.allowActivePrecache) {
++      // Memory pressure still cancels speculative work immediately.
++      _scheduledPrecachePage = null;
++      cache(target);
++      return;
++    }
++    if (_precacheScheduled) return;
++    _precacheScheduled = true;
++    WidgetsBinding.instance.addPostFrameCallback((_) {
++      _precacheScheduled = false;
++      final requested = _scheduledPrecachePage;
++      _scheduledPrecachePage = null;
++      if (_disposed || !mounted || requested == null) return;
++      // Intermediate PageView positions must not replace a command's target.
++      cache(navigation.state.pendingPage ?? requested);
++    });
++    // Resume can arrive while the viewport is idle, without a scheduled frame.
++    WidgetsBinding.instance.ensureVisualUpdate();
++  }
+@@ -266 +291,4 @@ class GalleryModeState extends State<ReaderGalleryView>
+-    if (_precacheDirection == direction && target == _precacheTarget) return;
++    if (_precacheDirection == direction &&
++        target == (_scheduledPrecachePage ?? _precacheTarget)) {
++      return;
++    }
+@@ -273 +301 @@ class GalleryModeState extends State<ReaderGalleryView>
+-    cache(target);
++    _schedulePrecache(target);
+@@ -460 +488 @@ class GalleryModeState extends State<ReaderGalleryView>
+-                cache(page);
++                _schedulePrecache(page);

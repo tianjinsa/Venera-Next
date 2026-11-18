@@ -495,7 +495,13 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   _createFavorites() => ReaderImageFavoriteController(
     work: widget.imageWork,
     onChanged: () {
-      if (mounted) update();
+      // Keep status reads for quick collection. A completed read only needs to
+      // repaint visible controls; invalidation still rebuilds to bind a query.
+      if (mounted &&
+          (isOpen ||
+              _favorites.status == ReaderImageFavoriteStatus.unavailable)) {
+        update();
+      }
     },
     cancelSelection: _selectionOverlay.cancel,
     onUnsupported: () => showToast(

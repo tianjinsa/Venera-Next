@@ -1,0 +1,1496 @@
+{
+  "before": "Schedule the look-ahead window at accepted selection, after the frame.",
+  "after": "Schedule that same window from request intent, after the frame.",
+  "mode": "Android Release, 120 Hz at entry, shared 192 MiB cache cap, offline images",
+  "flutterFrameworkSha": "ff37bef603469fb030f2b72995ab929ccfc227f0",
+  "flutterEngineSha": "e4b8dca3f1b4ede4c30371002441c88c12187ed6",
+  "seals": {
+    "observed-before": {
+      "sourceSha": "ed657e2331ceb4d3c52f4cca56c5f09bd9dc6ad8",
+      "productRevisionForExports": "61765242",
+      "gallerySha256": "1d7a8453acd2275e916a9ee05da426ad56a1df450a46776d86276a82ea58ea54",
+      "sourceSealSha256": "4d414a500ec30b803818b4f91cb998266c112d07163459a34fa73411ddda7911",
+      "apkSha256": "6b034f2f0b4c11ec877cd0f1772e27319686451d68ca40e0604a253b3e9b29d1"
+    },
+    "observed-after": {
+      "sourceSha": "ed657e2331ceb4d3c52f4cca56c5f09bd9dc6ad8",
+      "productRevisionForExports": "61765242",
+      "gallerySha256": "300997afe3d37dbb8e8b87092fd29e4952f07a841a43b2559fe9e3006e7c5255",
+      "sourceSealSha256": "ed007f608648438d5829eaa9c0a46115f22f8b2e9bfc10a60b51fd1528666191",
+      "apkSha256": "8ae8d4f84fd04cdc932940d72c64e4d54e5d706f1a5c3d15ad21ff4d61e98629"
+    },
+    "real-before": {
+      "sourceSha": "ed657e2331ceb4d3c52f4cca56c5f09bd9dc6ad8",
+      "productRevisionForExports": "61765242",
+      "gallerySha256": "1d7a8453acd2275e916a9ee05da426ad56a1df450a46776d86276a82ea58ea54",
+      "sourceSealSha256": "dbf26d2616f46e050dbeed13ef7fd98a5106c706523c9167426338c72c0d975f",
+      "apkSha256": "5722a58531898abbcd2a31404009c13ec626338547d0e4a71c1119868183ad70"
+    },
+    "real-after": {
+      "sourceSha": "ed657e2331ceb4d3c52f4cca56c5f09bd9dc6ad8",
+      "productRevisionForExports": "61765242",
+      "gallerySha256": "300997afe3d37dbb8e8b87092fd29e4952f07a841a43b2559fe9e3006e7c5255",
+      "sourceSealSha256": "109cc8c6929e58c9cd4bb50dce8050f26fc6748e368543b10bb9343ff3cb4406",
+      "apkSha256": "b68e940e9885aebf7be3f40f352f52b25716a9e39ce71bf18debd70af8cf6729"
+    }
+  },
+  "sourceNote": "Both measured variants include the same diagnostics request observer. The tested exports differ by the three intent scheduling lines in Gallery. The committed code additionally bypasses the diagnostic completion wrapper when diagnostics are inactive.",
+  "originalChapter": {
+    "pages": 200,
+    "jpegBytesUnchanged": true,
+    "orderedImageSha256": "bbb3a05a9ab860830488d872d0efff41900c08a84e542383441a1a830b7c8f2c"
+  },
+  "limits": [
+    "The chapter series ended after only three valid forward windows. The fourth startup and first attempted repeat were both rejected at 60 Hz before input.",
+    "GPU power and GC deltas are unknown. CPU includes rendering the extra stationary frames.",
+    "No direct Prime comparison for this particular change. Presentation is separate from produced frames."
+  ],
+  "series": {
+    "pclead-main": [
+      {
+        "name": "pclead-main-hold-forward-before-1",
+        "captureSha256": "db0fbf1189017d8465c961dd0b767eb9cdf31492e6e3d8eabaf1675e5da48015",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.792,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 630,
+        "uiMs": {
+          "n": 630,
+          "p50": 0.9785,
+          "p95": 4.0922,
+          "p99": 4.947,
+          "max": 5.511
+        },
+        "rasterMs": {
+          "n": 630,
+          "p50": 1.2865,
+          "p95": 2.1074,
+          "p99": 2.8286,
+          "max": 3.197
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 414,
+          "medianUs": 8353,
+          "p95Us": 8372,
+          "maxUs": 16703
+        },
+        "precacheWindowReplacements": 77,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 79,
+          "displayResolvesPending": 75,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 2,
+          "firstDisplayPending": 75,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 17968,
+            "p95Us": 20940,
+            "maxUs": 24339
+          },
+          "firstDecodeWait": {
+            "count": 76,
+            "medianUs": 69979,
+            "p95Us": 72433,
+            "maxUs": 74370
+          },
+          "localRead": {
+            "count": 76,
+            "medianUs": 2381,
+            "p95Us": 4344,
+            "maxUs": 7942
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 10009,
+        "memoryKb": {
+          "before": {
+            "PSS": 160039,
+            "RSS": 287588
+          },
+          "after": {
+            "PSS": 172035,
+            "RSS": 308192
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 350,
+          "after": 350
+        }
+      },
+      {
+        "name": "pclead-main-hold-forward-after-2",
+        "captureSha256": "e86f5eb68e085bca8a85f7cbf17a542e68758d85eeda18bf076969300009ce04",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.825,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 776,
+        "uiMs": {
+          "n": 776,
+          "p50": 0.49,
+          "p95": 3.6728,
+          "p99": 4.1493,
+          "max": 7.074
+        },
+        "rasterMs": {
+          "n": 776,
+          "p50": 1.2125,
+          "p95": 1.9035,
+          "p99": 2.626,
+          "max": 3.372
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 420,
+          "medianUs": 8353,
+          "p95Us": 8368,
+          "maxUs": 8693
+        },
+        "precacheWindowReplacements": 154,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 154,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 77,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 17,
+            "p95Us": 30,
+            "maxUs": 94
+          },
+          "firstDecodeWait": {
+            "count": 76,
+            "medianUs": 73131,
+            "p95Us": 76322,
+            "maxUs": 78055
+          },
+          "localRead": {
+            "count": 76,
+            "medianUs": 2320,
+            "p95Us": 3242,
+            "maxUs": 9392
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 10398,
+        "memoryKb": {
+          "before": {
+            "PSS": 160554,
+            "RSS": 288052
+          },
+          "after": {
+            "PSS": 168220,
+            "RSS": 304512
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 350,
+          "after": 353
+        }
+      },
+      {
+        "name": "pclead-main-hold-forward-after-3",
+        "captureSha256": "993e89b9ddfd1663d7015071413a936f5bdaaffba53e36b5e81a4e4570c1af28",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.83,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 769,
+        "uiMs": {
+          "n": 769,
+          "p50": 0.496,
+          "p95": 3.7548,
+          "p99": 4.4822,
+          "max": 5.307
+        },
+        "rasterMs": {
+          "n": 769,
+          "p50": 1.172,
+          "p95": 1.8458,
+          "p99": 2.5407,
+          "max": 5.016
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 416,
+          "medianUs": 8353,
+          "p95Us": 8374,
+          "maxUs": 8642
+        },
+        "precacheWindowReplacements": 154,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 154,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 77,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 17,
+            "p95Us": 45,
+            "maxUs": 291
+          },
+          "firstDecodeWait": {
+            "count": 76,
+            "medianUs": 72890,
+            "p95Us": 75681,
+            "maxUs": 78627
+          },
+          "localRead": {
+            "count": 76,
+            "medianUs": 2167,
+            "p95Us": 5351,
+            "maxUs": 7404
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 10261,
+        "memoryKb": {
+          "before": {
+            "PSS": 164080,
+            "RSS": 292696
+          },
+          "after": {
+            "PSS": 175401,
+            "RSS": 312776
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 353,
+          "after": 353
+        }
+      },
+      {
+        "name": "pclead-main-hold-forward-before-4",
+        "captureSha256": "2633908fcbf787edab51af94221170cdbd08647cd1ab544fce560508b5533853",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.793,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 628,
+        "uiMs": {
+          "n": 628,
+          "p50": 0.88,
+          "p95": 4.0565,
+          "p99": 4.6423,
+          "max": 7.599
+        },
+        "rasterMs": {
+          "n": 628,
+          "p50": 1.3375,
+          "p95": 2.1781,
+          "p99": 2.8172,
+          "max": 6.858
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 414,
+          "medianUs": 8353,
+          "p95Us": 8367,
+          "maxUs": 16701
+        },
+        "precacheWindowReplacements": 77,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 79,
+          "displayResolvesPending": 75,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 2,
+          "firstDisplayPending": 75,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 17966,
+            "p95Us": 22831,
+            "maxUs": 26353
+          },
+          "firstDecodeWait": {
+            "count": 76,
+            "medianUs": 70120,
+            "p95Us": 72815,
+            "maxUs": 74319
+          },
+          "localRead": {
+            "count": 76,
+            "medianUs": 2529,
+            "p95Us": 4449,
+            "maxUs": 6700
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 10172,
+        "memoryKb": {
+          "before": {
+            "PSS": 161084,
+            "RSS": 288956
+          },
+          "after": {
+            "PSS": 174797,
+            "RSS": 311208
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 357,
+          "after": 357
+        }
+      },
+      {
+        "name": "pclead-main-hold-reverse-before-1",
+        "captureSha256": "9d799464e77fc56838ea2e71539b6ab7982d46a4c0d9b8d894b2cb755eaf0fac",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.808,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 628,
+        "uiMs": {
+          "n": 628,
+          "p50": 0.8855,
+          "p95": 4.0405,
+          "p99": 4.4794,
+          "max": 5.799
+        },
+        "rasterMs": {
+          "n": 628,
+          "p50": 1.3375,
+          "p95": 2.0479,
+          "p99": 2.762,
+          "max": 3.934
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 413,
+          "medianUs": 8353,
+          "p95Us": 8365,
+          "maxUs": 16733
+        },
+        "precacheWindowReplacements": 77,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 79,
+          "displayResolvesPending": 75,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 2,
+          "firstDisplayPending": 75,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 17721,
+            "p95Us": 21032,
+            "maxUs": 23108
+          },
+          "firstDecodeWait": {
+            "count": 77,
+            "medianUs": 69992,
+            "p95Us": 72267,
+            "maxUs": 74981
+          },
+          "localRead": {
+            "count": 77,
+            "medianUs": 2383,
+            "p95Us": 4071,
+            "maxUs": 6273
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 10206,
+        "memoryKb": {
+          "before": {
+            "PSS": 161220,
+            "RSS": 289580
+          },
+          "after": {
+            "PSS": 174277,
+            "RSS": 311324
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 357,
+          "after": 360
+        }
+      },
+      {
+        "name": "pclead-main-hold-reverse-after-2",
+        "captureSha256": "80ba06520d3c7de1fbcf39be304742d47929de3a93c3ad2c0c00400b95393d31",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.759,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 769,
+        "uiMs": {
+          "n": 769,
+          "p50": 0.481,
+          "p95": 3.7664,
+          "p99": 4.4109,
+          "max": 5.119
+        },
+        "rasterMs": {
+          "n": 769,
+          "p50": 1.206,
+          "p95": 1.7614,
+          "p99": 2.3495,
+          "max": 3.47
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 410,
+          "medianUs": 8353,
+          "p95Us": 8370,
+          "maxUs": 16739
+        },
+        "precacheWindowReplacements": 154,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 154,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 77,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 18,
+            "p95Us": 28,
+            "maxUs": 93
+          },
+          "firstDecodeWait": {
+            "count": 77,
+            "medianUs": 72791,
+            "p95Us": 75491,
+            "maxUs": 75952
+          },
+          "localRead": {
+            "count": 77,
+            "medianUs": 2246,
+            "p95Us": 3020,
+            "maxUs": 9397
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 10436,
+        "memoryKb": {
+          "before": {
+            "PSS": 159138,
+            "RSS": 288808
+          },
+          "after": {
+            "PSS": 173404,
+            "RSS": 310812
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 360,
+          "after": 360
+        }
+      },
+      {
+        "name": "pclead-main-hold-reverse-after-3",
+        "captureSha256": "b1bdc505641b240555d4d37a64c83537eca2e9d776474f1dd3857ce04450d7b3",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.844,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 773,
+        "uiMs": {
+          "n": 773,
+          "p50": 0.487,
+          "p95": 3.7964,
+          "p99": 4.37,
+          "max": 4.77
+        },
+        "rasterMs": {
+          "n": 773,
+          "p50": 1.166,
+          "p95": 1.8532,
+          "p99": 2.6422,
+          "max": 6.348
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 412,
+          "medianUs": 8353,
+          "p95Us": 8363,
+          "maxUs": 8891
+        },
+        "precacheWindowReplacements": 154,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 154,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 77,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 18,
+            "p95Us": 29,
+            "maxUs": 53
+          },
+          "firstDecodeWait": {
+            "count": 77,
+            "medianUs": 72143,
+            "p95Us": 74440,
+            "maxUs": 75820
+          },
+          "localRead": {
+            "count": 77,
+            "medianUs": 2240,
+            "p95Us": 5130,
+            "maxUs": 7922
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 10280,
+        "memoryKb": {
+          "before": {
+            "PSS": 159757,
+            "RSS": 288804
+          },
+          "after": {
+            "PSS": 177253,
+            "RSS": 314812
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 363,
+          "after": 363
+        }
+      },
+      {
+        "name": "pclead-main-hold-reverse-before-4",
+        "captureSha256": "97f4278f86054ad66a0cb4ca0cbc95a5002b5f861e56027da38f0d07bb309e32",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.76,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 631,
+        "uiMs": {
+          "n": 631,
+          "p50": 0.915,
+          "p95": 3.977,
+          "p99": 4.8987,
+          "max": 6.244
+        },
+        "rasterMs": {
+          "n": 631,
+          "p50": 1.255,
+          "p95": 2.006,
+          "p99": 2.4617,
+          "max": 3.439
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 413,
+          "medianUs": 8353,
+          "p95Us": 8362,
+          "maxUs": 16742
+        },
+        "precacheWindowReplacements": 77,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 79,
+          "displayResolvesPending": 75,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 2,
+          "firstDisplayPending": 75,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 17603,
+            "p95Us": 22782,
+            "maxUs": 26886
+          },
+          "firstDecodeWait": {
+            "count": 77,
+            "medianUs": 69775,
+            "p95Us": 73530,
+            "maxUs": 77197
+          },
+          "localRead": {
+            "count": 77,
+            "medianUs": 2224,
+            "p95Us": 3771,
+            "maxUs": 7419
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 10108,
+        "memoryKb": {
+          "before": {
+            "PSS": 160766,
+            "RSS": 289660
+          },
+          "after": {
+            "PSS": 170755,
+            "RSS": 308236
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 363,
+          "after": 363
+        }
+      }
+    ],
+    "pclead-touch": [
+      {
+        "name": "pclead-touch-touch-fast-before-1",
+        "captureSha256": "ed7464b5691f28966ea6920afe0f67781244d58e17054bc82153d59474f40613",
+        "input": {
+          "nativeKeys": 0,
+          "dartKeys": 0,
+          "sustainedRepeatHz": null,
+          "pointerDowns": 20,
+          "newDragWhileScrolling": 18
+        },
+        "selections": 19,
+        "animationStarts": 0,
+        "jumps": 0,
+        "producedFrames": 535,
+        "uiMs": {
+          "n": 535,
+          "p50": 0.344,
+          "p95": 1.1431,
+          "p99": 3.3703,
+          "max": 3.687
+        },
+        "rasterMs": {
+          "n": 535,
+          "p50": 1.259,
+          "p95": 1.6906,
+          "p99": 2.0739,
+          "max": 3.295
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 286,
+          "medianUs": 8352,
+          "p95Us": 8366,
+          "maxUs": 8419
+        },
+        "precacheWindowReplacements": 19,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 19,
+          "selectionsWithAllImagesReady": 19,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 40,
+          "displayResolvesReady": 40,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 20,
+          "firstDisplayReady": 20,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 20,
+            "medianUs": 22,
+            "p95Us": 70,
+            "maxUs": 114
+          },
+          "firstDecodeWait": {
+            "count": 18,
+            "medianUs": 73871,
+            "p95Us": 78862,
+            "maxUs": 78862
+          },
+          "localRead": {
+            "count": 18,
+            "medianUs": 11212,
+            "p95Us": 14470,
+            "maxUs": 14470
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 3836,
+        "memoryKb": {
+          "before": {
+            "PSS": 157790,
+            "RSS": 291068
+          },
+          "after": {
+            "PSS": 179089,
+            "RSS": 318348
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 369,
+          "after": 370
+        }
+      },
+      {
+        "name": "pclead-touch-touch-fast-after-2",
+        "captureSha256": "75a8931bbfb10299318e88f92941474922a74bd275faa6a21b9824a4f8b59441",
+        "input": {
+          "nativeKeys": 0,
+          "dartKeys": 0,
+          "sustainedRepeatHz": null,
+          "pointerDowns": 20,
+          "newDragWhileScrolling": 18
+        },
+        "selections": 19,
+        "animationStarts": 0,
+        "jumps": 0,
+        "producedFrames": 533,
+        "uiMs": {
+          "n": 533,
+          "p50": 0.356,
+          "p95": 1.0898,
+          "p99": 2.7566,
+          "max": 6.162
+        },
+        "rasterMs": {
+          "n": 533,
+          "p50": 1.23,
+          "p95": 1.7092,
+          "p99": 2.046,
+          "max": 3.146
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 291,
+          "medianUs": 8352,
+          "p95Us": 8367,
+          "maxUs": 8399
+        },
+        "precacheWindowReplacements": 40,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 19,
+          "selectionsWithAllImagesReady": 19,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 40,
+          "displayResolvesReady": 40,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 20,
+          "firstDisplayReady": 20,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 20,
+            "medianUs": 25,
+            "p95Us": 34,
+            "maxUs": 72
+          },
+          "firstDecodeWait": {
+            "count": 19,
+            "medianUs": 71766,
+            "p95Us": 77115,
+            "maxUs": 77115
+          },
+          "localRead": {
+            "count": 19,
+            "medianUs": 3136,
+            "p95Us": 11550,
+            "maxUs": 11550
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 3821,
+        "memoryKb": {
+          "before": {
+            "PSS": 160588,
+            "RSS": 285496
+          },
+          "after": {
+            "PSS": 179204,
+            "RSS": 313264
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 370,
+          "after": 370
+        }
+      },
+      {
+        "name": "pclead-touch-touch-fast-after-3",
+        "captureSha256": "200a6fbe302c5820fd87a653333dc247a25d835af6d099b2a0a19fadc81776fb",
+        "input": {
+          "nativeKeys": 0,
+          "dartKeys": 0,
+          "sustainedRepeatHz": null,
+          "pointerDowns": 20,
+          "newDragWhileScrolling": 18
+        },
+        "selections": 19,
+        "animationStarts": 0,
+        "jumps": 0,
+        "producedFrames": 533,
+        "uiMs": {
+          "n": 533,
+          "p50": 0.346,
+          "p95": 1.0748,
+          "p99": 2.7586,
+          "max": 3.203
+        },
+        "rasterMs": {
+          "n": 533,
+          "p50": 1.266,
+          "p95": 1.7828,
+          "p99": 2.5743,
+          "max": 3.417
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 287,
+          "medianUs": 8352,
+          "p95Us": 8375,
+          "maxUs": 8414
+        },
+        "precacheWindowReplacements": 40,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 19,
+          "selectionsWithAllImagesReady": 19,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 40,
+          "displayResolvesReady": 40,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 20,
+          "firstDisplayReady": 20,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 20,
+            "medianUs": 25,
+            "p95Us": 48,
+            "maxUs": 74
+          },
+          "firstDecodeWait": {
+            "count": 19,
+            "medianUs": 73018,
+            "p95Us": 76169,
+            "maxUs": 76169
+          },
+          "localRead": {
+            "count": 19,
+            "medianUs": 3370,
+            "p95Us": 9462,
+            "maxUs": 9462
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 3859,
+        "memoryKb": {
+          "before": {
+            "PSS": 164160,
+            "RSS": 294360
+          },
+          "after": {
+            "PSS": 177835,
+            "RSS": 314468
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 370,
+          "after": 370
+        }
+      },
+      {
+        "name": "pclead-touch-touch-fast-before-4",
+        "captureSha256": "bde9b519751697a9e07c4e70665742711c2159ec6e486a5d977764054438cccb",
+        "input": {
+          "nativeKeys": 0,
+          "dartKeys": 0,
+          "sustainedRepeatHz": null,
+          "pointerDowns": 20,
+          "newDragWhileScrolling": 18
+        },
+        "selections": 19,
+        "animationStarts": 0,
+        "jumps": 0,
+        "producedFrames": 532,
+        "uiMs": {
+          "n": 532,
+          "p50": 0.334,
+          "p95": 1.0545,
+          "p99": 3.1729,
+          "max": 3.614
+        },
+        "rasterMs": {
+          "n": 532,
+          "p50": 1.264,
+          "p95": 1.8273,
+          "p99": 2.2951,
+          "max": 2.751
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 286,
+          "medianUs": 8352,
+          "p95Us": 8366,
+          "maxUs": 8405
+        },
+        "precacheWindowReplacements": 19,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 19,
+          "selectionsWithAllImagesReady": 19,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 40,
+          "displayResolvesReady": 40,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 20,
+          "firstDisplayReady": 20,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 20,
+            "medianUs": 22,
+            "p95Us": 40,
+            "maxUs": 41
+          },
+          "firstDecodeWait": {
+            "count": 18,
+            "medianUs": 72366,
+            "p95Us": 77415,
+            "maxUs": 77415
+          },
+          "localRead": {
+            "count": 18,
+            "medianUs": 3582,
+            "p95Us": 5376,
+            "maxUs": 5376
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 3799,
+        "memoryKb": {
+          "before": {
+            "PSS": 162621,
+            "RSS": 289088
+          },
+          "after": {
+            "PSS": 171179,
+            "RSS": 306276
+          }
+        },
+        "cacheBytesAfter": 200140800,
+        "batteryTemperatureTenthsC": {
+          "before": 370,
+          "after": 371
+        }
+      }
+    ],
+    "pclead-real2": [
+      {
+        "name": "pclead-real2-hold-forward-before-1",
+        "captureSha256": "aa0bf83ab2af7c529d3a024e6eeed6797d1e6b45eec712b177c242077af41416",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.806,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 647,
+        "uiMs": {
+          "n": 647,
+          "p50": 0.636,
+          "p95": 3.8197,
+          "p99": 4.3456,
+          "max": 5.043
+        },
+        "rasterMs": {
+          "n": 647,
+          "p50": 1.162,
+          "p95": 1.8885,
+          "p99": 2.5265,
+          "max": 3.048
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 426,
+          "medianUs": 8353,
+          "p95Us": 8371,
+          "maxUs": 8845
+        },
+        "precacheWindowReplacements": 77,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 141,
+          "displayResolvesPending": 13,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 64,
+          "firstDisplayPending": 13,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 14,
+            "p95Us": 7236,
+            "maxUs": 9518
+          },
+          "firstDecodeWait": {
+            "count": 76,
+            "medianUs": 48514,
+            "p95Us": 59721,
+            "maxUs": 66572
+          },
+          "localRead": {
+            "count": 76,
+            "medianUs": 1916,
+            "p95Us": 3754,
+            "maxUs": 6685
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 7320,
+        "memoryKb": {
+          "before": {
+            "PSS": 164607,
+            "RSS": 292044
+          },
+          "after": {
+            "PSS": 196084,
+            "RSS": 332444
+          }
+        },
+        "cacheBytesAfter": 200463020,
+        "batteryTemperatureTenthsC": {
+          "before": 372,
+          "after": 372
+        },
+        "pages1To50": {
+          "displayReady": 40,
+          "displayLookups": 49,
+          "displayWaitMs": {
+            "n": 49,
+            "p50": 0.014,
+            "p95": 5.962,
+            "p99": 9.1566,
+            "max": 9.518
+          },
+          "activeProducedVsyncGapMs": {
+            "n": 267,
+            "p50": 8.353,
+            "p95": 8.373,
+            "p99": 8.3951,
+            "max": 8.845
+          },
+          "activePositionUpdateGapMs": {
+            "n": 209,
+            "p50": 8.387,
+            "p95": 8.8078,
+            "p99": 9.7174,
+            "max": 10.69
+          },
+          "activeUiMs": {
+            "n": 316,
+            "p50": 0.484,
+            "p95": 3.7385,
+            "p99": 4.3279,
+            "max": 5.043
+          },
+          "activeRasterMs": {
+            "n": 316,
+            "p50": 1.178,
+            "p95": 1.8665,
+            "p99": 2.5343,
+            "max": 3.048
+          }
+        },
+        "upperClusterUiRunningWeightedMhz": 2332.09
+      },
+      {
+        "name": "pclead-real2-hold-forward-after-2",
+        "captureSha256": "cd51ece6ccf3b4663a0832f218b72f3d393fcd060e1addf686519cf51de1356a",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.813,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 720,
+        "uiMs": {
+          "n": 720,
+          "p50": 0.5645,
+          "p95": 4.1974,
+          "p99": 4.9103,
+          "max": 5.304
+        },
+        "rasterMs": {
+          "n": 720,
+          "p50": 1.165,
+          "p95": 1.9921,
+          "p99": 2.7773,
+          "max": 3.601
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 409,
+          "medianUs": 8353,
+          "p95Us": 8371,
+          "maxUs": 16713
+        },
+        "precacheWindowReplacements": 154,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 154,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 77,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 17,
+            "p95Us": 40,
+            "maxUs": 79
+          },
+          "firstDecodeWait": {
+            "count": 76,
+            "medianUs": 49082,
+            "p95Us": 60508,
+            "maxUs": 66183
+          },
+          "localRead": {
+            "count": 76,
+            "medianUs": 2315,
+            "p95Us": 6741,
+            "maxUs": 8570
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 7545,
+        "memoryKb": {
+          "before": {
+            "PSS": 164567,
+            "RSS": 292336
+          },
+          "after": {
+            "PSS": 198578,
+            "RSS": 335288
+          }
+        },
+        "cacheBytesAfter": 200463020,
+        "batteryTemperatureTenthsC": {
+          "before": 372,
+          "after": 372
+        },
+        "pages1To50": {
+          "displayReady": 49,
+          "displayLookups": 49,
+          "displayWaitMs": {
+            "n": 49,
+            "p50": 0.018,
+            "p95": 0.0448,
+            "p99": 0.0675,
+            "max": 0.079
+          },
+          "activeProducedVsyncGapMs": {
+            "n": 256,
+            "p50": 8.353,
+            "p95": 8.372,
+            "p99": 8.4168,
+            "max": 8.862
+          },
+          "activePositionUpdateGapMs": {
+            "n": 198,
+            "p50": 8.314,
+            "p95": 8.9194,
+            "p99": 9.8568,
+            "max": 10.234
+          },
+          "activeUiMs": {
+            "n": 305,
+            "p50": 0.539,
+            "p95": 4.24,
+            "p99": 4.8158,
+            "max": 5.117
+          },
+          "activeRasterMs": {
+            "n": 305,
+            "p50": 1.274,
+            "p95": 2.2194,
+            "p99": 2.9874,
+            "max": 3.469
+          }
+        },
+        "upperClusterUiRunningWeightedMhz": 2307.27
+      },
+      {
+        "name": "pclead-real2-hold-forward-after-3",
+        "captureSha256": "1eac0e9de0644bb283fbcd370c9c56a1e0b6ea7243152d1260114e1e3ba74a59",
+        "input": {
+          "nativeKeys": 152,
+          "dartKeys": 152,
+          "sustainedRepeatHz": 19.79,
+          "pointerDowns": 0,
+          "newDragWhileScrolling": 0
+        },
+        "selections": 77,
+        "animationStarts": 77,
+        "jumps": 75,
+        "producedFrames": 751,
+        "uiMs": {
+          "n": 751,
+          "p50": 0.628,
+          "p95": 4.3555,
+          "p99": 5.326,
+          "max": 7.538
+        },
+        "rasterMs": {
+          "n": 751,
+          "p50": 1.353,
+          "p95": 2.405,
+          "p99": 3.217,
+          "max": 4.767
+        },
+        "uiOverBudgetPct": 0.0,
+        "settleProducedVsyncUs": {
+          "count": 418,
+          "medianUs": 8353,
+          "p95Us": 8374,
+          "maxUs": 16728
+        },
+        "precacheWindowReplacements": 154,
+        "imageStatus": {
+          "acceptedSelectionsObserved": 77,
+          "selectionsWithAllImagesReady": 77,
+          "selectionsWithPendingImages": 0,
+          "displayResolves": 154,
+          "displayResolvesReady": 154,
+          "displayResolvesPending": 0,
+          "firstDisplayLookups": 77,
+          "firstDisplayReady": 77,
+          "firstDisplayPending": 0,
+          "meaning": "Lookup-only decoded/live cache status, not proof of screen content or blank-frame count"
+        },
+        "imageWaitUs": {
+          "displayWait": {
+            "count": 77,
+            "medianUs": 19,
+            "p95Us": 31,
+            "maxUs": 81
+          },
+          "firstDecodeWait": {
+            "count": 76,
+            "medianUs": 63554,
+            "p95Us": 76139,
+            "maxUs": 84353
+          },
+          "localRead": {
+            "count": 76,
+            "medianUs": 2292,
+            "p95Us": 7261,
+            "maxUs": 9220
+          },
+          "sourceRead": {
+            "count": 0
+          }
+        },
+        "cpuTimeMs": 9137,
+        "memoryKb": {
+          "before": {
+            "PSS": 168079,
+            "RSS": 295900
+          },
+          "after": {
+            "PSS": 199676,
+            "RSS": 336452
+          }
+        },
+        "cacheBytesAfter": 200463020,
+        "batteryTemperatureTenthsC": {
+          "before": 372,
+          "after": 373
+        },
+        "pages1To50": {
+          "displayReady": 49,
+          "displayLookups": 49,
+          "displayWaitMs": {
+            "n": 49,
+            "p50": 0.019,
+            "p95": 0.0478,
+            "p99": 0.0767,
+            "max": 0.081
+          },
+          "activeProducedVsyncGapMs": {
+            "n": 259,
+            "p50": 8.353,
+            "p95": 8.3742,
+            "p99": 8.4865,
+            "max": 16.706
+          },
+          "activePositionUpdateGapMs": {
+            "n": 199,
+            "p50": 8.316,
+            "p95": 8.9147,
+            "p99": 11.3099,
+            "max": 13.532
+          },
+          "activeUiMs": {
+            "n": 308,
+            "p50": 0.6205,
+            "p95": 4.2863,
+            "p99": 4.7884,
+            "max": 6.001
+          },
+          "activeRasterMs": {
+            "n": 308,
+            "p50": 1.467,
+            "p95": 2.6091,
+            "p99": 3.527,
+            "max": 4.767
+          }
+        },
+        "upperClusterUiRunningWeightedMhz": 1850.08
+      }
+    ]
+  }
+}

@@ -95,6 +95,79 @@ void main() {
     return reader;
   }
 
+  readerTest('viewport callback handoff retains input without shell refresh', (
+    tester,
+  ) async {
+    final reader = await mount(tester);
+    var changes = 0;
+    reader.shellChanges.addListener(() => changes++);
+    final viewport = _Controller();
+    reader.onViewportChanged(viewport, true);
+    expect(reader.imageViewController, same(viewport));
+    expect(changes, 0);
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(changes, 1, reason: 'The first attachment installs shell input.');
+    for (var i = 0; i < 4; i++) {
+      reader.onViewportChanged(viewport, false);
+      reader.onViewportChanged(viewport, true);
+      expect(reader.imageViewController, same(viewport));
+      tester.binding.scheduleFrame();
+      await tester.pump();
+    }
+    expect(changes, 1, reason: 'The viewport owner did not change.');
+    final nextPage = reader.page + 1;
+    reader.toNextPage();
+    expect(viewport.visited, [nextPage]);
+  });
+
+  readerTest(
+    'viewport replacement and removal publish their final owner once',
+    (tester) async {
+      final reader = await mount(tester);
+      var changes = 0;
+      reader.shellChanges.addListener(() => changes++);
+      final old = _Controller(), replacement = _Controller();
+      reader.onViewportChanged(old, true);
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      reader.onViewportChanged(old, false);
+      reader.onViewportChanged(replacement, true);
+      reader.onViewportChanged(old, false);
+      expect(reader.imageViewController, same(replacement));
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      expect(changes, 2);
+      reader.onViewportChanged(old, false);
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      expect(
+        changes,
+        2,
+        reason: 'A stale detach cannot invalidate current input.',
+      );
+      reader.onViewportChanged(replacement, false);
+      expect(reader.imageViewController, isNull);
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      expect(changes, 3);
+      reader.onViewportChanged(replacement, false);
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      expect(changes, 3);
+    },
+  );
+
+  readerTest('viewport publication queued before reader disposal is harmless', (
+    tester,
+  ) async {
+    final reader = await mount(tester);
+    reader.onViewportChanged(_Controller(), true);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
+    expect(reader.imageViewController, isNull);
+  });
+
   for (final cancelled in [false, true]) {
     readerTest(
       'real layout save waits for admission and checks cancellation=$cancelled',

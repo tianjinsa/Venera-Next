@@ -1,0 +1,1486 @@
+{
+  "productSha": "509fc5a145700bed7ae969a5a6ab0bdf37b8f28f",
+  "primeSha": null,
+  "limits": "ABBA forward drags. Natural-budget diagnostic requested, all four actual ceilings stayed 192 MiB, identical 4-to-8 resident images and 19 source loads/misses. 20 DOWNs, 18 interrupted drags, 160-to-179 each. CPU frequency and thermal variation recorded. Candidate is a fresh per-validation settings/layout local, not persistent settings caching.",
+  "runs": [
+    {
+      "name": "gesture-settings-abba-before-1",
+      "mode": "release",
+      "seconds": 8.001,
+      "frames": 534,
+      "uiMs": {
+        "n": 534,
+        "p50": 0.3155,
+        "p95": 1.0917,
+        "p99": 3.0006,
+        "max": 3.332
+      },
+      "rasterMs": {
+        "n": 534,
+        "p50": 1.2185,
+        "p95": 1.672,
+        "p99": 2.3378,
+        "max": 3.351
+      },
+      "vsyncToBuildMs": {
+        "n": 534,
+        "p50": 0.479,
+        "p95": 1.1727,
+        "p99": 2.2561,
+        "max": 4.863
+      },
+      "producedVsyncGapMs": {
+        "n": 533,
+        "p50": 8.353,
+        "p95": 8.3714,
+        "p99": 8.4241,
+        "max": 8.443
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 0,
+      "dartKeys": 0,
+      "nativeKeysPerSecond": 0.0,
+      "nativeKeyIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 0,
+      "nativeToDartMs": {
+        "n": 0
+      },
+      "clockCalibrationRttUs": 197,
+      "requestsWhilePending": 0,
+      "successiveSameTarget": 0,
+      "pageChanges": 19,
+      "pageChangesPerSecond": 2.375,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 0,
+      "eventCounts": {
+        "captureStart": 1,
+        "pointerDown": 20,
+        "pointerUp": 20,
+        "cache": 40,
+        "cacheReplace": 40,
+        "position": 679,
+        "selected": 19,
+        "report": 19,
+        "setPage": 19,
+        "history": 19,
+        "favoriteStatus": 19,
+        "imageMiss": 19,
+        "sourceLoad": 19,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 20,
+      "newDragWhileScrolling": 18,
+      "pointerMoves": 396,
+      "distinctMissKeys": 19,
+      "distinctSourceKeys": 19,
+      "cpuTimeMs": 2590,
+      "cpuMsPerSecond": 323.697,
+      "before": {
+        "rssBytes": 230133760,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 239882240,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 179,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "procedure": {
+        "variant": "next",
+        "action": "capture",
+        "name": "gesture-settings-abba-before-1",
+        "seconds": 8,
+        "page": 160,
+        "settle": 3,
+        "input": "swipes",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 0.125,
+        "swipe_ms": 80,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "fixed",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 0,
+        "cached_budget_headroom": false,
+        "package": "com.github.cyrilpeng.veneranext.readerbenchmark",
+        "installedApkSha256": "3334e680a814fefcc843aaac2529693f339cb39f3a414a915e5dc352274d2e56",
+        "captureSha256": "f14cb1d71f457e69eaa276188c7caaf4b72cc4adfe123320ad182cc0a8fc9b0e"
+      },
+      "repeatCountRange": null,
+      "presentation": {
+        "presentedSurfaceBuffers": 534,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 533,
+          "p50": 8.3532,
+          "p95": 8.3853,
+          "p99": 8.4783,
+          "max": 8.6668
+        },
+        "actualMinusDesiredMs": {
+          "n": 534,
+          "p50": 21.988,
+          "p95": 22.5226,
+          "p99": 22.6519,
+          "max": 22.7124
+        },
+        "readyToActualPresentMs": {
+          "n": 534,
+          "p50": 19.3135,
+          "p95": 19.9638,
+          "p99": 20.7056,
+          "max": 21.1672
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 37,
+          "p50": 63.8446,
+          "p95": 71.9886,
+          "p99": 74.698,
+          "max": 75.3099
+        },
+        "hostSampleGapSeconds": {
+          "n": 36,
+          "p50": 0.5754,
+          "p95": 0.581,
+          "p99": 0.5872,
+          "max": 0.5893
+        },
+        "clockCalibrationRttUs": 197,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "frameThreadStates": {
+        "clockCalibrationRttUs": 197,
+        "uiMsByPointerPhase": {
+          "afterRelease": {
+            "n": 354,
+            "p50": 0.3385,
+            "p95": 0.8928,
+            "p99": 1.1809,
+            "max": 1.743
+          },
+          "dragging": {
+            "n": 180,
+            "p50": 0.25,
+            "p95": 2.8851,
+            "p99": 3.2363,
+            "max": 3.332
+          }
+        },
+        "threads": [
+          {
+            "tid": 20153,
+            "name": "readerbenchmark",
+            "coveredFrames": 534,
+            "stateCoverageRatio": {
+              "n": 534,
+              "p50": 1.0,
+              "p95": 1.0,
+              "p99": 1.0,
+              "max": 1.0
+            },
+            "slowUiFramesAtLeast2ms": 19,
+            "slowUiRunningMs": {
+              "n": 19,
+              "p50": 2.884,
+              "p95": 3.2672,
+              "p99": 3.319,
+              "max": 3.332
+            },
+            "slowUiRunnableMs": {
+              "n": 19,
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0
+            },
+            "slowUiSleepMs": {
+              "n": 19,
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0
+            }
+          }
+        ],
+        "limits": "After-release describes input phase, not proof the animation remains active. Thread states require clock-aligned valid sched data; this is not actual presentation FPS."
+      },
+      "cpuPlacement": [
+        {
+          "tid": "20153",
+          "name": "readerbenchmark",
+          "cpu": "0",
+          "running_ms": "0.396000",
+          "running_weighted_khz": "1804800.000000"
+        },
+        {
+          "tid": "20153",
+          "name": "readerbenchmark",
+          "cpu": "1",
+          "running_ms": "0.872000",
+          "running_weighted_khz": "1794130.000000"
+        },
+        {
+          "tid": "20153",
+          "name": "readerbenchmark",
+          "cpu": "2",
+          "running_ms": "6.330000",
+          "running_weighted_khz": "1803432.000000"
+        },
+        {
+          "tid": "20153",
+          "name": "readerbenchmark",
+          "cpu": "4",
+          "running_ms": "353.980000",
+          "running_weighted_khz": "2195528.000000"
+        },
+        {
+          "tid": "20153",
+          "name": "readerbenchmark",
+          "cpu": "5",
+          "running_ms": "298.304000",
+          "running_weighted_khz": "2233199.000000"
+        },
+        {
+          "tid": "20153",
+          "name": "readerbenchmark",
+          "cpu": "6",
+          "running_ms": "366.233000",
+          "running_weighted_khz": "2229333.000000"
+        },
+        {
+          "tid": "20153",
+          "name": "readerbenchmark",
+          "cpu": "7",
+          "running_ms": "56.024000",
+          "running_weighted_khz": "1691351.000000"
+        }
+      ],
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 153303,
+          "RSS": 280908
+        },
+        "after": {
+          "PSS": 165291,
+          "RSS": 300508
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 375,
+        "after": 375
+      },
+      "touchInput": {
+        "durationMs": 80,
+        "afterUpGapMs": 125,
+        "plannedDownCadenceMs": 205,
+        "actualDownCadenceMs": {
+          "n": 19,
+          "p50": 204.9941,
+          "p95": 205.0658,
+          "p99": 205.1749,
+          "max": 205.2021
+        },
+        "injectionLatenessMs": {
+          "n": 420,
+          "p50": 0.0818,
+          "p95": 0.2224,
+          "p99": 0.9129,
+          "max": 2.4588
+        }
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 3974.87,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 7.832,
+        "observedAlignedSegmentsMs": {
+          "n": 12,
+          "p50": 8.5735,
+          "p95": 102.5667,
+          "p99": 194.1646,
+          "max": 217.064
+        },
+        "producedUiFrames": 466,
+        "framesWithAlignedControllerAtUiFinish": 27,
+        "framesWithAlignedControllerPct": 5.794,
+        "calibrationRttUs": 197,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    },
+    {
+      "name": "gesture-settings-abba-after-2",
+      "mode": "release",
+      "seconds": 8.002,
+      "frames": 534,
+      "uiMs": {
+        "n": 534,
+        "p50": 0.31,
+        "p95": 0.9626,
+        "p99": 2.4695,
+        "max": 3.115
+      },
+      "rasterMs": {
+        "n": 534,
+        "p50": 1.335,
+        "p95": 1.8461,
+        "p99": 2.333,
+        "max": 2.705
+      },
+      "vsyncToBuildMs": {
+        "n": 534,
+        "p50": 0.4415,
+        "p95": 1.008,
+        "p99": 1.4674,
+        "max": 2.839
+      },
+      "producedVsyncGapMs": {
+        "n": 533,
+        "p50": 8.353,
+        "p95": 8.37,
+        "p99": 8.405,
+        "max": 8.539
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 0,
+      "dartKeys": 0,
+      "nativeKeysPerSecond": 0.0,
+      "nativeKeyIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 0,
+      "nativeToDartMs": {
+        "n": 0
+      },
+      "clockCalibrationRttUs": 212,
+      "requestsWhilePending": 0,
+      "successiveSameTarget": 0,
+      "pageChanges": 19,
+      "pageChangesPerSecond": 2.375,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 0,
+      "eventCounts": {
+        "captureStart": 1,
+        "pointerDown": 20,
+        "pointerUp": 20,
+        "cache": 40,
+        "cacheReplace": 40,
+        "position": 681,
+        "selected": 19,
+        "report": 19,
+        "setPage": 19,
+        "history": 19,
+        "favoriteStatus": 19,
+        "imageMiss": 19,
+        "sourceLoad": 19,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 20,
+      "newDragWhileScrolling": 18,
+      "pointerMoves": 397,
+      "distinctMissKeys": 19,
+      "distinctSourceKeys": 19,
+      "cpuTimeMs": 2595,
+      "cpuMsPerSecond": 324.312,
+      "before": {
+        "rssBytes": 229367808,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 241524736,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 179,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "procedure": {
+        "variant": "next",
+        "action": "capture",
+        "name": "gesture-settings-abba-after-2",
+        "seconds": 8,
+        "page": 160,
+        "settle": 3,
+        "input": "swipes",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 0.125,
+        "swipe_ms": 80,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "fixed",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 0,
+        "cached_budget_headroom": false,
+        "package": "com.github.cyrilpeng.veneranext.readerbenchmark",
+        "installedApkSha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e",
+        "captureSha256": "619f8acceb2571dc54f885306e628c0d6759195455806b9d795586afa01fd441"
+      },
+      "repeatCountRange": null,
+      "presentation": {
+        "presentedSurfaceBuffers": 534,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 533,
+          "p50": 8.3532,
+          "p95": 8.3827,
+          "p99": 8.4944,
+          "max": 8.7012
+        },
+        "actualMinusDesiredMs": {
+          "n": 534,
+          "p50": 22.0211,
+          "p95": 22.4499,
+          "p99": 22.5654,
+          "max": 22.741
+        },
+        "readyToActualPresentMs": {
+          "n": 534,
+          "p50": 19.3342,
+          "p95": 19.99,
+          "p99": 20.7668,
+          "max": 21.0954
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 38,
+          "p50": 66.3751,
+          "p95": 71.9628,
+          "p99": 72.1747,
+          "max": 72.2286
+        },
+        "hostSampleGapSeconds": {
+          "n": 37,
+          "p50": 0.5755,
+          "p95": 0.5794,
+          "p99": 0.5804,
+          "max": 0.5807
+        },
+        "clockCalibrationRttUs": 212,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "frameThreadStates": {
+        "clockCalibrationRttUs": 212,
+        "uiMsByPointerPhase": {
+          "afterRelease": {
+            "n": 355,
+            "p50": 0.336,
+            "p95": 0.8587,
+            "p99": 1.1151,
+            "max": 2.0
+          },
+          "dragging": {
+            "n": 179,
+            "p50": 0.229,
+            "p95": 2.4056,
+            "p99": 2.6741,
+            "max": 3.115
+          }
+        },
+        "threads": [
+          {
+            "tid": 31964,
+            "name": "readerbenchmark",
+            "coveredFrames": 534,
+            "stateCoverageRatio": {
+              "n": 534,
+              "p50": 1.0,
+              "p95": 1.0,
+              "p99": 1.0,
+              "max": 1.0
+            },
+            "slowUiFramesAtLeast2ms": 19,
+            "slowUiRunningMs": {
+              "n": 19,
+              "p50": 2.405,
+              "p95": 2.7982,
+              "p99": 3.0516,
+              "max": 3.115
+            },
+            "slowUiRunnableMs": {
+              "n": 19,
+              "p50": 0.0,
+              "p95": 0.1652,
+              "p99": 1.0787,
+              "max": 1.3071
+            },
+            "slowUiSleepMs": {
+              "n": 19,
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0
+            }
+          }
+        ],
+        "limits": "After-release describes input phase, not proof the animation remains active. Thread states require clock-aligned valid sched data; this is not actual presentation FPS."
+      },
+      "cpuPlacement": [
+        {
+          "tid": "31964",
+          "name": "readerbenchmark",
+          "cpu": "0",
+          "running_ms": "0.589000",
+          "running_weighted_khz": "1804800.000000"
+        },
+        {
+          "tid": "31964",
+          "name": "readerbenchmark",
+          "cpu": "3",
+          "running_ms": "4.744000",
+          "running_weighted_khz": "1804024.000000"
+        },
+        {
+          "tid": "31964",
+          "name": "readerbenchmark",
+          "cpu": "4",
+          "running_ms": "112.191000",
+          "running_weighted_khz": "2019879.000000"
+        },
+        {
+          "tid": "31964",
+          "name": "readerbenchmark",
+          "cpu": "5",
+          "running_ms": "150.919000",
+          "running_weighted_khz": "1987462.000000"
+        },
+        {
+          "tid": "31964",
+          "name": "readerbenchmark",
+          "cpu": "6",
+          "running_ms": "122.364000",
+          "running_weighted_khz": "2000881.000000"
+        },
+        {
+          "tid": "31964",
+          "name": "readerbenchmark",
+          "cpu": "7",
+          "running_ms": "591.138000",
+          "running_weighted_khz": "1374308.000000"
+        }
+      ],
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 152477,
+          "RSS": 280052
+        },
+        "after": {
+          "PSS": 167193,
+          "RSS": 302132
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 376,
+        "after": 376
+      },
+      "touchInput": {
+        "durationMs": 80,
+        "afterUpGapMs": 125,
+        "plannedDownCadenceMs": 205,
+        "actualDownCadenceMs": {
+          "n": 19,
+          "p50": 204.9952,
+          "p95": 205.0272,
+          "p99": 205.0774,
+          "max": 205.0899
+        },
+        "injectionLatenessMs": {
+          "n": 420,
+          "p50": 0.0879,
+          "p95": 0.3147,
+          "p99": 3.1562,
+          "max": 8.5062
+        }
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 3973.601,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 7.264,
+        "observedAlignedSegmentsMs": {
+          "n": 10,
+          "p50": 8.4055,
+          "p95": 121.5298,
+          "p99": 195.2556,
+          "max": 213.6871
+        },
+        "producedUiFrames": 466,
+        "framesWithAlignedControllerAtUiFinish": 24,
+        "framesWithAlignedControllerPct": 5.15,
+        "calibrationRttUs": 212,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    },
+    {
+      "name": "gesture-settings-abba-after-3",
+      "mode": "release",
+      "seconds": 8.001,
+      "frames": 533,
+      "uiMs": {
+        "n": 533,
+        "p50": 0.334,
+        "p95": 1.0868,
+        "p99": 3.2884,
+        "max": 3.739
+      },
+      "rasterMs": {
+        "n": 533,
+        "p50": 1.307,
+        "p95": 1.8542,
+        "p99": 2.583,
+        "max": 3.628
+      },
+      "vsyncToBuildMs": {
+        "n": 533,
+        "p50": 0.621,
+        "p95": 1.429,
+        "p99": 2.2718,
+        "max": 4.649
+      },
+      "producedVsyncGapMs": {
+        "n": 532,
+        "p50": 8.353,
+        "p95": 8.3674,
+        "p99": 8.4007,
+        "max": 16.698
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 0,
+      "dartKeys": 0,
+      "nativeKeysPerSecond": 0.0,
+      "nativeKeyIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 0,
+      "nativeToDartMs": {
+        "n": 0
+      },
+      "clockCalibrationRttUs": 212,
+      "requestsWhilePending": 0,
+      "successiveSameTarget": 0,
+      "pageChanges": 19,
+      "pageChangesPerSecond": 2.375,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 0,
+      "eventCounts": {
+        "captureStart": 1,
+        "pointerDown": 20,
+        "pointerUp": 20,
+        "cache": 40,
+        "cacheReplace": 40,
+        "position": 676,
+        "selected": 19,
+        "report": 19,
+        "setPage": 19,
+        "history": 19,
+        "favoriteStatus": 19,
+        "imageMiss": 19,
+        "sourceLoad": 19,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 20,
+      "newDragWhileScrolling": 18,
+      "pointerMoves": 393,
+      "distinctMissKeys": 19,
+      "distinctSourceKeys": 19,
+      "cpuTimeMs": 2890,
+      "cpuMsPerSecond": 361.2,
+      "before": {
+        "rssBytes": 229457920,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 237285376,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 179,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "procedure": {
+        "variant": "next",
+        "action": "capture",
+        "name": "gesture-settings-abba-after-3",
+        "seconds": 8,
+        "page": 160,
+        "settle": 3,
+        "input": "swipes",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 0.125,
+        "swipe_ms": 80,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "fixed",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 0,
+        "cached_budget_headroom": false,
+        "package": "com.github.cyrilpeng.veneranext.readerbenchmark",
+        "installedApkSha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e",
+        "captureSha256": "89f34b55680c717e73d23d2d7ae02fe4d1bf95170f51cff4147b8747fb387b03"
+      },
+      "repeatCountRange": null,
+      "presentation": {
+        "presentedSurfaceBuffers": 533,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 532,
+          "p50": 8.3531,
+          "p95": 8.3891,
+          "p99": 8.511,
+          "max": 16.723
+        },
+        "actualMinusDesiredMs": {
+          "n": 533,
+          "p50": 21.7818,
+          "p95": 22.2822,
+          "p99": 22.4056,
+          "max": 22.726
+        },
+        "readyToActualPresentMs": {
+          "n": 533,
+          "p50": 19.0896,
+          "p95": 19.7062,
+          "p99": 20.4742,
+          "max": 20.9551
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 37,
+          "p50": 68.7553,
+          "p95": 85.2595,
+          "p99": 99.8614,
+          "max": 103.33
+        },
+        "hostSampleGapSeconds": {
+          "n": 36,
+          "p50": 0.5784,
+          "p95": 0.5951,
+          "p99": 0.6072,
+          "max": 0.6136
+        },
+        "clockCalibrationRttUs": 212,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "frameThreadStates": {
+        "clockCalibrationRttUs": 212,
+        "uiMsByPointerPhase": {
+          "afterRelease": {
+            "n": 354,
+            "p50": 0.354,
+            "p95": 0.9732,
+            "p99": 1.1325,
+            "max": 1.301
+          },
+          "dragging": {
+            "n": 179,
+            "p50": 0.277,
+            "p95": 3.1514,
+            "p99": 3.3913,
+            "max": 3.739
+          }
+        },
+        "threads": [
+          {
+            "tid": 3319,
+            "name": "readerbenchmark",
+            "coveredFrames": 533,
+            "stateCoverageRatio": {
+              "n": 533,
+              "p50": 1.0,
+              "p95": 1.0,
+              "p99": 1.0,
+              "max": 1.0
+            },
+            "slowUiFramesAtLeast2ms": 19,
+            "slowUiRunningMs": {
+              "n": 19,
+              "p50": 3.149,
+              "p95": 3.478,
+              "p99": 3.6868,
+              "max": 3.739
+            },
+            "slowUiRunnableMs": {
+              "n": 19,
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0
+            },
+            "slowUiSleepMs": {
+              "n": 19,
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0
+            }
+          }
+        ],
+        "limits": "After-release describes input phase, not proof the animation remains active. Thread states require clock-aligned valid sched data; this is not actual presentation FPS."
+      },
+      "cpuPlacement": [
+        {
+          "tid": "3319",
+          "name": "readerbenchmark",
+          "cpu": "1",
+          "running_ms": "4.502000",
+          "running_weighted_khz": "1797050.000000"
+        },
+        {
+          "tid": "3319",
+          "name": "readerbenchmark",
+          "cpu": "2",
+          "running_ms": "0.809000",
+          "running_weighted_khz": "1774992.000000"
+        },
+        {
+          "tid": "3319",
+          "name": "readerbenchmark",
+          "cpu": "3",
+          "running_ms": "8.395000",
+          "running_weighted_khz": "1801051.000000"
+        },
+        {
+          "tid": "3319",
+          "name": "readerbenchmark",
+          "cpu": "4",
+          "running_ms": "377.359000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "3319",
+          "name": "readerbenchmark",
+          "cpu": "5",
+          "running_ms": "401.963000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "3319",
+          "name": "readerbenchmark",
+          "cpu": "6",
+          "running_ms": "322.610000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "3319",
+          "name": "readerbenchmark",
+          "cpu": "7",
+          "running_ms": "76.775000",
+          "running_weighted_khz": "1549255.000000"
+        }
+      ],
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 152746,
+          "RSS": 280180
+        },
+        "after": {
+          "PSS": 163239,
+          "RSS": 298276
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 377,
+        "after": 377
+      },
+      "touchInput": {
+        "durationMs": 80,
+        "afterUpGapMs": 125,
+        "plannedDownCadenceMs": 205,
+        "actualDownCadenceMs": {
+          "n": 19,
+          "p50": 204.9983,
+          "p95": 205.0823,
+          "p99": 205.3909,
+          "max": 205.4681
+        },
+        "injectionLatenessMs": {
+          "n": 420,
+          "p50": 0.0953,
+          "p95": 0.3047,
+          "p99": 1.0408,
+          "max": 3.6812
+        }
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 3974.968,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 6.686,
+        "observedAlignedSegmentsMs": {
+          "n": 7,
+          "p50": 8.664,
+          "p95": 152.9296,
+          "p99": 202.2803,
+          "max": 214.618
+        },
+        "producedUiFrames": 465,
+        "framesWithAlignedControllerAtUiFinish": 22,
+        "framesWithAlignedControllerPct": 4.731,
+        "calibrationRttUs": 212,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    },
+    {
+      "name": "gesture-settings-abba-before-4",
+      "mode": "release",
+      "seconds": 8.001,
+      "frames": 534,
+      "uiMs": {
+        "n": 534,
+        "p50": 0.341,
+        "p95": 1.1914,
+        "p99": 3.3872,
+        "max": 3.658
+      },
+      "rasterMs": {
+        "n": 534,
+        "p50": 1.328,
+        "p95": 1.9662,
+        "p99": 2.8506,
+        "max": 4.71
+      },
+      "vsyncToBuildMs": {
+        "n": 534,
+        "p50": 0.627,
+        "p95": 1.3921,
+        "p99": 2.5457,
+        "max": 3.124
+      },
+      "producedVsyncGapMs": {
+        "n": 533,
+        "p50": 8.352,
+        "p95": 8.376,
+        "p99": 8.401,
+        "max": 8.413
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 0,
+      "dartKeys": 0,
+      "nativeKeysPerSecond": 0.0,
+      "nativeKeyIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 0,
+      "nativeToDartMs": {
+        "n": 0
+      },
+      "clockCalibrationRttUs": 207,
+      "requestsWhilePending": 0,
+      "successiveSameTarget": 0,
+      "pageChanges": 19,
+      "pageChangesPerSecond": 2.375,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 0,
+      "eventCounts": {
+        "captureStart": 1,
+        "pointerDown": 20,
+        "pointerUp": 20,
+        "cache": 40,
+        "cacheReplace": 40,
+        "position": 678,
+        "selected": 19,
+        "report": 19,
+        "setPage": 19,
+        "history": 19,
+        "favoriteStatus": 19,
+        "imageMiss": 19,
+        "sourceLoad": 19,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 20,
+      "newDragWhileScrolling": 18,
+      "pointerMoves": 395,
+      "distinctMissKeys": 19,
+      "distinctSourceKeys": 19,
+      "cpuTimeMs": 2992,
+      "cpuMsPerSecond": 373.973,
+      "before": {
+        "rssBytes": 229654528,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 245469184,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 179,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "procedure": {
+        "variant": "next",
+        "action": "capture",
+        "name": "gesture-settings-abba-before-4",
+        "seconds": 8,
+        "page": 160,
+        "settle": 3,
+        "input": "swipes",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 0.125,
+        "swipe_ms": 80,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "fixed",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 0,
+        "cached_budget_headroom": false,
+        "package": "com.github.cyrilpeng.veneranext.readerbenchmark",
+        "installedApkSha256": "3334e680a814fefcc843aaac2529693f339cb39f3a414a915e5dc352274d2e56",
+        "captureSha256": "d859fd812d1a9a04234a409db070e347836dfcebaa3ccf173f81f0e7d48752ac"
+      },
+      "repeatCountRange": null,
+      "presentation": {
+        "presentedSurfaceBuffers": 534,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 533,
+          "p50": 8.3534,
+          "p95": 8.3911,
+          "p99": 8.5143,
+          "max": 8.5703
+        },
+        "actualMinusDesiredMs": {
+          "n": 534,
+          "p50": 21.7086,
+          "p95": 22.2269,
+          "p99": 22.3408,
+          "max": 22.4466
+        },
+        "readyToActualPresentMs": {
+          "n": 534,
+          "p50": 19.0119,
+          "p95": 19.6346,
+          "p99": 20.5644,
+          "max": 20.7328
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 37,
+          "p50": 70.9575,
+          "p95": 79.3473,
+          "p99": 94.7335,
+          "max": 97.2575
+        },
+        "hostSampleGapSeconds": {
+          "n": 36,
+          "p50": 0.58,
+          "p95": 0.5873,
+          "p99": 0.6044,
+          "max": 0.6107
+        },
+        "clockCalibrationRttUs": 207,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "frameThreadStates": {
+        "clockCalibrationRttUs": 207,
+        "uiMsByPointerPhase": {
+          "afterRelease": {
+            "n": 354,
+            "p50": 0.364,
+            "p95": 1.0482,
+            "p99": 1.2661,
+            "max": 1.397
+          },
+          "dragging": {
+            "n": 180,
+            "p50": 0.283,
+            "p95": 3.3255,
+            "p99": 3.5862,
+            "max": 3.658
+          }
+        },
+        "threads": [
+          {
+            "tid": 6418,
+            "name": "readerbenchmark",
+            "coveredFrames": 534,
+            "stateCoverageRatio": {
+              "n": 534,
+              "p50": 1.0,
+              "p95": 1.0,
+              "p99": 1.0,
+              "max": 1.0
+            },
+            "slowUiFramesAtLeast2ms": 19,
+            "slowUiRunningMs": {
+              "n": 19,
+              "p50": 3.293,
+              "p95": 3.5815,
+              "p99": 3.6427,
+              "max": 3.658
+            },
+            "slowUiRunnableMs": {
+              "n": 19,
+              "p50": 0.0,
+              "p95": 0.1206,
+              "p99": 0.9891,
+              "max": 1.2063
+            },
+            "slowUiSleepMs": {
+              "n": 19,
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0
+            }
+          }
+        ],
+        "limits": "After-release describes input phase, not proof the animation remains active. Thread states require clock-aligned valid sched data; this is not actual presentation FPS."
+      },
+      "cpuPlacement": [
+        {
+          "tid": "6418",
+          "name": "readerbenchmark",
+          "cpu": "0",
+          "running_ms": "1.681000",
+          "running_weighted_khz": "1789986.000000"
+        },
+        {
+          "tid": "6418",
+          "name": "readerbenchmark",
+          "cpu": "1",
+          "running_ms": "0.658000",
+          "running_weighted_khz": "1804800.000000"
+        },
+        {
+          "tid": "6418",
+          "name": "readerbenchmark",
+          "cpu": "2",
+          "running_ms": "0.574000",
+          "running_weighted_khz": "1795533.000000"
+        },
+        {
+          "tid": "6418",
+          "name": "readerbenchmark",
+          "cpu": "3",
+          "running_ms": "2.651000",
+          "running_weighted_khz": "1801054.000000"
+        },
+        {
+          "tid": "6418",
+          "name": "readerbenchmark",
+          "cpu": "4",
+          "running_ms": "375.729000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "6418",
+          "name": "readerbenchmark",
+          "cpu": "5",
+          "running_ms": "385.584000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "6418",
+          "name": "readerbenchmark",
+          "cpu": "6",
+          "running_ms": "391.014000",
+          "running_weighted_khz": "1881600.000000"
+        },
+        {
+          "tid": "6418",
+          "name": "readerbenchmark",
+          "cpu": "7",
+          "running_ms": "80.819000",
+          "running_weighted_khz": "1507822.000000"
+        }
+      ],
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 152613,
+          "RSS": 280324
+        },
+        "after": {
+          "PSS": 170461,
+          "RSS": 305756
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 378,
+        "after": 380
+      },
+      "touchInput": {
+        "durationMs": 80,
+        "afterUpGapMs": 125,
+        "plannedDownCadenceMs": 205,
+        "actualDownCadenceMs": {
+          "n": 19,
+          "p50": 205.0005,
+          "p95": 205.0151,
+          "p99": 205.0169,
+          "max": 205.0174
+        },
+        "injectionLatenessMs": {
+          "n": 420,
+          "p50": 0.0955,
+          "p95": 0.479,
+          "p99": 1.9459,
+          "max": 4.3189
+        }
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 3974.936,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 5.835,
+        "observedAlignedSegmentsMs": {
+          "n": 3,
+          "p50": 8.491,
+          "p95": 194.4433,
+          "p99": 210.9724,
+          "max": 215.1046
+        },
+        "producedUiFrames": 466,
+        "framesWithAlignedControllerAtUiFinish": 18,
+        "framesWithAlignedControllerPct": 3.863,
+        "calibrationRttUs": 207,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    }
+  ],
+  "series": {
+    "apks": {
+      "before": {
+        "file": "next-final-release.apk",
+        "sha256": "3334e680a814fefcc843aaac2529693f339cb39f3a414a915e5dc352274d2e56"
+      },
+      "after": {
+        "file": "next-gesture-settings-release.apk",
+        "sha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e"
+      }
+    },
+    "order": [
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "expectedCacheMiB": null,
+    "naturalBudgetDiagnostic": true,
+    "alternatingPages": false,
+    "downCadenceMs": 205,
+    "dragDurationMs": 80,
+    "afterUpGapMs": 125,
+    "completed": [
+      {
+        "name": "gesture-settings-abba-before-1",
+        "signature": [
+          8,
+          4,
+          100663296,
+          8,
+          201326592,
+          19,
+          19
+        ],
+        "cacheLimitBytes": 201326592,
+        "uiMs": {
+          "n": 534,
+          "p50": 0.3155,
+          "p95": 1.0917,
+          "p99": 3.0006,
+          "max": 3.332
+        },
+        "cpuTimeMs": 2590
+      },
+      {
+        "name": "gesture-settings-abba-after-2",
+        "signature": [
+          8,
+          4,
+          100663296,
+          8,
+          201326592,
+          19,
+          19
+        ],
+        "cacheLimitBytes": 201326592,
+        "uiMs": {
+          "n": 534,
+          "p50": 0.31,
+          "p95": 0.9626,
+          "p99": 2.4695,
+          "max": 3.115
+        },
+        "cpuTimeMs": 2595
+      },
+      {
+        "name": "gesture-settings-abba-after-3",
+        "signature": [
+          8,
+          4,
+          100663296,
+          8,
+          201326592,
+          19,
+          19
+        ],
+        "cacheLimitBytes": 201326592,
+        "uiMs": {
+          "n": 533,
+          "p50": 0.334,
+          "p95": 1.0868,
+          "p99": 3.2884,
+          "max": 3.739
+        },
+        "cpuTimeMs": 2890
+      },
+      {
+        "name": "gesture-settings-abba-before-4",
+        "signature": [
+          8,
+          4,
+          100663296,
+          8,
+          201326592,
+          19,
+          19
+        ],
+        "cacheLimitBytes": 201326592,
+        "uiMs": {
+          "n": 534,
+          "p50": 0.341,
+          "p95": 1.1914,
+          "p99": 3.3872,
+          "max": 3.658
+        },
+        "cpuTimeMs": 2992
+      }
+    ],
+    "sameDecodedCapacityAndWork": true
+  },
+  "candidatePatch": {
+    "file": "gesture-settings-candidate.patch",
+    "sha256": "6b2bdf78ff7e99de281e2e23107faf724b0a3d54852bf2aed54fbc76de843900"
+  }
+}

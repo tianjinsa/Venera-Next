@@ -24,6 +24,14 @@ enum ReaderDiagnosticStage {
 
 enum ReaderDiagnosticPagePhase { requested, selected }
 
+enum ReaderDiagnosticNavigationPhase {
+  requested,
+  precacheScheduled,
+  precacheStarted,
+  animationCompleted,
+  jumpApplied,
+}
+
 enum ReaderDiagnosticScrollPhase { drag, settle, idle }
 
 enum ReaderDiagnosticCacheReason {
@@ -108,6 +116,7 @@ class ReaderDiagnostics extends ChangeNotifier {
   final _imageIds = <int, int>{};
   Timer? _timer;
   int _generation = 0, _startedAt = 0, _duration = 0;
+  int? _pageOrigin;
   int _droppedEvents = 0, _droppedFrames = 0, _ignoredImages = 0;
   int _droppedScrollPhases = 0;
   ReaderDiagnosticScrollPhase? _lastScrollPhase;
@@ -220,6 +229,7 @@ class ReaderDiagnostics extends ChangeNotifier {
     _frames.clear();
     _scrollPhases.clear();
     _lastScrollPhase = null;
+    _pageOrigin = null;
     _droppedScrollPhases = 0;
     _imageIds.clear();
     _droppedEvents = _droppedFrames = _ignoredImages = _inFlight =
@@ -303,6 +313,33 @@ class ReaderDiagnostics extends ChangeNotifier {
       'concurrencyLimit': concurrencyLimit,
       'budgetBytes': PaintingBinding.instance.imageCache.maximumSizeBytes,
     });
+  }
+
+  /// Capture-relative page coordinates correlate intent, work and handoff
+  /// without retaining the reader's absolute chapter/source page numbers.
+  void recordNavigation({
+    required ReaderDiagnosticNavigationPhase phase,
+    required int page,
+    required int target,
+    required int? pendingPage,
+    required double? position,
+  }) {
+    if (!_acceptSample()) return;
+    final origin = _pageOrigin ??= page;
+    final event = <String, Object>{
+      'atUs': _elapsed,
+      'stage': 'navigation',
+      'phase': phase.name,
+      'pageOffset': page - origin,
+      'targetOffset': target - origin,
+      if (pendingPage != null) 'pendingOffset': pendingPage - origin,
+      if (position != null && position.isFinite)
+        'positionOffset': position - origin,
+    };
+    _append(event);
+    if (kProfileMode) {
+      Timeline.instantSync('Reader.navigation', arguments: event);
+    }
   }
 
   // Keep the latest decision even outside capture: pressure commonly arrives

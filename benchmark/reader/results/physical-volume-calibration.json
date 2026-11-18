@@ -1,0 +1,195 @@
+{
+  "captures": {
+    "next-physical-volume-calibration-r3": {
+      "captureSha256": "9cc0d7d1ab29fc020f1e9f70f25dbcc51a1a64243074aa8564ce2c6a74e00a57",
+      "mode": "release",
+      "keys": 271,
+      "repeatCountsConsecutive": true,
+      "downTimeCount": 1,
+      "eventTimeSpanMs": 13989,
+      "nativeDeliverySpanMs": 13827.901,
+      "firstRepeatEventTimeGapMs": 401,
+      "nativeDeliveryDelayMs": {
+        "n": 271,
+        "p50": 2.0,
+        "p95": 3.5,
+        "p99": 4.0,
+        "max": 163
+      },
+      "firstNativeDeliveryDelayMs": 163,
+      "nativeToDartMs": {
+        "n": 271,
+        "p50": 0.2905,
+        "p95": 0.4157,
+        "p99": 0.4984,
+        "max": 0.7435
+      },
+      "repeatIntervalMs": {
+        "n": 269,
+        "p50": 50.5551,
+        "p95": 52.1312,
+        "p99": 52.9024,
+        "max": 53.2905
+      },
+      "sustainedRepeatHz": 19.78,
+      "pageProgress": [
+        160,
+        296
+      ],
+      "uiMs": {
+        "n": 1192,
+        "p50": 0.873,
+        "p95": 4.4601,
+        "p99": 5.303,
+        "max": 6.289
+      },
+      "rasterMs": {
+        "n": 1192,
+        "p50": 1.1515,
+        "p95": 1.7857,
+        "p99": 2.2704,
+        "max": 3.052
+      },
+      "cpuTimeMs": 12201,
+      "inputValidation": null
+    },
+    "next-calibrated-hold-before-r1": {
+      "captureSha256": "e0291e3d46b91c48bcc4d68ef4f9c1e7ff0382c8b2d5d15b270d8a554e925a09",
+      "mode": "release",
+      "keys": 152,
+      "repeatCountsConsecutive": true,
+      "downTimeCount": 1,
+      "eventTimeSpanMs": 7978,
+      "nativeDeliverySpanMs": 7820.5,
+      "firstRepeatEventTimeGapMs": 401,
+      "nativeDeliveryDelayMs": {
+        "n": 152,
+        "p50": 5.0,
+        "p95": 7.0,
+        "p99": 8.49,
+        "max": 162
+      },
+      "firstNativeDeliveryDelayMs": 162,
+      "nativeToDartMs": {
+        "n": 152,
+        "p50": 0.298,
+        "p95": 0.429,
+        "p99": 0.4711,
+        "max": 0.5084
+      },
+      "repeatIntervalMs": {
+        "n": 150,
+        "p50": 50.5951,
+        "p95": 52.3318,
+        "p99": 52.7988,
+        "max": 53.3036
+      },
+      "sustainedRepeatHz": 19.765,
+      "pageProgress": [
+        160,
+        237
+      ],
+      "uiMs": {
+        "n": 707,
+        "p50": 0.804,
+        "p95": 4.0571,
+        "p99": 4.7056,
+        "max": 5.708
+      },
+      "rasterMs": {
+        "n": 707,
+        "p50": 1.167,
+        "p95": 1.7731,
+        "p99": 2.6039,
+        "max": 3.312
+      },
+      "cpuTimeMs": 6990,
+      "inputValidation": {
+        "expectedDowns": 152,
+        "observedDowns": 152,
+        "repeatCountsConsecutive": true,
+        "oneDownTime": true,
+        "eventTimeOffsetsMatch": true,
+        "injectionLatenessMs": {
+          "n": 153,
+          "p50": 0.1153,
+          "p95": 0.9346,
+          "p99": 0.9879,
+          "max": 1.0016
+        }
+      }
+    },
+    "prime-calibrated-hold-r1": {
+      "captureSha256": "2ab8378e0007884f9c6e286a707be502ae2fb77659551211f185dc2a9f99fe16",
+      "mode": "release",
+      "keys": 152,
+      "repeatCountsConsecutive": true,
+      "downTimeCount": 1,
+      "eventTimeSpanMs": 7978,
+      "nativeDeliverySpanMs": 7821.667,
+      "firstRepeatEventTimeGapMs": 401,
+      "nativeDeliveryDelayMs": {
+        "n": 152,
+        "p50": 4.0,
+        "p95": 6.0,
+        "p99": 7.49,
+        "max": 161
+      },
+      "firstNativeDeliveryDelayMs": 161,
+      "nativeToDartMs": {
+        "n": 152,
+        "p50": 0.5312,
+        "p95": 0.7756,
+        "p99": 0.8823,
+        "max": 0.9781
+      },
+      "repeatIntervalMs": {
+        "n": 150,
+        "p50": 50.4413,
+        "p95": 52.7893,
+        "p99": 53.8919,
+        "max": 54.4296
+      },
+      "sustainedRepeatHz": 19.825,
+      "pageProgress": [
+        160,
+        237
+      ],
+      "uiMs": {
+        "n": 648,
+        "p50": 0.35,
+        "p95": 4.055,
+        "p99": 4.6254,
+        "max": 5.054
+      },
+      "rasterMs": {
+        "n": 648,
+        "p50": 1.1315,
+        "p95": 1.7566,
+        "p99": 2.369,
+        "max": 4.944
+      },
+      "cpuTimeMs": 5692,
+      "inputValidation": {
+        "expectedDowns": 152,
+        "observedDowns": 152,
+        "repeatCountsConsecutive": true,
+        "oneDownTime": true,
+        "eventTimeOffsetsMatch": true,
+        "injectionLatenessMs": {
+          "n": 153,
+          "p50": 0.101,
+          "p95": 0.1449,
+          "p99": 0.5869,
+          "max": 0.6769
+        }
+      }
+    }
+  },
+  "limits": [
+    "Physical sample lasted about 14 seconds between first and last DOWN despite an intended 8-second prompt; actual native times are authoritative.",
+    "Replay retains the first 8 seconds of KeyEvent.eventTime offsets. Native repeat sequence and Flutter receipt are verified; first native dispatch delay also matches at 161\u2013163 ms. This does not reproduce the physical switch.",
+    "Native probe records DOWN only. Physical UP timing was not measured; replay sends one UP at 8 seconds.",
+    "r1 startup ACK timeout and r2 zero-key capture excluded from performance comparisons."
+  ]
+}

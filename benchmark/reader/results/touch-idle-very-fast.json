@@ -1,0 +1,1078 @@
+{
+  "productSha": "67be06fc235c1498fe33b41d6fad660b12f94089",
+  "primeSha": "2e287566c6fad11b0085bbdf4a528e507021ec61",
+  "limits": "Strict 120 Hz / 192 MiB. Normal: 20 x 160 ms drag + 1000 ms UP gap, 28-second window; all 20 started idle and advanced 20 pages. Very fast: 20 x 80 ms drag + 45 ms UP gap, 125 ms DOWN cadence; preserve actual 18-page progression and scrolling-at-DOWN counts. One repetition per variant, compare only equal work and disclose cold first contact effects.",
+  "runs": [
+    {
+      "name": "finalidle160-next-touch-normal-r1",
+      "mode": "release",
+      "seconds": 28.001,
+      "frames": 1863,
+      "uiMs": {
+        "n": 1863,
+        "p50": 0.339,
+        "p95": 0.5178,
+        "p99": 2.1788,
+        "max": 3.525
+      },
+      "rasterMs": {
+        "n": 1863,
+        "p50": 1.256,
+        "p95": 1.5929,
+        "p99": 2.0001,
+        "max": 3.584
+      },
+      "vsyncToBuildMs": {
+        "n": 1863,
+        "p50": 0.475,
+        "p95": 0.9978,
+        "p99": 1.2777,
+        "max": 2.126
+      },
+      "producedVsyncGapMs": {
+        "n": 1862,
+        "p50": 8.353,
+        "p95": 8.3759,
+        "p99": 149.172,
+        "max": 393.001
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 0,
+      "dartKeys": 0,
+      "nativeKeysPerSecond": 0.0,
+      "nativeKeyIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 0,
+      "nativeToDartMs": {
+        "n": 0
+      },
+      "clockCalibrationRttUs": 224,
+      "requestsWhilePending": 0,
+      "successiveSameTarget": 0,
+      "pageChanges": 20,
+      "pageChangesPerSecond": 0.714,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 0,
+      "eventCounts": {
+        "captureStart": 1,
+        "pointerDown": 20,
+        "cache": 40,
+        "cacheReplace": 40,
+        "position": 2219,
+        "selected": 20,
+        "report": 20,
+        "setPage": 20,
+        "history": 20,
+        "favoriteStatus": 20,
+        "pointerUp": 20,
+        "imageMiss": 19,
+        "sourceLoad": 19,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 20,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": 795,
+      "distinctMissKeys": 19,
+      "distinctSourceKeys": 19,
+      "cpuTimeMs": 7205,
+      "cpuMsPerSecond": 257.313,
+      "before": {
+        "rssBytes": 236195840,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 238919680,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 180,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "procedure": {
+        "variant": "next",
+        "action": "capture",
+        "name": "finalidle160-next-touch-normal-r1",
+        "seconds": 28,
+        "page": 160,
+        "settle": 3,
+        "input": "swipes",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 1.0,
+        "swipe_ms": 160,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "fixed",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 192,
+        "cached_budget_headroom": false,
+        "package": "com.github.cyrilpeng.veneranext.readerbenchmark",
+        "installedApkSha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e",
+        "captureSha256": "d69cfbe62d69e059c2019c5de2d590e3b69481bf7cb2f74eb2f82c3daa04164f"
+      },
+      "repeatCountRange": null,
+      "presentation": {
+        "presentedSurfaceBuffers": 1863,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 1862,
+          "p50": 8.3535,
+          "p95": 8.4018,
+          "p99": 150.3113,
+          "max": 392.7652
+        },
+        "actualMinusDesiredMs": {
+          "n": 1863,
+          "p50": 21.8932,
+          "p95": 22.4108,
+          "p99": 22.5312,
+          "max": 22.7595
+        },
+        "readyToActualPresentMs": {
+          "n": 1863,
+          "p50": 19.241,
+          "p95": 20.2163,
+          "p99": 20.4295,
+          "max": 20.7026
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 74,
+          "p50": 63.1299,
+          "p95": 68.9619,
+          "p99": 85.3987,
+          "max": 86.808
+        },
+        "hostSampleGapSeconds": {
+          "n": 73,
+          "p50": 0.5752,
+          "p95": 0.5791,
+          "p99": 0.592,
+          "max": 0.5962
+        },
+        "clockCalibrationRttUs": 224,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "touchValidation": {
+        "expectedDowns": 20,
+        "observedDowns": 20,
+        "allInjectedWithinWindow": true,
+        "tailAfterUpMs": 4321.902,
+        "plannedDownCadenceMs": 1160,
+        "valid": true
+      },
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 168357,
+          "RSS": 296920
+        },
+        "after": {
+          "PSS": 174266,
+          "RSS": 310320
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 375,
+        "after": 375
+      },
+      "touchInput": {
+        "durationMs": 160,
+        "afterUpGapMs": 1000,
+        "plannedDownCadenceMs": 1160,
+        "actualDownCadenceMs": {
+          "n": 19,
+          "p50": 1160.0008,
+          "p95": 1160.8077,
+          "p99": 1161.1425,
+          "max": 1161.2262
+        },
+        "injectionLatenessMs": {
+          "n": 820,
+          "p50": 0.0813,
+          "p95": 0.3016,
+          "p99": 1.2715,
+          "max": 3.9908
+        }
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 22199.864,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 34.79,
+        "observedAlignedSegmentsMs": {
+          "n": 20,
+          "p50": 406.094,
+          "p95": 410.7442,
+          "p99": 410.9904,
+          "max": 411.052
+        },
+        "producedUiFrames": 1788,
+        "framesWithAlignedControllerAtUiFinish": 63,
+        "framesWithAlignedControllerPct": 3.523,
+        "calibrationRttUs": 224,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    },
+    {
+      "name": "finalidle160-prime-touch-normal-r1",
+      "mode": "release",
+      "seconds": 28.002,
+      "frames": 1865,
+      "uiMs": {
+        "n": 1865,
+        "p50": 0.311,
+        "p95": 0.479,
+        "p99": 3.2113,
+        "max": 4.76
+      },
+      "rasterMs": {
+        "n": 1865,
+        "p50": 1.208,
+        "p95": 1.5438,
+        "p99": 1.9114,
+        "max": 2.819
+      },
+      "vsyncToBuildMs": {
+        "n": 1865,
+        "p50": 0.482,
+        "p95": 1.0112,
+        "p99": 1.2327,
+        "max": 1.99
+      },
+      "producedVsyncGapMs": {
+        "n": 1864,
+        "p50": 8.353,
+        "p95": 8.377,
+        "p99": 141.6719,
+        "max": 392.796
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 0,
+      "dartKeys": 0,
+      "nativeKeysPerSecond": 0.0,
+      "nativeKeyIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 0,
+      "nativeToDartMs": {
+        "n": 0
+      },
+      "clockCalibrationRttUs": 224,
+      "requestsWhilePending": 0,
+      "successiveSameTarget": 0,
+      "pageChanges": 20,
+      "pageChangesPerSecond": 0.714,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 0,
+      "eventCounts": {
+        "captureStart": 1,
+        "pointerDown": 20,
+        "position": 2212,
+        "selected": 20,
+        "report": 20,
+        "setPage": 20,
+        "history": 20,
+        "cache": 20,
+        "pointerUp": 20,
+        "imageMiss": 19,
+        "sourceLoad": 19,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 20,
+      "newDragWhileScrolling": 0,
+      "pointerMoves": 788,
+      "distinctMissKeys": 19,
+      "distinctSourceKeys": 19,
+      "cpuTimeMs": 7216,
+      "cpuMsPerSecond": 257.694,
+      "before": {
+        "rssBytes": 231972864,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 238530560,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 180,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "procedure": {
+        "variant": "prime",
+        "action": "capture",
+        "name": "finalidle160-prime-touch-normal-r1",
+        "seconds": 28,
+        "page": 160,
+        "settle": 3,
+        "input": "swipes",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 1.0,
+        "swipe_ms": 160,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "fixed",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 192,
+        "cached_budget_headroom": false,
+        "package": "com.github.wgh136.venera.prime.readerbenchmark",
+        "installedApkSha256": "15f307c4276ca4ac9bd6c71972d7f773301beef59f6919b5445ae972b51e4d7f",
+        "captureSha256": "b233032faf4c67260475082318f2a08dbccd31e750c9acb90b785475bb8d86b8"
+      },
+      "repeatCountRange": null,
+      "presentation": {
+        "presentedSurfaceBuffers": 1865,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 1864,
+          "p50": 8.3533,
+          "p95": 8.4118,
+          "p99": 143.457,
+          "max": 384.368
+        },
+        "actualMinusDesiredMs": {
+          "n": 1865,
+          "p50": 21.9283,
+          "p95": 22.3704,
+          "p99": 22.5787,
+          "max": 22.7622
+        },
+        "readyToActualPresentMs": {
+          "n": 1865,
+          "p50": 19.2349,
+          "p95": 20.163,
+          "p99": 20.4087,
+          "max": 20.7511
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 74,
+          "p50": 64.3762,
+          "p95": 73.4901,
+          "p99": 83.5723,
+          "max": 84.2293
+        },
+        "hostSampleGapSeconds": {
+          "n": 73,
+          "p50": 0.5754,
+          "p95": 0.5802,
+          "p99": 0.5914,
+          "max": 0.5937
+        },
+        "clockCalibrationRttUs": 224,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "touchValidation": {
+        "expectedDowns": 20,
+        "observedDowns": 20,
+        "allInjectedWithinWindow": true,
+        "tailAfterUpMs": 4336.512,
+        "plannedDownCadenceMs": 1160,
+        "valid": true
+      },
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 164612,
+          "RSS": 293340
+        },
+        "after": {
+          "PSS": 174129,
+          "RSS": 310312
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 376,
+        "after": 376
+      },
+      "touchInput": {
+        "durationMs": 160,
+        "afterUpGapMs": 1000,
+        "plannedDownCadenceMs": 1160,
+        "actualDownCadenceMs": {
+          "n": 19,
+          "p50": 1160.0063,
+          "p95": 1161.22,
+          "p99": 1161.2399,
+          "max": 1161.2449
+        },
+        "injectionLatenessMs": {
+          "n": 820,
+          "p50": 0.0784,
+          "p95": 0.2033,
+          "p99": 0.8393,
+          "max": 2.7828
+        }
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 22199.917,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 34.736,
+        "observedAlignedSegmentsMs": {
+          "n": 20,
+          "p50": 405.5075,
+          "p95": 409.5236,
+          "p99": 409.9271,
+          "max": 410.028
+        },
+        "producedUiFrames": 1790,
+        "framesWithAlignedControllerAtUiFinish": 62,
+        "framesWithAlignedControllerPct": 3.464,
+        "calibrationRttUs": 224,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    },
+    {
+      "name": "finalidle160-prime-touch-very-fast-r1",
+      "mode": "release",
+      "seconds": 8.001,
+      "frames": 375,
+      "uiMs": {
+        "n": 375,
+        "p50": 0.298,
+        "p95": 1.0898,
+        "p99": 4.5413,
+        "max": 4.872
+      },
+      "rasterMs": {
+        "n": 375,
+        "p50": 1.286,
+        "p95": 2.057,
+        "p99": 2.9986,
+        "max": 4.238
+      },
+      "vsyncToBuildMs": {
+        "n": 375,
+        "p50": 0.63,
+        "p95": 1.3379,
+        "p99": 3.2775,
+        "max": 5.821
+      },
+      "producedVsyncGapMs": {
+        "n": 374,
+        "p50": 8.353,
+        "p95": 8.3683,
+        "p99": 8.4065,
+        "max": 16.718
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 0,
+      "dartKeys": 0,
+      "nativeKeysPerSecond": 0.0,
+      "nativeKeyIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 0,
+      "nativeToDartMs": {
+        "n": 0
+      },
+      "clockCalibrationRttUs": 196,
+      "requestsWhilePending": 0,
+      "successiveSameTarget": 0,
+      "pageChanges": 18,
+      "pageChangesPerSecond": 2.25,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 0,
+      "eventCounts": {
+        "captureStart": 1,
+        "pointerDown": 20,
+        "pointerUp": 20,
+        "position": 526,
+        "selected": 18,
+        "report": 18,
+        "setPage": 18,
+        "history": 18,
+        "cache": 18,
+        "imageMiss": 17,
+        "sourceLoad": 17,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 20,
+      "newDragWhileScrolling": 18,
+      "pointerMoves": 391,
+      "distinctMissKeys": 17,
+      "distinctSourceKeys": 17,
+      "cpuTimeMs": 2286,
+      "cpuMsPerSecond": 285.707,
+      "before": {
+        "rssBytes": 213700608,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 214065152,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 178,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "procedure": {
+        "variant": "prime",
+        "action": "capture",
+        "name": "finalidle160-prime-touch-very-fast-r1",
+        "seconds": 8,
+        "page": 160,
+        "settle": 3,
+        "input": "swipes",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 0.045,
+        "swipe_ms": 80,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "fixed",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 192,
+        "cached_budget_headroom": false,
+        "package": "com.github.wgh136.venera.prime.readerbenchmark",
+        "installedApkSha256": "15f307c4276ca4ac9bd6c71972d7f773301beef59f6919b5445ae972b51e4d7f",
+        "captureSha256": "17b9317d3aaf8369a300adcffd4ee5511d61e33be5f3c8a403281fb6ede3716f"
+      },
+      "repeatCountRange": null,
+      "presentation": {
+        "presentedSurfaceBuffers": 375,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 374,
+          "p50": 8.3537,
+          "p95": 8.383,
+          "p99": 8.5267,
+          "max": 16.3629
+        },
+        "actualMinusDesiredMs": {
+          "n": 375,
+          "p50": 21.8412,
+          "p95": 22.3021,
+          "p99": 22.543,
+          "max": 23.1963
+        },
+        "readyToActualPresentMs": {
+          "n": 375,
+          "p50": 19.1631,
+          "p95": 19.7619,
+          "p99": 20.3747,
+          "max": 21.5868
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 37,
+          "p50": 67.116,
+          "p95": 77.2249,
+          "p99": 107.3029,
+          "max": 122.1809
+        },
+        "hostSampleGapSeconds": {
+          "n": 36,
+          "p50": 0.5771,
+          "p95": 0.5843,
+          "p99": 0.615,
+          "max": 0.6274
+        },
+        "clockCalibrationRttUs": 196,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "touchValidation": {
+        "expectedDowns": 20,
+        "observedDowns": 20,
+        "allInjectedWithinWindow": true,
+        "tailAfterUpMs": 3997.004,
+        "plannedDownCadenceMs": 125,
+        "valid": true
+      },
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 156702,
+          "RSS": 275180
+        },
+        "after": {
+          "PSS": 159817,
+          "RSS": 285820
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 378,
+        "after": 378
+      },
+      "touchInput": {
+        "durationMs": 80,
+        "afterUpGapMs": 45,
+        "plannedDownCadenceMs": 125,
+        "actualDownCadenceMs": {
+          "n": 19,
+          "p50": 124.9983,
+          "p95": 125.0663,
+          "p99": 125.0867,
+          "max": 125.0918
+        },
+        "injectionLatenessMs": {
+          "n": 420,
+          "p50": 0.0951,
+          "p95": 0.2769,
+          "p99": 1.1972,
+          "max": 5.1751
+        }
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 2454.589,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 5.648,
+        "observedAlignedSegmentsMs": {
+          "n": 2,
+          "p50": 69.3178,
+          "p95": 128.1012,
+          "p99": 133.3264,
+          "max": 134.6327
+        },
+        "producedUiFrames": 282,
+        "framesWithAlignedControllerAtUiFinish": 7,
+        "framesWithAlignedControllerPct": 2.482,
+        "calibrationRttUs": 196,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    },
+    {
+      "name": "finalidle160-next-touch-very-fast-r1",
+      "mode": "release",
+      "seconds": 8.002,
+      "frames": 372,
+      "uiMs": {
+        "n": 372,
+        "p50": 0.3345,
+        "p95": 1.2913,
+        "p99": 3.7809,
+        "max": 4.697
+      },
+      "rasterMs": {
+        "n": 372,
+        "p50": 1.3175,
+        "p95": 2.3399,
+        "p99": 3.211,
+        "max": 3.5
+      },
+      "vsyncToBuildMs": {
+        "n": 372,
+        "p50": 0.615,
+        "p95": 1.7585,
+        "p99": 2.9963,
+        "max": 5.204
+      },
+      "producedVsyncGapMs": {
+        "n": 371,
+        "p50": 8.353,
+        "p95": 8.3735,
+        "p99": 8.4025,
+        "max": 8.6
+      },
+      "uiOver8_333msPct": 0.0,
+      "longestConsecutiveSlowUi": 0,
+      "nativeKeys": 0,
+      "dartKeys": 0,
+      "nativeKeysPerSecond": 0.0,
+      "nativeKeyIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatIntervalMs": {
+        "n": 0
+      },
+      "sustainedRepeatHz": null,
+      "nativeDownTimeCount": 0,
+      "nativeToDartMs": {
+        "n": 0
+      },
+      "clockCalibrationRttUs": 214,
+      "requestsWhilePending": 0,
+      "successiveSameTarget": 0,
+      "pageChanges": 18,
+      "pageChangesPerSecond": 2.25,
+      "redundantPageChanges": 0,
+      "supersededAnimationCompletions": 0,
+      "eventCounts": {
+        "captureStart": 1,
+        "pointerDown": 20,
+        "pointerUp": 20,
+        "cache": 36,
+        "cacheReplace": 36,
+        "position": 529,
+        "selected": 18,
+        "report": 18,
+        "setPage": 18,
+        "history": 18,
+        "favoriteStatus": 18,
+        "imageMiss": 17,
+        "sourceLoad": 17,
+        "captureStop": 1
+      },
+      "droppedEvents": 0,
+      "pointerDowns": 20,
+      "newDragWhileScrolling": 18,
+      "pointerMoves": 396,
+      "distinctMissKeys": 17,
+      "distinctSourceKeys": 17,
+      "cpuTimeMs": 2313,
+      "cpuMsPerSecond": 289.065,
+      "before": {
+        "rssBytes": 216150016,
+        "cacheBytes": 100663296,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 4,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 160,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "after": {
+        "rssBytes": 217481216,
+        "cacheBytes": 201326592,
+        "cacheLimitBytes": 201326592,
+        "cacheImages": 8,
+        "liveImages": 1,
+        "pendingImages": 0,
+        "page": 178,
+        "pending": null,
+        "pageCount": 512,
+        "refreshHz": 120.00000762939453
+      },
+      "actualPresentation": "Requires SurfaceFlinger FrameTimeline, not inferred from FrameTiming",
+      "procedure": {
+        "variant": "next",
+        "action": "capture",
+        "name": "finalidle160-next-touch-very-fast-r1",
+        "seconds": 8,
+        "page": 160,
+        "settle": 3,
+        "input": "swipes",
+        "direction": "forward",
+        "hold_ms": 8000,
+        "count": 20,
+        "interval": 0.045,
+        "swipe_ms": 80,
+        "key_delay_ms": 50,
+        "key_timing": "physical-volume-20hz.json",
+        "key_dex": "classes.dex",
+        "alternate": false,
+        "warm_radius": 0,
+        "touch_driver": "fixed",
+        "touch_step_ms": 4,
+        "touch_dex": "classes.dex",
+        "perfetto": true,
+        "reuse_process": true,
+        "expected_cache_mib": 192,
+        "cached_budget_headroom": false,
+        "package": "com.github.cyrilpeng.veneranext.readerbenchmark",
+        "installedApkSha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e",
+        "captureSha256": "1e8df541eacf920f066c4d11a76e5aeb1a771c0637cef4799af6ee5fe23f3cfa"
+      },
+      "repeatCountRange": null,
+      "presentation": {
+        "presentedSurfaceBuffers": 372,
+        "periodNs": [
+          8333333
+        ],
+        "actualPresentGapMs": {
+          "n": 371,
+          "p50": 8.3527,
+          "p95": 8.3841,
+          "p99": 8.5215,
+          "max": 8.7441
+        },
+        "actualMinusDesiredMs": {
+          "n": 372,
+          "p50": 21.7615,
+          "p95": 22.2215,
+          "p99": 22.3582,
+          "max": 22.4037
+        },
+        "readyToActualPresentMs": {
+          "n": 372,
+          "p50": 19.1068,
+          "p95": 19.7117,
+          "p99": 20.1495,
+          "max": 20.7256
+        },
+        "possibleRingOverflows": 0,
+        "sampleErrors": 0,
+        "queryWallMs": {
+          "n": 37,
+          "p50": 64.7233,
+          "p95": 71.2705,
+          "p99": 72.1897,
+          "max": 72.6924
+        },
+        "hostSampleGapSeconds": {
+          "n": 36,
+          "p50": 0.5763,
+          "p95": 0.5796,
+          "p99": 0.5803,
+          "max": 0.5805
+        },
+        "clockCalibrationRttUs": 214,
+        "limits": "Actual SurfaceView present fences, not a per-vsync dropped-frame count. Includes intentional idle/dwell. Collector overhead must be matched.",
+        "actualDroppedFrameCount": null
+      },
+      "touchValidation": {
+        "expectedDowns": 20,
+        "observedDowns": 20,
+        "allInjectedWithinWindow": true,
+        "tailAfterUpMs": 3992.494,
+        "plannedDownCadenceMs": 125,
+        "valid": true
+      },
+      "dumpsysMemoryKb": {
+        "before": {
+          "PSS": 148739,
+          "RSS": 266704
+        },
+        "after": {
+          "PSS": 152500,
+          "RSS": 278116
+        }
+      },
+      "batteryTemperatureTenthsC": {
+        "before": 378,
+        "after": 378
+      },
+      "touchInput": {
+        "durationMs": 80,
+        "afterUpGapMs": 45,
+        "plannedDownCadenceMs": 125,
+        "actualDownCadenceMs": {
+          "n": 19,
+          "p50": 125.005,
+          "p95": 125.0777,
+          "p99": 125.0842,
+          "max": 125.0858
+        },
+        "injectionLatenessMs": {
+          "n": 420,
+          "p50": 0.0971,
+          "p95": 0.2768,
+          "p99": 1.3742,
+          "max": 2.216
+        }
+      },
+      "viewportAlignment": {
+        "window": "actual injected first DOWN through UP",
+        "windowMs": 2455.013,
+        "tolerancePages": 0.001,
+        "controllerAlignedTimePct": 5.986,
+        "observedAlignedSegmentsMs": {
+          "n": 3,
+          "p50": 6.827,
+          "p95": 122.005,
+          "p99": 132.243,
+          "max": 134.8025
+        },
+        "producedUiFrames": 284,
+        "framesWithAlignedControllerAtUiFinish": 8,
+        "framesWithAlignedControllerPct": 2.817,
+        "calibrationRttUs": 214,
+        "limits": "Controller observations use a step function; UI-finish positions proxy frame content only in these key-input windows. Neither controller time nor produced-frame counts measure SurfaceFlinger presentation or screen FPS."
+      },
+      "processCooldownSeconds": 5
+    }
+  ],
+  "series": {
+    "apks": {
+      "next": {
+        "file": "next-gesture-settings-release.apk",
+        "sha256": "2853802eccb78b28503de533927d61e78b487203495efe6be4613edaaeb9ae2e"
+      },
+      "prime": {
+        "file": "prime-fixed-release.apk",
+        "sha256": "15f307c4276ca4ac9bd6c71972d7f773301beef59f6919b5445ae972b51e4d7f"
+      }
+    },
+    "expectedCacheMiB": 192,
+    "expectedRefreshHz": 120,
+    "alternatingPages": false,
+    "plan": [
+      {
+        "variant": "next",
+        "scenario": "touch-normal",
+        "captureArgs": [
+          "--input",
+          "swipes",
+          "--direction",
+          "forward",
+          "--touch-driver",
+          "fixed",
+          "--count",
+          "20",
+          "--swipe-ms",
+          "160",
+          "--interval",
+          "1",
+          "--seconds",
+          "28"
+        ],
+        "name": "finalidle160-next-touch-normal-r1"
+      },
+      {
+        "variant": "prime",
+        "scenario": "touch-normal",
+        "captureArgs": [
+          "--input",
+          "swipes",
+          "--direction",
+          "forward",
+          "--touch-driver",
+          "fixed",
+          "--count",
+          "20",
+          "--swipe-ms",
+          "160",
+          "--interval",
+          "1",
+          "--seconds",
+          "28"
+        ],
+        "name": "finalidle160-prime-touch-normal-r1"
+      },
+      {
+        "variant": "prime",
+        "scenario": "touch-very-fast",
+        "captureArgs": [
+          "--input",
+          "swipes",
+          "--direction",
+          "forward",
+          "--touch-driver",
+          "fixed",
+          "--count",
+          "20",
+          "--swipe-ms",
+          "80",
+          "--interval",
+          ".045",
+          "--seconds",
+          "8"
+        ],
+        "name": "finalidle160-prime-touch-very-fast-r1"
+      },
+      {
+        "variant": "next",
+        "scenario": "touch-very-fast",
+        "captureArgs": [
+          "--input",
+          "swipes",
+          "--direction",
+          "forward",
+          "--touch-driver",
+          "fixed",
+          "--count",
+          "20",
+          "--swipe-ms",
+          "80",
+          "--interval",
+          ".045",
+          "--seconds",
+          "8"
+        ],
+        "name": "finalidle160-next-touch-very-fast-r1"
+      }
+    ],
+    "completed": [
+      "finalidle160-next-touch-normal-r1",
+      "finalidle160-prime-touch-normal-r1",
+      "finalidle160-prime-touch-very-fast-r1",
+      "finalidle160-next-touch-very-fast-r1"
+    ]
+  }
+}

@@ -1,0 +1,265 @@
+{
+  "order": "Filename suffix 1,2 = old strategy; 3,4 = selected-only postframe. Not the reversed path reply order.",
+  "captures": [
+    {
+      "durationUs": 6184174,
+      "omittedEventsForCopy": 186,
+      "droppedEvents": 36,
+      "pairedImages": 24,
+      "pendingFirstLookups": 0,
+      "firstDisplayLookups": 24,
+      "pendingFirstDisplayLookups": 0,
+      "decodedBeforeFirstLookup": 24,
+      "precacheLeadBeforeNearestRequestMs": {
+        "n": 24,
+        "p50": 101.0975,
+        "p95": 103.1749,
+        "p99": 104.2665,
+        "max": 104.534
+      },
+      "decodeLeadBeforeLookupMs": {
+        "n": 24,
+        "p50": 35.2445,
+        "p95": 48.7417,
+        "p99": 49.5422,
+        "max": 49.671
+      },
+      "displayWait": {
+        "count": 40,
+        "medianUs": 20,
+        "p95Us": 26,
+        "maxUs": 116
+      },
+      "settle": {
+        "ui": {
+          "count": 103,
+          "medianUs": 1319,
+          "p95Us": 5071,
+          "maxUs": 7408
+        },
+        "raster": {
+          "count": 103,
+          "medianUs": 1708,
+          "p95Us": 2581,
+          "maxUs": 4339
+        },
+        "uiOverBudget": 0,
+        "rasterOverBudget": 0,
+        "maxConsecutiveOverBudgetSamples": 0,
+        "vsyncInterval": {
+          "count": 79,
+          "medianUs": 8356,
+          "p95Us": 25058,
+          "maxUs": 25081
+        }
+      },
+      "limits": "Retained complete image pairs only; nearest request is temporal, not an exact page join. Truncated captures cannot establish full-run counts. VSync gaps measure produced frames, not screen FPS. Async spans do not measure CPU.",
+      "sha256": "b7419cea4e61c6d815693617fca7c39e518b6042545834339a35f53e995397c4",
+      "ordinal": 1,
+      "strategy": "old-early-sync",
+      "configuration": {
+        "appVersion": "1.18.4-rc.1+250",
+        "platform": "android",
+        "buildMode": "release",
+        "readerMode": "paged",
+        "customProcessingEnabled": false,
+        "displayRefreshHz": 120.00000762939453
+      }
+    },
+    {
+      "durationUs": 5664998,
+      "omittedEventsForCopy": 180,
+      "droppedEvents": 26,
+      "pairedImages": 24,
+      "pendingFirstLookups": 0,
+      "firstDisplayLookups": 25,
+      "pendingFirstDisplayLookups": 0,
+      "decodedBeforeFirstLookup": 24,
+      "precacheLeadBeforeNearestRequestMs": {
+        "n": 24,
+        "p50": 100.942,
+        "p95": 101.7215,
+        "p99": 105.3335,
+        "max": 106.394
+      },
+      "decodeLeadBeforeLookupMs": {
+        "n": 24,
+        "p50": 49.3435,
+        "p95": 57.6616,
+        "p99": 59.9473,
+        "max": 60.549
+      },
+      "displayWait": {
+        "count": 41,
+        "medianUs": 16,
+        "p95Us": 23,
+        "maxUs": 45
+      },
+      "settle": {
+        "ui": {
+          "count": 143,
+          "medianUs": 643,
+          "p95Us": 3949,
+          "maxUs": 5801
+        },
+        "raster": {
+          "count": 143,
+          "medianUs": 1254,
+          "p95Us": 1729,
+          "maxUs": 2506
+        },
+        "uiOverBudget": 0,
+        "rasterOverBudget": 0,
+        "maxConsecutiveOverBudgetSamples": 0,
+        "vsyncInterval": {
+          "count": 118,
+          "medianUs": 8353,
+          "p95Us": 16707,
+          "maxUs": 16759
+        }
+      },
+      "limits": "Retained complete image pairs only; nearest request is temporal, not an exact page join. Truncated captures cannot establish full-run counts. VSync gaps measure produced frames, not screen FPS. Async spans do not measure CPU.",
+      "sha256": "5d26ec2641fafdd6bf4f99ae2b33af73efbc306f6918dd22b483e833be7a8fdc",
+      "ordinal": 2,
+      "strategy": "old-early-sync",
+      "configuration": {
+        "appVersion": "1.18.4-rc.1+250",
+        "platform": "android",
+        "buildMode": "release",
+        "readerMode": "paged",
+        "customProcessingEnabled": false,
+        "displayRefreshHz": 120.00000762939453
+      }
+    },
+    {
+      "durationUs": 6296221,
+      "omittedEventsForCopy": 84,
+      "droppedEvents": 0,
+      "pairedImages": 25,
+      "pendingFirstLookups": 25,
+      "firstDisplayLookups": 28,
+      "pendingFirstDisplayLookups": 25,
+      "decodedBeforeFirstLookup": 0,
+      "precacheLeadBeforeNearestRequestMs": {
+        "n": 25,
+        "p50": 41.075,
+        "p95": 45.272,
+        "p99": 45.584,
+        "max": 45.663
+      },
+      "decodeLeadBeforeLookupMs": {
+        "n": 25,
+        "p50": -30.796,
+        "p95": -12.517,
+        "p99": -10.9614,
+        "max": -10.568
+      },
+      "displayWait": {
+        "count": 42,
+        "medianUs": 19617,
+        "p95Us": 48522,
+        "maxUs": 49603
+      },
+      "settle": {
+        "ui": {
+          "count": 158,
+          "medianUs": 1089,
+          "p95Us": 5051,
+          "maxUs": 5989
+        },
+        "raster": {
+          "count": 158,
+          "medianUs": 1528,
+          "p95Us": 2359,
+          "maxUs": 2990
+        },
+        "uiOverBudget": 0,
+        "rasterOverBudget": 0,
+        "maxConsecutiveOverBudgetSamples": 0,
+        "vsyncInterval": {
+          "count": 134,
+          "medianUs": 8353,
+          "p95Us": 8377,
+          "maxUs": 16708
+        }
+      },
+      "limits": "Retained complete image pairs only; nearest request is temporal, not an exact page join. Truncated captures cannot establish full-run counts. VSync gaps measure produced frames, not screen FPS. Async spans do not measure CPU.",
+      "sha256": "64345f50e2ae8f0f39f3bcb1ddfe833a33a0f1a4a3b4dc081e009a56713e68e6",
+      "ordinal": 3,
+      "strategy": "selection-postframe",
+      "configuration": {
+        "appVersion": "1.18.4-rc.1+250",
+        "platform": "android",
+        "buildMode": "release",
+        "readerMode": "paged",
+        "customProcessingEnabled": false,
+        "displayRefreshHz": 120.00000762939453
+      }
+    },
+    {
+      "durationUs": 6379400,
+      "omittedEventsForCopy": 181,
+      "droppedEvents": 43,
+      "pairedImages": 27,
+      "pendingFirstLookups": 25,
+      "firstDisplayLookups": 27,
+      "pendingFirstDisplayLookups": 25,
+      "decodedBeforeFirstLookup": 2,
+      "precacheLeadBeforeNearestRequestMs": {
+        "n": 27,
+        "p50": 41.151,
+        "p95": 45.6053,
+        "p99": 45.9448,
+        "max": 46.002
+      },
+      "decodeLeadBeforeLookupMs": {
+        "n": 27,
+        "p50": -29.23,
+        "p95": -3.4253,
+        "p99": 5.7793,
+        "max": 7.586
+      },
+      "displayWait": {
+        "count": 44,
+        "medianUs": 23938,
+        "p95Us": 37968,
+        "maxUs": 57097
+      },
+      "settle": {
+        "ui": {
+          "count": 157,
+          "medianUs": 1177,
+          "p95Us": 5125,
+          "maxUs": 6438
+        },
+        "raster": {
+          "count": 157,
+          "medianUs": 1533,
+          "p95Us": 2676,
+          "maxUs": 3353
+        },
+        "uiOverBudget": 0,
+        "rasterOverBudget": 0,
+        "maxConsecutiveOverBudgetSamples": 0,
+        "vsyncInterval": {
+          "count": 133,
+          "medianUs": 8353,
+          "p95Us": 8385,
+          "maxUs": 16711
+        }
+      },
+      "limits": "Retained complete image pairs only; nearest request is temporal, not an exact page join. Truncated captures cannot establish full-run counts. VSync gaps measure produced frames, not screen FPS. Async spans do not measure CPU.",
+      "sha256": "bbbb8c51ad80cb551814fc89b0cfa856ee0c252b03fbe4b90caa499eaf9d183d",
+      "ordinal": 4,
+      "strategy": "selection-postframe",
+      "configuration": {
+        "appVersion": "1.18.4-rc.1+250",
+        "platform": "android",
+        "buildMode": "release",
+        "readerMode": "paged",
+        "customProcessingEnabled": false,
+        "displayRefreshHz": 120.00000762939453
+      }
+    }
+  ]
+}

@@ -1,0 +1,747 @@
+{
+  "userIdentifiedProductSha": "67be06fc235c1498fe33b41d6fad660b12f94089",
+  "installedReleaseEngineSha256": "b80ef6a7b99dc31ffe021d03737f7ea9a374f214f426c8fc8fdb172eddf63e8a",
+  "previousUserDiagnostics": [
+    {
+      "kind": "touch",
+      "sha256": "4e06cf4c0686cd99fc3dc26f23e6bbcc5cc264590f99ca55b40613cfd75c2036",
+      "configuration": {
+        "appVersion": "1.18.4-rc.1+250",
+        "platform": "android",
+        "buildMode": "release",
+        "readerMode": "paged",
+        "customProcessingEnabled": false,
+        "displayRefreshHz": 120.00000762939453
+      },
+      "durationUs": 8189688,
+      "globalFrames": {
+        "ui": {
+          "count": 699,
+          "medianUs": 670,
+          "p95Us": 2356,
+          "maxUs": 14012
+        },
+        "raster": {
+          "count": 699,
+          "medianUs": 1855,
+          "p95Us": 3003,
+          "maxUs": 7407
+        },
+        "totalSpan": {
+          "count": 699,
+          "medianUs": 3513,
+          "p95Us": 12985,
+          "maxUs": 47941
+        },
+        "frameBudgetUs": 8333,
+        "overBudget": 1,
+        "uiOverBudget": 1,
+        "rasterOverBudget": 0
+      },
+      "scroll": {
+        "droppedPhases": 0,
+        "drag": {
+          "ui": {
+            "count": 177,
+            "medianUs": 566,
+            "p95Us": 1248,
+            "maxUs": 2356
+          },
+          "raster": {
+            "count": 177,
+            "medianUs": 1829,
+            "p95Us": 2487,
+            "maxUs": 5495
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 156,
+            "medianUs": 8354,
+            "p95Us": 25056,
+            "maxUs": 50113
+          }
+        },
+        "settle": {
+          "ui": {
+            "count": 489,
+            "medianUs": 728,
+            "p95Us": 2467,
+            "maxUs": 14012
+          },
+          "raster": {
+            "count": 489,
+            "medianUs": 1845,
+            "p95Us": 2738,
+            "maxUs": 7407
+          },
+          "uiOverBudget": 1,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 1,
+          "vsyncInterval": {
+            "count": 467,
+            "medianUs": 8352,
+            "p95Us": 16705,
+            "maxUs": 50156
+          }
+        }
+      },
+      "omittedEventsForCopy": 0
+    },
+    {
+      "kind": "volume",
+      "sha256": "bdf2ef11f7f1fa117b508e24a25b799135d52c974be2a4a099a36fb6b2a5bbba",
+      "configuration": {
+        "appVersion": "1.18.4-rc.1+250",
+        "platform": "android",
+        "buildMode": "release",
+        "readerMode": "paged",
+        "customProcessingEnabled": false,
+        "displayRefreshHz": 120.00000762939453
+      },
+      "durationUs": 5525272,
+      "globalFrames": {
+        "ui": {
+          "count": 217,
+          "medianUs": 1452,
+          "p95Us": 6385,
+          "maxUs": 9528
+        },
+        "raster": {
+          "count": 217,
+          "medianUs": 1549,
+          "p95Us": 2736,
+          "maxUs": 5853
+        },
+        "totalSpan": {
+          "count": 217,
+          "medianUs": 7121,
+          "p95Us": 18124,
+          "maxUs": 29874
+        },
+        "frameBudgetUs": 8333,
+        "overBudget": 4,
+        "uiOverBudget": 4,
+        "rasterOverBudget": 0
+      },
+      "scroll": {
+        "droppedPhases": 38,
+        "drag": {
+          "ui": {
+            "count": 0
+          },
+          "raster": {
+            "count": 0
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 0
+          }
+        },
+        "settle": {
+          "ui": {
+            "count": 73,
+            "medianUs": 2653,
+            "p95Us": 7365,
+            "maxUs": 8981
+          },
+          "raster": {
+            "count": 73,
+            "medianUs": 1642,
+            "p95Us": 2945,
+            "maxUs": 3809
+          },
+          "uiOverBudget": 1,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 1,
+          "vsyncInterval": {
+            "count": 49,
+            "medianUs": 16706,
+            "p95Us": 33420,
+            "maxUs": 41752
+          }
+        }
+      },
+      "omittedEventsForCopy": 87
+    }
+  ],
+  "installedCaptures": [
+    {
+      "name": "installed67-generated-volume-r1",
+      "installedApkSha256": "e9b3e2a4226704145da0af15622b9dc8071b85a7e2d9dacaf1c8af30fb67c43d",
+      "package": "com.github.cyrilpeng.veneranext",
+      "userPreparedStartPage": 160,
+      "scenario": "calibrated-hold",
+      "androidDispatchedDowns": 152,
+      "androidDispatchedUps": 1,
+      "nativeDownGapMs": {
+        "n": 151,
+        "p50": 50.5554,
+        "p95": 52.9168,
+        "p99": 54.6828,
+        "max": 254.6494
+      },
+      "inputWindowSeconds": 7.85,
+      "surfaceBuffersReadyInInputWindow": 587,
+      "surfaceActualPresentGapMs": {
+        "n": 586,
+        "p50": 8.3539,
+        "p95": 50.1256,
+        "p99": 50.1415,
+        "max": 50.1566
+      },
+      "surfaceActualMinusDesiredMs": {
+        "n": 587,
+        "p50": 21.3272,
+        "p95": 22.1936,
+        "p99": 22.4059,
+        "max": 22.8972
+      },
+      "surfaceSampleErrors": 0,
+      "dartReceivedEvents": null,
+      "actualScreenDroppedFrames": null,
+      "networkParticipation": "Generated local archive"
+    },
+    {
+      "name": "installed67-real-volume-r1",
+      "installedApkSha256": "e9b3e2a4226704145da0af15622b9dc8071b85a7e2d9dacaf1c8af30fb67c43d",
+      "package": "com.github.cyrilpeng.veneranext",
+      "userPreparedStartPage": 35,
+      "scenario": "calibrated-hold",
+      "androidDispatchedDowns": 152,
+      "androidDispatchedUps": 1,
+      "nativeDownGapMs": {
+        "n": 151,
+        "p50": 50.3787,
+        "p95": 56.9613,
+        "p99": 63.6984,
+        "max": 254.6821
+      },
+      "inputWindowSeconds": 7.849,
+      "surfaceBuffersReadyInInputWindow": 883,
+      "surfaceActualPresentGapMs": {
+        "n": 882,
+        "p50": 8.3537,
+        "p95": 8.4627,
+        "p99": 16.7464,
+        "max": 50.122
+      },
+      "surfaceActualMinusDesiredMs": {
+        "n": 883,
+        "p50": 21.1668,
+        "p95": 21.9895,
+        "p99": 22.149,
+        "max": 22.3245
+      },
+      "surfaceSampleErrors": 0,
+      "dartReceivedEvents": null,
+      "actualScreenDroppedFrames": null,
+      "diagnostics": {
+        "configuration": {
+          "appVersion": "1.18.4-rc.1+250",
+          "platform": "android",
+          "buildMode": "release",
+          "readerMode": "paged",
+          "customProcessingEnabled": false,
+          "displayRefreshHz": 120.00000762939453
+        },
+        "durationUs": 42625365,
+        "droppedEvents": 239,
+        "droppedFrames": 0,
+        "omittedEventsForCopy": 161,
+        "retainedStageSamples": {
+          "localRead": {
+            "count": 0
+          },
+          "sourceRead": {
+            "count": 55,
+            "medianUs": 201045,
+            "p95Us": 209090,
+            "maxUs": 1452105
+          },
+          "processingWait": {
+            "count": 0
+          },
+          "codecInitWait": {
+            "count": 3,
+            "medianUs": 340,
+            "p95Us": 507,
+            "maxUs": 507
+          },
+          "firstDecodeWait": {
+            "count": 3,
+            "medianUs": 50589,
+            "p95Us": 57559,
+            "maxUs": 57559
+          },
+          "displayWait": {
+            "count": 53,
+            "medianUs": 147096,
+            "p95Us": 162025,
+            "maxUs": 1305668
+          },
+          "precacheQueueWait": {
+            "count": 53,
+            "medianUs": 109706,
+            "p95Us": 118066,
+            "maxUs": 1323250
+          },
+          "precacheWait": {
+            "count": 54,
+            "medianUs": 193666,
+            "p95Us": 201556,
+            "maxUs": 1510249
+          }
+        },
+        "readerCacheBudgetLatest": {
+          "reason": "availableMemory",
+          "memoryQuery": "available",
+          "limitBytes": 201326592,
+          "underPressure": false,
+          "pressureEvents": 0,
+          "precacheAllowed": true,
+          "availableBytes": 3723485184
+        },
+        "globalFrames": {
+          "ui": {
+            "count": 986,
+            "medianUs": 830,
+            "p95Us": 4382,
+            "maxUs": 11356
+          },
+          "raster": {
+            "count": 986,
+            "medianUs": 1449,
+            "p95Us": 2178,
+            "maxUs": 3711
+          },
+          "totalSpan": {
+            "count": 986,
+            "medianUs": 3020,
+            "p95Us": 7805,
+            "maxUs": 17929
+          },
+          "frameBudgetUs": 8333,
+          "overBudget": 1,
+          "uiOverBudget": 1,
+          "rasterOverBudget": 0
+        },
+        "scroll": {
+          "droppedPhases": 208,
+          "drag": {
+            "ui": {
+              "count": 0
+            },
+            "raster": {
+              "count": 0
+            },
+            "uiOverBudget": 0,
+            "rasterOverBudget": 0,
+            "maxConsecutiveOverBudgetSamples": 0,
+            "vsyncInterval": {
+              "count": 0
+            }
+          },
+          "settle": {
+            "ui": {
+              "count": 157,
+              "medianUs": 909,
+              "p95Us": 4418,
+              "maxUs": 7538
+            },
+            "raster": {
+              "count": 157,
+              "medianUs": 1505,
+              "p95Us": 2230,
+              "maxUs": 2926
+            },
+            "uiOverBudget": 0,
+            "rasterOverBudget": 0,
+            "maxConsecutiveOverBudgetSamples": 0,
+            "vsyncInterval": {
+              "count": 130,
+              "medianUs": 8353,
+              "p95Us": 8371,
+              "maxUs": 25070
+            }
+          }
+        },
+        "sourceFileSha256": "cf97b6c28387ea3e708880f01753e99f31a003d493284996e088d083a7dcc8f1"
+      },
+      "networkParticipation": "User reported many network requests; exclude loading-performance comparisons"
+    },
+    {
+      "name": "installed67-real-cached-r1",
+      "installedApkSha256": "e9b3e2a4226704145da0af15622b9dc8071b85a7e2d9dacaf1c8af30fb67c43d",
+      "package": "com.github.cyrilpeng.veneranext",
+      "userPreparedStartPage": 35,
+      "scenario": "cached-alternation",
+      "androidDispatchedDowns": 100,
+      "androidDispatchedUps": 100,
+      "nativeDownGapMs": {
+        "n": 99,
+        "p50": 53.9381,
+        "p95": 59.3537,
+        "p99": 61.197,
+        "max": 61.8793
+      },
+      "inputWindowSeconds": 5.405,
+      "surfaceBuffersReadyInInputWindow": 345,
+      "surfaceActualPresentGapMs": {
+        "n": 344,
+        "p50": 8.4618,
+        "p95": 41.7752,
+        "p99": 50.1349,
+        "max": 50.1587
+      },
+      "surfaceActualMinusDesiredMs": {
+        "n": 345,
+        "p50": 19.1289,
+        "p95": 21.4804,
+        "p99": 21.7147,
+        "max": 21.8451
+      },
+      "surfaceSampleErrors": 0,
+      "dartReceivedEvents": null,
+      "actualScreenDroppedFrames": null,
+      "diagnostics": {
+        "configuration": {
+          "appVersion": "1.18.4-rc.1+250",
+          "platform": "android",
+          "buildMode": "release",
+          "readerMode": "paged",
+          "customProcessingEnabled": false,
+          "displayRefreshHz": 120.00000762939453
+        },
+        "durationUs": 42556877,
+        "droppedEvents": 0,
+        "droppedFrames": 0,
+        "omittedEventsForCopy": 53,
+        "retainedStageSamples": {
+          "localRead": {
+            "count": 0
+          },
+          "sourceRead": {
+            "count": 0
+          },
+          "processingWait": {
+            "count": 0
+          },
+          "codecInitWait": {
+            "count": 0
+          },
+          "firstDecodeWait": {
+            "count": 0
+          },
+          "displayWait": {
+            "count": 50,
+            "medianUs": 22,
+            "p95Us": 50,
+            "maxUs": 64
+          },
+          "precacheQueueWait": {
+            "count": 0
+          },
+          "precacheWait": {
+            "count": 0
+          }
+        },
+        "readerCacheBudgetLatest": {
+          "reason": "availableMemory",
+          "memoryQuery": "available",
+          "limitBytes": 201326592,
+          "underPressure": false,
+          "pressureEvents": 0,
+          "precacheAllowed": true,
+          "availableBytes": 4423516160
+        },
+        "globalFrames": {
+          "ui": {
+            "count": 375,
+            "medianUs": 1429,
+            "p95Us": 4887,
+            "maxUs": 8229
+          },
+          "raster": {
+            "count": 375,
+            "medianUs": 2043,
+            "p95Us": 3848,
+            "maxUs": 10149
+          },
+          "totalSpan": {
+            "count": 375,
+            "medianUs": 5931,
+            "p95Us": 14800,
+            "maxUs": 23093
+          },
+          "frameBudgetUs": 8333,
+          "overBudget": 4,
+          "uiOverBudget": 0,
+          "rasterOverBudget": 4
+        },
+        "scroll": {
+          "droppedPhases": 104,
+          "drag": {
+            "ui": {
+              "count": 0
+            },
+            "raster": {
+              "count": 0
+            },
+            "uiOverBudget": 0,
+            "rasterOverBudget": 0,
+            "maxConsecutiveOverBudgetSamples": 0,
+            "vsyncInterval": {
+              "count": 0
+            }
+          },
+          "settle": {
+            "ui": {
+              "count": 129,
+              "medianUs": 989,
+              "p95Us": 4859,
+              "maxUs": 7217
+            },
+            "raster": {
+              "count": 129,
+              "medianUs": 2043,
+              "p95Us": 3553,
+              "maxUs": 4310
+            },
+            "uiOverBudget": 0,
+            "rasterOverBudget": 0,
+            "maxConsecutiveOverBudgetSamples": 0,
+            "vsyncInterval": {
+              "count": 105,
+              "medianUs": 8354,
+              "p95Us": 25050,
+              "maxUs": 25062
+            }
+          }
+        },
+        "sourceFileSha256": "7916bd5e192cb5b572284676a3ee75a1ac7e0f854ca65c4f41752f16c86f1cc7"
+      },
+      "networkParticipation": "Zero source/decode/precache work in app diagnostic; cached isolation only"
+    }
+  ],
+  "limits": "No strict A/B profit inference: different contents/windows and network participation. Android dispatch is not Dart receipt. Surface gaps include static dwell. Older user log really contains 16.7ms settle median; current captures do not reproduce it. Cached capture still has25ms tail. No diagnosed cause or final acceptance.",
+  "subsequentUserExports": [
+    {
+      "label": "real",
+      "sourceFileSha256": "10e60eecc6575f7f21faf5049e7ce2a0cc07f61bd4cafbe97169960b3d920df3",
+      "durationUs": 5948267,
+      "globalFrames": {
+        "ui": {
+          "count": 350,
+          "medianUs": 888,
+          "p95Us": 4225,
+          "maxUs": 5493
+        },
+        "raster": {
+          "count": 350,
+          "medianUs": 1462,
+          "p95Us": 2599,
+          "maxUs": 13833
+        },
+        "totalSpan": {
+          "count": 350,
+          "medianUs": 3701,
+          "p95Us": 11873,
+          "maxUs": 24668
+        },
+        "frameBudgetUs": 8333,
+        "overBudget": 5,
+        "uiOverBudget": 0,
+        "rasterOverBudget": 5
+      },
+      "scroll": {
+        "droppedPhases": 52,
+        "drag": {
+          "ui": {
+            "count": 0
+          },
+          "raster": {
+            "count": 0
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 0
+          }
+        },
+        "settle": {
+          "ui": {
+            "count": 137,
+            "medianUs": 656,
+            "p95Us": 4441,
+            "maxUs": 5316
+          },
+          "raster": {
+            "count": 137,
+            "medianUs": 1472,
+            "p95Us": 2594,
+            "maxUs": 5369
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 113,
+            "medianUs": 8353,
+            "p95Us": 16714,
+            "maxUs": 25061
+          }
+        }
+      },
+      "stages": {
+        "localRead": {
+          "count": 0
+        },
+        "sourceRead": {
+          "count": 38,
+          "medianUs": 21231,
+          "p95Us": 27386,
+          "maxUs": 29876
+        },
+        "processingWait": {
+          "count": 0
+        },
+        "codecInitWait": {
+          "count": 38,
+          "medianUs": 375,
+          "p95Us": 618,
+          "maxUs": 693
+        },
+        "firstDecodeWait": {
+          "count": 38,
+          "medianUs": 51724,
+          "p95Us": 63460,
+          "maxUs": 64863
+        },
+        "displayWait": {
+          "count": 38,
+          "medianUs": 18,
+          "p95Us": 51,
+          "maxUs": 433
+        },
+        "precacheQueueWait": {
+          "count": 38,
+          "medianUs": 14,
+          "p95Us": 46,
+          "maxUs": 52
+        },
+        "precacheWait": {
+          "count": 38,
+          "medianUs": 72798,
+          "p95Us": 87331,
+          "maxUs": 89024
+        }
+      },
+      "omittedEventsForCopy": 161
+    },
+    {
+      "label": "generated",
+      "sourceFileSha256": "7916bd5e192cb5b572284676a3ee75a1ac7e0f854ca65c4f41752f16c86f1cc7",
+      "durationUs": 42556877,
+      "globalFrames": {
+        "ui": {
+          "count": 375,
+          "medianUs": 1429,
+          "p95Us": 4887,
+          "maxUs": 8229
+        },
+        "raster": {
+          "count": 375,
+          "medianUs": 2043,
+          "p95Us": 3848,
+          "maxUs": 10149
+        },
+        "totalSpan": {
+          "count": 375,
+          "medianUs": 5931,
+          "p95Us": 14800,
+          "maxUs": 23093
+        },
+        "frameBudgetUs": 8333,
+        "overBudget": 4,
+        "uiOverBudget": 0,
+        "rasterOverBudget": 4
+      },
+      "scroll": {
+        "droppedPhases": 104,
+        "drag": {
+          "ui": {
+            "count": 0
+          },
+          "raster": {
+            "count": 0
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 0
+          }
+        },
+        "settle": {
+          "ui": {
+            "count": 129,
+            "medianUs": 989,
+            "p95Us": 4859,
+            "maxUs": 7217
+          },
+          "raster": {
+            "count": 129,
+            "medianUs": 2043,
+            "p95Us": 3553,
+            "maxUs": 4310
+          },
+          "uiOverBudget": 0,
+          "rasterOverBudget": 0,
+          "maxConsecutiveOverBudgetSamples": 0,
+          "vsyncInterval": {
+            "count": 105,
+            "medianUs": 8354,
+            "p95Us": 25050,
+            "maxUs": 25062
+          }
+        }
+      },
+      "stages": {
+        "localRead": {
+          "count": 0
+        },
+        "sourceRead": {
+          "count": 0
+        },
+        "processingWait": {
+          "count": 0
+        },
+        "codecInitWait": {
+          "count": 0
+        },
+        "firstDecodeWait": {
+          "count": 0
+        },
+        "displayWait": {
+          "count": 50,
+          "medianUs": 22,
+          "p95Us": 50,
+          "maxUs": 64
+        },
+        "precacheQueueWait": {
+          "count": 0
+        },
+        "precacheWait": {
+          "count": 0
+        }
+      },
+      "omittedEventsForCopy": 53,
+      "duplicateOf": "installed67-real-cached-r1; byte-identical export, not a new generated-comic capture"
+    }
+  ]
+}

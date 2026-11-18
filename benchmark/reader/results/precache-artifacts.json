@@ -1,0 +1,206 @@
+{
+  "productBase": "67be06fc235c1498fe33b41d6fad660b12f94089",
+  "A2B2SourceDifferences": [
+    "lib/features/reader/gallery_view.dart"
+  ],
+  "variants": {
+    "originalTiming": {
+      "productRevision": "67be06fc235c1498fe33b41d6fad660b12f94089",
+      "productPatch": null,
+      "apks": [
+        {
+          "file": "next-precache-before-release.apk",
+          "sha256": "4d7e477f88cbae2fe5116818d4ab359c944a13461e212bac961c2a06e064ecfb",
+          "bytes": 20905822
+        }
+      ],
+      "actualSourceOverridesSha256": {
+        "android/app/build.gradle": "7d9426a05ee2a4ada3c1574c10eac0fc6101a972e1839edc54f42a313a71d3a1",
+        "android/app/src/main/AndroidManifest.xml": "9b16b4234a3e7c0c654f415237e5a417e82f08145dfc55bad66546dcfc987fd3",
+        "android/app/src/main/kotlin/com/github/cyrilpeng/veneranext/MainActivity.kt": "069309ebf6e29036fff58da9605fee1ade54246e848e321ad4c1b828516a8c32",
+        "lib/features/history/image_favorites.dart": "013059ce59750e2228e6348031d4e67060f89e1f1a70bfb39b239ac83bd74cf6",
+        "lib/features/history/image_favorites_repository.dart": "9280a2d297d2bdcbdac677a2ad874840ac3003b1872e55c49330e033caebbd96",
+        "lib/features/reader/bottom_actions.dart": "056c88d67bee77f7f1f7a3109181e8a5e8805b10e1d573b813fcf2515a471fa3",
+        "lib/features/reader/gallery_view.dart": "355a5b17719e0e65515dd5d83615247d35d9ca849aed31afe50c4fad0753e91c",
+        "lib/features/reader/reader_controller.dart": "e51ab5c16d783592950affa93f88ac7a1b9d646d712439cb369b1ec77e86e2fb",
+        "lib/features/reader/reader_page.dart": "1f4b142420cb4fd9f6adf1672c5ef013516d82fb412f4735c75db856cf039bfc",
+        "lib/features/reader/volume.dart": "c40bb484ef354bb2bcbe31d734a1fa8097584c4061c8e22ca7069cc8310462db",
+        "lib/foundation/image_provider/base_image_provider.dart": "fb0114fd8121654344e543a4982b68c24f645f88dcdd3ed88af85a5d59208bce",
+        "lib/foundation/image_provider/reader_image.dart": "c5c6b852bd5b09efaab20ed306da4a909f74b09daaf53a794429846ea8efc76e",
+        "pubspec.yaml": "468bab3f4a3aacace05220c8adc957599a46b8f5807845155b7160d2228cc4a5",
+        "lib/reader_benchmark.dart": "2c55872ef8eb42b938136dc93834003a3190db827c284eda798627e57e435388",
+        "lib/foundation/reader_perf_probe.dart": "061d15abbfa4f6208a388f3f6b6a16bce721f15a43eb42bd13e85573411a5357",
+        "assets/reader_benchmark.png": "d1645bbaf58cc1f69a1fd9b7217b128f264ac4b732537334075f81dd6fd35980",
+        "android/app/src/main/kotlin/com/github/cyrilpeng/veneranext/NativeReaderProbe.kt": "f6b7620eac7e322a6bbd973c1ebcae5d5f0aeff135b3fea206c35d91b9ada9a2"
+      },
+      "observers": {
+        "prepare.py": "897ea552edd30e38fb69f651b3b88340d38a2b6b5b3fc8f3f843db211706dd96",
+        "main_next.dart": "2f2fc1af688442ca1461e11a93573ef1269e234406520f8cf59297d668c2f114",
+        "probe.dart": "061d15abbfa4f6208a388f3f6b6a16bce721f15a43eb42bd13e85573411a5357",
+        "NativeReaderProbe.kt": "d706adb0687797c780808f9d573abb77701ace8032a0f097e8eba306f021bd0b"
+      },
+      "cachePhaseProbe": true,
+      "precacheReadinessProbe": null,
+      "sourceSealSha256": "8d01d5721e40a53f10f6b7b2cf4adbad72c99ce3d02ba1fa221a3f0137db33ae"
+    },
+    "frameTail": {
+      "productRevision": "67be06fc235c1498fe33b41d6fad660b12f94089",
+      "productPatch": {
+        "file": "precache-postframe-candidate.patch",
+        "sha256": "24bdd4b46b6f3d27957eba2164f2025cdfefc8c5fd03182ff47a627cdb118273"
+      },
+      "apks": [
+        {
+          "file": "next-precache-postframe-release.apk",
+          "sha256": "4956d257b068c7dc3da432dd8145dcdd8d810488670a64d4108551c73462537f",
+          "bytes": 20906174
+        }
+      ],
+      "actualSourceOverridesSha256": {
+        "android/app/build.gradle": "7d9426a05ee2a4ada3c1574c10eac0fc6101a972e1839edc54f42a313a71d3a1",
+        "android/app/src/main/AndroidManifest.xml": "9b16b4234a3e7c0c654f415237e5a417e82f08145dfc55bad66546dcfc987fd3",
+        "android/app/src/main/kotlin/com/github/cyrilpeng/veneranext/MainActivity.kt": "069309ebf6e29036fff58da9605fee1ade54246e848e321ad4c1b828516a8c32",
+        "lib/features/history/image_favorites.dart": "013059ce59750e2228e6348031d4e67060f89e1f1a70bfb39b239ac83bd74cf6",
+        "lib/features/history/image_favorites_repository.dart": "9280a2d297d2bdcbdac677a2ad874840ac3003b1872e55c49330e033caebbd96",
+        "lib/features/reader/bottom_actions.dart": "056c88d67bee77f7f1f7a3109181e8a5e8805b10e1d573b813fcf2515a471fa3",
+        "lib/features/reader/gallery_view.dart": "8e29ff0cdcac658515c2ba7bb3d7e5e1638402ab072528578483ebc7d2dd259c",
+        "lib/features/reader/reader_controller.dart": "e51ab5c16d783592950affa93f88ac7a1b9d646d712439cb369b1ec77e86e2fb",
+        "lib/features/reader/reader_page.dart": "1f4b142420cb4fd9f6adf1672c5ef013516d82fb412f4735c75db856cf039bfc",
+        "lib/features/reader/volume.dart": "c40bb484ef354bb2bcbe31d734a1fa8097584c4061c8e22ca7069cc8310462db",
+        "lib/foundation/image_provider/base_image_provider.dart": "fb0114fd8121654344e543a4982b68c24f645f88dcdd3ed88af85a5d59208bce",
+        "lib/foundation/image_provider/reader_image.dart": "c5c6b852bd5b09efaab20ed306da4a909f74b09daaf53a794429846ea8efc76e",
+        "pubspec.yaml": "468bab3f4a3aacace05220c8adc957599a46b8f5807845155b7160d2228cc4a5",
+        "lib/reader_benchmark.dart": "2c55872ef8eb42b938136dc93834003a3190db827c284eda798627e57e435388",
+        "lib/foundation/reader_perf_probe.dart": "061d15abbfa4f6208a388f3f6b6a16bce721f15a43eb42bd13e85573411a5357",
+        "assets/reader_benchmark.png": "d1645bbaf58cc1f69a1fd9b7217b128f264ac4b732537334075f81dd6fd35980",
+        "android/app/src/main/kotlin/com/github/cyrilpeng/veneranext/NativeReaderProbe.kt": "f6b7620eac7e322a6bbd973c1ebcae5d5f0aeff135b3fea206c35d91b9ada9a2"
+      },
+      "observers": {
+        "prepare.py": "897ea552edd30e38fb69f651b3b88340d38a2b6b5b3fc8f3f843db211706dd96",
+        "main_next.dart": "2f2fc1af688442ca1461e11a93573ef1269e234406520f8cf59297d668c2f114",
+        "probe.dart": "061d15abbfa4f6208a388f3f6b6a16bce721f15a43eb42bd13e85573411a5357",
+        "NativeReaderProbe.kt": "d706adb0687797c780808f9d573abb77701ace8032a0f097e8eba306f021bd0b"
+      },
+      "cachePhaseProbe": true,
+      "precacheReadinessProbe": null,
+      "sourceSealSha256": "10b8c96f759022bed414b9976e498af88847bd47a1a37105383aefef51b6b38a"
+    },
+    "A2": {
+      "productRevision": "67be06fc235c1498fe33b41d6fad660b12f94089",
+      "productPatch": {
+        "file": "precache-postframe-candidate.patch",
+        "sha256": "24bdd4b46b6f3d27957eba2164f2025cdfefc8c5fd03182ff47a627cdb118273"
+      },
+      "apks": [
+        {
+          "file": "next-precache-coalesced-readiness-release.apk",
+          "sha256": "c37a70348220447b9c3b580aea298ebf14a4bad25d28cdf47b7872892c00c6c0",
+          "bytes": 20907510
+        }
+      ],
+      "actualSourceOverridesSha256": {
+        "android/app/build.gradle": "7d9426a05ee2a4ada3c1574c10eac0fc6101a972e1839edc54f42a313a71d3a1",
+        "android/app/src/main/AndroidManifest.xml": "9b16b4234a3e7c0c654f415237e5a417e82f08145dfc55bad66546dcfc987fd3",
+        "android/app/src/main/kotlin/com/github/cyrilpeng/veneranext/MainActivity.kt": "069309ebf6e29036fff58da9605fee1ade54246e848e321ad4c1b828516a8c32",
+        "lib/features/history/image_favorites.dart": "013059ce59750e2228e6348031d4e67060f89e1f1a70bfb39b239ac83bd74cf6",
+        "lib/features/history/image_favorites_repository.dart": "9280a2d297d2bdcbdac677a2ad874840ac3003b1872e55c49330e033caebbd96",
+        "lib/features/reader/bottom_actions.dart": "056c88d67bee77f7f1f7a3109181e8a5e8805b10e1d573b813fcf2515a471fa3",
+        "lib/features/reader/display_image_provider.dart": "9ade566f7703183258cdcd827959504fd52b86ef21de8897daabdb8e5f2f42af",
+        "lib/features/reader/gallery_view.dart": "78fb41336e2d861ce7ee9161529b94f453bbf699961ecb86f8c9aa95eaf6dead",
+        "lib/features/reader/reader_controller.dart": "e51ab5c16d783592950affa93f88ac7a1b9d646d712439cb369b1ec77e86e2fb",
+        "lib/features/reader/reader_page.dart": "1f4b142420cb4fd9f6adf1672c5ef013516d82fb412f4735c75db856cf039bfc",
+        "lib/features/reader/volume.dart": "c40bb484ef354bb2bcbe31d734a1fa8097584c4061c8e22ca7069cc8310462db",
+        "lib/foundation/image_provider/base_image_provider.dart": "fb0114fd8121654344e543a4982b68c24f645f88dcdd3ed88af85a5d59208bce",
+        "lib/foundation/image_provider/reader_image.dart": "c5c6b852bd5b09efaab20ed306da4a909f74b09daaf53a794429846ea8efc76e",
+        "pubspec.yaml": "468bab3f4a3aacace05220c8adc957599a46b8f5807845155b7160d2228cc4a5",
+        "lib/reader_benchmark.dart": "2c55872ef8eb42b938136dc93834003a3190db827c284eda798627e57e435388",
+        "lib/foundation/reader_perf_probe.dart": "061d15abbfa4f6208a388f3f6b6a16bce721f15a43eb42bd13e85573411a5357",
+        "assets/reader_benchmark.png": "d1645bbaf58cc1f69a1fd9b7217b128f264ac4b732537334075f81dd6fd35980",
+        "android/app/src/main/kotlin/com/github/cyrilpeng/veneranext/NativeReaderProbe.kt": "f6b7620eac7e322a6bbd973c1ebcae5d5f0aeff135b3fea206c35d91b9ada9a2"
+      },
+      "observers": {
+        "prepare.py": "897ea552edd30e38fb69f651b3b88340d38a2b6b5b3fc8f3f843db211706dd96",
+        "main_next.dart": "2f2fc1af688442ca1461e11a93573ef1269e234406520f8cf59297d668c2f114",
+        "probe.dart": "061d15abbfa4f6208a388f3f6b6a16bce721f15a43eb42bd13e85573411a5357",
+        "NativeReaderProbe.kt": "d706adb0687797c780808f9d573abb77701ace8032a0f097e8eba306f021bd0b"
+      },
+      "cachePhaseProbe": true,
+      "precacheReadinessProbe": {
+        "observerSha256": "177d9b99a0f6dbff5578572f1318afd859b3be34d4021f1b02a1a02918ebeadc",
+        "selectionColumns": [
+          "page",
+          "images",
+          "ready",
+          "pending"
+        ],
+        "displayColumns": [
+          "sourceKeyHash",
+          "keepAlive",
+          "live",
+          "pending"
+        ],
+        "meaning": "Lookup-only cache status, not screen content; identical probes in both APKs"
+      },
+      "sourceSealSha256": "a287b92fded89bf90978ac05ddb5d2656d73dc415080bd59c5d37801b11b3a5c"
+    },
+    "B2": {
+      "productRevision": "67be06fc235c1498fe33b41d6fad660b12f94089",
+      "productPatch": {
+        "file": "precache-selection-candidate.patch",
+        "sha256": "5039a9c870397609bbd198b033439f4e8698a00997508963c5e96323351cde7d"
+      },
+      "apks": [
+        {
+          "file": "next-precache-selection-readiness-release.apk",
+          "sha256": "f31124d9fb1f7daa10fab73e2175a9ff371bff2a88f47ad1dd04975d88cfb374",
+          "bytes": 20907034
+        }
+      ],
+      "actualSourceOverridesSha256": {
+        "android/app/build.gradle": "7d9426a05ee2a4ada3c1574c10eac0fc6101a972e1839edc54f42a313a71d3a1",
+        "android/app/src/main/AndroidManifest.xml": "9b16b4234a3e7c0c654f415237e5a417e82f08145dfc55bad66546dcfc987fd3",
+        "android/app/src/main/kotlin/com/github/cyrilpeng/veneranext/MainActivity.kt": "069309ebf6e29036fff58da9605fee1ade54246e848e321ad4c1b828516a8c32",
+        "lib/features/history/image_favorites.dart": "013059ce59750e2228e6348031d4e67060f89e1f1a70bfb39b239ac83bd74cf6",
+        "lib/features/history/image_favorites_repository.dart": "9280a2d297d2bdcbdac677a2ad874840ac3003b1872e55c49330e033caebbd96",
+        "lib/features/reader/bottom_actions.dart": "056c88d67bee77f7f1f7a3109181e8a5e8805b10e1d573b813fcf2515a471fa3",
+        "lib/features/reader/display_image_provider.dart": "9ade566f7703183258cdcd827959504fd52b86ef21de8897daabdb8e5f2f42af",
+        "lib/features/reader/gallery_view.dart": "46d04e4bf5a683ea6af6e3edfe50bf45f6a9b7c56ac19b052a64d14acc2e9565",
+        "lib/features/reader/reader_controller.dart": "e51ab5c16d783592950affa93f88ac7a1b9d646d712439cb369b1ec77e86e2fb",
+        "lib/features/reader/reader_page.dart": "1f4b142420cb4fd9f6adf1672c5ef013516d82fb412f4735c75db856cf039bfc",
+        "lib/features/reader/volume.dart": "c40bb484ef354bb2bcbe31d734a1fa8097584c4061c8e22ca7069cc8310462db",
+        "lib/foundation/image_provider/base_image_provider.dart": "fb0114fd8121654344e543a4982b68c24f645f88dcdd3ed88af85a5d59208bce",
+        "lib/foundation/image_provider/reader_image.dart": "c5c6b852bd5b09efaab20ed306da4a909f74b09daaf53a794429846ea8efc76e",
+        "pubspec.yaml": "468bab3f4a3aacace05220c8adc957599a46b8f5807845155b7160d2228cc4a5",
+        "lib/reader_benchmark.dart": "2c55872ef8eb42b938136dc93834003a3190db827c284eda798627e57e435388",
+        "lib/foundation/reader_perf_probe.dart": "061d15abbfa4f6208a388f3f6b6a16bce721f15a43eb42bd13e85573411a5357",
+        "assets/reader_benchmark.png": "d1645bbaf58cc1f69a1fd9b7217b128f264ac4b732537334075f81dd6fd35980",
+        "android/app/src/main/kotlin/com/github/cyrilpeng/veneranext/NativeReaderProbe.kt": "f6b7620eac7e322a6bbd973c1ebcae5d5f0aeff135b3fea206c35d91b9ada9a2"
+      },
+      "observers": {
+        "prepare.py": "897ea552edd30e38fb69f651b3b88340d38a2b6b5b3fc8f3f843db211706dd96",
+        "main_next.dart": "2f2fc1af688442ca1461e11a93573ef1269e234406520f8cf59297d668c2f114",
+        "probe.dart": "061d15abbfa4f6208a388f3f6b6a16bce721f15a43eb42bd13e85573411a5357",
+        "NativeReaderProbe.kt": "d706adb0687797c780808f9d573abb77701ace8032a0f097e8eba306f021bd0b"
+      },
+      "cachePhaseProbe": true,
+      "precacheReadinessProbe": {
+        "observerSha256": "177d9b99a0f6dbff5578572f1318afd859b3be34d4021f1b02a1a02918ebeadc",
+        "selectionColumns": [
+          "page",
+          "images",
+          "ready",
+          "pending"
+        ],
+        "displayColumns": [
+          "sourceKeyHash",
+          "keepAlive",
+          "live",
+          "pending"
+        ],
+        "meaning": "Lookup-only cache status, not screen content; identical probes in both APKs"
+      },
+      "sourceSealSha256": "5be947a3fa5303f2b4925e84a386d5575f45f6a6db07b409a5345efc7c5adb9a"
+    }
+  },
+  "limits": "All candidates withdrawn. Only comparisons within each identical-observer pair are valid. Engine unchanged; raw source seals and large APKs remain local."
+}

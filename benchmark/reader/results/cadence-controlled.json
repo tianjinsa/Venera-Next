@@ -1,0 +1,172 @@
+{
+  "runs": [
+    {
+      "name": "final67-next-hold-forward-r1",
+      "commandAnimationIntervals": 77,
+      "allProducedVsyncGapMs": {
+        "n": 615,
+        "p50": 8.353,
+        "p95": 50.1073,
+        "p99": 50.1437,
+        "max": 50.242
+      },
+      "sameAnimationProducedVsyncGapMs": {
+        "n": 400,
+        "p50": 8.353,
+        "p95": 8.365,
+        "p99": 8.394,
+        "max": 9.202
+      },
+      "sameAnimationGapsAboveOneAndHalfRefreshPeriods": 0,
+      "activeVsyncToBuildMs": {
+        "n": 477,
+        "p50": 0.497,
+        "p95": 0.978,
+        "p99": 1.7325,
+        "max": 2.566
+      },
+      "sameAnimationPositionUpdateGapMs": {
+        "n": 310,
+        "p50": 8.3435,
+        "p95": 8.8545,
+        "p99": 9.4955,
+        "max": 10.506
+      },
+      "limits": "Only instrumented command animate start through jump or matching completion. Stale completion never closes a newer animation. Intervals are not exact ticker ticks or screen visibility. Touch ballistic activity is not classified. No screen FPS or dropped-frame rate is inferred.",
+      "sameAnimationReadyBuffersActualPresentGapMs": {
+        "n": 358,
+        "p50": 8.352,
+        "p95": 8.3841,
+        "p99": 8.4796,
+        "max": 16.6933
+      },
+      "presentFenceClassification": "Interval by ready time; gap by actual present time. No per-buffer frame ID mapping; includes pipeline latency."
+    },
+    {
+      "name": "final67-prime-hold-forward-r1",
+      "commandAnimationIntervals": 77,
+      "allProducedVsyncGapMs": {
+        "n": 638,
+        "p50": 8.353,
+        "p95": 41.7723,
+        "p99": 50.1226,
+        "max": 50.185
+      },
+      "sameAnimationProducedVsyncGapMs": {
+        "n": 424,
+        "p50": 8.353,
+        "p95": 8.365,
+        "p99": 8.398,
+        "max": 8.494
+      },
+      "sameAnimationGapsAboveOneAndHalfRefreshPeriods": 0,
+      "activeVsyncToBuildMs": {
+        "n": 501,
+        "p50": 0.465,
+        "p95": 0.863,
+        "p99": 1.352,
+        "max": 1.779
+      },
+      "sameAnimationPositionUpdateGapMs": {
+        "n": 337,
+        "p50": 8.368,
+        "p95": 8.6642,
+        "p99": 9.1203,
+        "max": 9.441
+      },
+      "limits": "Only instrumented command animate start through jump or matching completion. Stale completion never closes a newer animation. Intervals are not exact ticker ticks or screen visibility. Touch ballistic activity is not classified. No screen FPS or dropped-frame rate is inferred.",
+      "sameAnimationReadyBuffersActualPresentGapMs": {
+        "n": 381,
+        "p50": 8.3548,
+        "p95": 8.3831,
+        "p99": 8.4851,
+        "max": 8.5479
+      },
+      "presentFenceClassification": "Interval by ready time; gap by actual present time. No per-buffer frame ID mapping; includes pipeline latency."
+    },
+    {
+      "name": "precache-selection-pilot-hold-forward-before-1",
+      "commandAnimationIntervals": 77,
+      "allProducedVsyncGapMs": {
+        "n": 622,
+        "p50": 8.353,
+        "p95": 50.1059,
+        "p99": 50.1443,
+        "max": 50.187
+      },
+      "sameAnimationProducedVsyncGapMs": {
+        "n": 401,
+        "p50": 8.353,
+        "p95": 8.366,
+        "p99": 8.4,
+        "max": 8.936
+      },
+      "sameAnimationGapsAboveOneAndHalfRefreshPeriods": 0,
+      "activeVsyncToBuildMs": {
+        "n": 478,
+        "p50": 0.437,
+        "p95": 0.9342,
+        "p99": 1.5314,
+        "max": 1.845
+      },
+      "sameAnimationPositionUpdateGapMs": {
+        "n": 317,
+        "p50": 8.324,
+        "p95": 8.7566,
+        "p99": 9.1012,
+        "max": 9.778
+      },
+      "limits": "Only instrumented command animate start through jump or matching completion. Stale completion never closes a newer animation. Intervals are not exact ticker ticks or screen visibility. Touch ballistic activity is not classified. No screen FPS or dropped-frame rate is inferred.",
+      "sameAnimationReadyBuffersActualPresentGapMs": {
+        "n": 362,
+        "p50": 8.352,
+        "p95": 8.4084,
+        "p99": 8.4882,
+        "max": 8.6361
+      },
+      "presentFenceClassification": "Interval by ready time; gap by actual present time. No per-buffer frame ID mapping; includes pipeline latency."
+    },
+    {
+      "name": "precache-selection-pilot-hold-forward-after-2",
+      "commandAnimationIntervals": 77,
+      "allProducedVsyncGapMs": {
+        "n": 774,
+        "p50": 8.353,
+        "p95": 25.064,
+        "p99": 33.408,
+        "max": 41.849
+      },
+      "sameAnimationProducedVsyncGapMs": {
+        "n": 420,
+        "p50": 8.353,
+        "p95": 8.362,
+        "p99": 8.4018,
+        "max": 8.81
+      },
+      "sameAnimationGapsAboveOneAndHalfRefreshPeriods": 0,
+      "activeVsyncToBuildMs": {
+        "n": 497,
+        "p50": 0.437,
+        "p95": 0.9214,
+        "p99": 1.5794,
+        "max": 1.854
+      },
+      "sameAnimationPositionUpdateGapMs": {
+        "n": 329,
+        "p50": 8.377,
+        "p95": 8.6504,
+        "p99": 8.9714,
+        "max": 9.345
+      },
+      "limits": "Only instrumented command animate start through jump or matching completion. Stale completion never closes a newer animation. Intervals are not exact ticker ticks or screen visibility. Touch ballistic activity is not classified. No screen FPS or dropped-frame rate is inferred.",
+      "sameAnimationReadyBuffersActualPresentGapMs": {
+        "n": 388,
+        "p50": 8.3555,
+        "p95": 8.4716,
+        "p99": 16.7174,
+        "max": 16.7501
+      },
+      "presentFenceClassification": "Interval by ready time; gap by actual present time. No per-buffer frame ID mapping; includes pipeline latency."
+    }
+  ]
+}
