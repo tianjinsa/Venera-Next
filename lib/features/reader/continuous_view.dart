@@ -882,7 +882,11 @@ class ContinuousModeState extends State<ReaderContinuousView>
       );
 
   void cacheImages(int current) {
-    if (!mounted || !ReaderImageCachePolicy.allowActivePrecache) return;
+    if (!mounted ||
+        ReaderImageCachePolicy.precacheMode.value !=
+            ReaderPrecacheMode.normal) {
+      return;
+    }
     for (int i = current + 1; i <= current + preCacheCount; i++) {
       if (crossChapter) {
         var imageRef = _imageRefAt(i);

@@ -51,7 +51,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | O04 | 作者名称与 author/artist 标签精确匹配。列表用不可变快照检测任意命中，规则原地修改后更新快照。关键词统一按字段、边界和大小写编译，精确标签用索引，文字用 AC 自动机，可按运行时 Unicode 数据折叠大小写 | `lib/features/comic_widgets/comic_blocking.dart`、`lib/foundation/keyword_filter.dart`，`test/prime_migration/comic_blocking_test.dart`、`test/foundation/keyword_rules_test.dart` |
 | O05 | 收藏、历史、本地漫画、稍后再看、追更和 Agent 展示不按关键词/作者隐藏；发现/搜索继续过滤；独立扫描收藏用于调规则 | R00、R08、R09；`test/features/comic_widgets/keyword_filter_consumers_test.dart`、`test/agent/agent_showcase_filtering_test.dart` |
 | O06 | 无关键盘/阅读设置不重查全列表；收藏默认展示不逐本查历史，已读筛选缓存；查询/搜索/选择所有权及追更 generation 门禁保留 | R01；`lib/foundation/context.dart`、`lib/features/favorites/local_favorites_page.dart`；`test/features/favorites/local_favorites_refresh_test.dart`、`favorite_updates_service_test.dart` |
-| O07 | 取可用内存的 1/16，按 32 MiB 分档，上限 192 MiB 并受 TV 上限约束。前台每 30 秒复查，低读数可降档，有额外余量才逐档回升。压力时降至最多 32 MiB 并取消主动预解码及排队订阅，可见图片继续显示，冷却后用新读数恢复。后台暂停检查。分页预解码最多两并发，连续／瀑布流串行，每视图最多准入四个请求，原生收尾后归还名额。保留进入当前页的解码，按方向调整相邻窗口。退出 1 秒后收缩，重入取消旧收缩并继承现有额度 | `lib/features/reader/image_cache_policy.dart`、`image_precache.dart`，`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart`、`image_precache_pressure_test.dart` |
+| O07 | 取可用内存的 1/16，按 32 MiB 分档，上限 192 MiB 并受 TV 上限约束。前台每 30 秒复查，低读数可降档，有额外余量才逐档回升。压力时降至最多 32 MiB 并取消主动预解码及排队订阅，可见图片继续显示。冷却后可用内存达到 640 MiB 时可在低档恢复单张预解码。后台暂停检查。正常预算下分页预解码最多两并发，连续／瀑布流串行，每视图最多准入四个请求，原生收尾后归还名额。保留进入当前页的解码，按方向调整相邻窗口。退出 1 秒后收缩，重入取消旧收缩并继承现有额度 | `lib/features/reader/image_cache_policy.dart`、`image_precache.dart`、`gallery_view.dart`，`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart`、`image_precache_pressure_test.dart` |
 | O08 | 最后进度、前台时长准确提交；控制器/计时器/监听清理、旧回调门禁和任务所有权有效；返回后由原会话后台收尾 | R05、R12；`lib/features/reader/reading_session.dart`；`test/features/reader/reader_exit_integration_test.dart`、`reading_session_test.dart` |
 | O09 | 线条增强及强度、暗色/暖色/红色夜览；黑线不变浅、纸白不提亮；评论可跳过增强而保留夜览；实时调整不重置缩放/进度 | `lib/foundation/reader_preferences.dart`、`lib/features/settings/reader_appearance.dart`；`test/prime_migration/reader_color_effects_test.dart`、`test/features/settings/reader_settings_persistence_test.dart` |
 | O10 | 历史后台读取与保存互不阻塞；WAL 快照、恢复前等待读取；主键 `(id, type)` 保留 Next 全部扩展列及每日时长事务；Pica 跨库导入临时 DELETE 后恢复 WAL，失败保留数据 | `lib/features/history/`、Next 导入/恢复队列；`test/prime_migration/history_pagination_test.dart`、`test/features/history/history_repository_test.dart`、`agent_statistics_test.dart` |
@@ -132,6 +132,11 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 
 - O07 冷却计时基于最后一次压力信号，回前台查询后逐档恢复。分别在后台 20 和 40 秒的两项回归中，查询在剩余 10 秒或回前台时恢复。后台采样仍暂停。
 - 同一批已知大小的图片访问按 64、128、192、256、384 MiB 等预算复算，较大的档位没有降低这批向前访问的模拟 miss。保留 1/16 和 192 MiB 上限，证据范围见[容量复算](../experiments/reader_trial_ab_20261118.zh.md#缓存容量复算与压力恢复)。
+
+### 2026-11-18 低预算图片预解码
+
+- O07 的 32 MiB 档位用前台新读数判定轻量预解码。640 MiB 门槛由现有 1/16 和 128 MiB 余量计算。压力通知仍立即降级并中止投机解码，30 秒冷却结束且复查达标即可在当前档位恢复。
+- 低预算分页仅准备方向上的下一张，动画途中优先即将显示的图。连续／瀑布流等可见图片就绪后准备下一张。单任务准入含原生清理，远页预下载在正常预算下启用。179 项定向回归通过，Android 首显等待与内存峰值待测。
 
 ### 2026-11-18 分页跳页进度去重
 

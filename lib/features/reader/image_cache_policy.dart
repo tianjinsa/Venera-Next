@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:venera_next/foundation/reader_diagnostics.dart';
 
+enum ReaderPrecacheMode { off, limited, normal }
+
 /// Budget and memory-pressure lifetime for one reader. Late platform replies
 /// and delayed exit work cannot change a newer reader's cache.
 class ReaderImageCachePolicy {
@@ -17,9 +19,8 @@ class ReaderImageCachePolicy {
   }) : _session = ++_currentSession {
     _restore?.cancel();
     _restore = null;
-    _activeUnderPressure = false;
     _limit = _activeBudget;
-    _updatePrecachePermission();
+    _updatePrecacheMode();
   }
 
   static const defaultLimit = 100 << 20;
@@ -27,6 +28,8 @@ class ReaderImageCachePolicy {
   static const _maximumLimit = 192 << 20;
   static const _memoryDivisor = 16;
   static const _growthHeadroom = 128 << 20;
+  static const _limitedPrecacheMinimum =
+      _step * _memoryDivisor + _growthHeadroom;
   static const _sampleInterval = Duration(seconds: 30);
   static const _pressureCooldown = Duration(seconds: 30);
 
@@ -37,14 +40,22 @@ class ReaderImageCachePolicy {
       );
   static int _currentSession = 0;
   static Timer? _restore;
-  static bool _activeUnderPressure = false;
   static int _activeBudget = defaultLimit;
-  static final _precacheAllowed = ValueNotifier(true);
-  static ValueListenable<bool> get precacheAllowed => _precacheAllowed;
-  static bool get allowActivePrecache => _precacheAllowed.value;
+  static final _precacheMode = ValueNotifier(ReaderPrecacheMode.normal);
+  static ValueListenable<ReaderPrecacheMode> get precacheMode => _precacheMode;
+  static bool get allowActivePrecache =>
+      _precacheMode.value != ReaderPrecacheMode.off;
 
-  static void _updatePrecachePermission() {
-    _precacheAllowed.value = !_activeUnderPressure && _activeBudget >= 64 << 20;
+  void _updatePrecacheMode() {
+    if (_underPressure) {
+      _precacheMode.value = ReaderPrecacheMode.off;
+    } else if (_limit >= 2 * _step) {
+      _precacheMode.value = ReaderPrecacheMode.normal;
+    } else if (_limit >= _step && _limitedPrecacheAvailable) {
+      _precacheMode.value = ReaderPrecacheMode.limited;
+    } else {
+      _precacheMode.value = ReaderPrecacheMode.off;
+    }
   }
 
   final Future<int?> Function() readAvailableMemory;
@@ -62,6 +73,7 @@ class ReaderImageCachePolicy {
   bool _hasSampledMemory = false;
   bool _underPressure = false;
   bool _coolingDown = false;
+  bool _limitedPrecacheAvailable = false;
   Timer? _nextSample;
   int _limit = defaultLimit;
   int _pressureEvents = 0;
@@ -86,7 +98,11 @@ class ReaderImageCachePolicy {
     _reason = reason;
     _activeBudget = value;
     setLimit(value);
-    _updatePrecachePermission();
+    _publishDecision();
+  }
+
+  void _publishDecision() {
+    _updatePrecacheMode();
     onChanged?.call(snapshot);
   }
 
@@ -117,6 +133,10 @@ class ReaderImageCachePolicy {
     if (!_coolingDown) _cancelSample();
     if (_memoryQuery == ReaderDiagnosticMemoryQuery.pending) {
       _memoryQuery = ReaderDiagnosticMemoryQuery.notQueried;
+    }
+    if (!foreground && _limitedPrecacheAvailable) {
+      _limitedPrecacheAvailable = false;
+      _updatePrecacheMode();
     }
     if (foreground && _configured) unawaited(configure());
   }
@@ -153,12 +173,14 @@ class ReaderImageCachePolicy {
       if (_availableBytes case final int available) {
         _updateLimitForAvailableMemory(available);
       } else {
-        onChanged?.call(snapshot);
+        _limitedPrecacheAvailable = false;
+        _publishDecision();
       }
     } catch (error, stack) {
       if (_current && generation == _generation) {
         _memoryQuery = ReaderDiagnosticMemoryQuery.failed;
-        onChanged?.call(snapshot);
+        _limitedPrecacheAvailable = false;
+        _publishDecision();
         if (previousQuery != ReaderDiagnosticMemoryQuery.failed) {
           onError(error, stack);
         }
@@ -170,6 +192,7 @@ class ReaderImageCachePolicy {
   }
 
   void _updateLimitForAvailableMemory(int available) {
+    _limitedPrecacheAvailable = available >= _limitedPrecacheMinimum;
     final ceiling = _ceilingBytes ?? _maximumLimit;
     final detected = limitForMemory(available);
     final target = math.min(ceiling, detected);
@@ -179,14 +202,13 @@ class ReaderImageCachePolicy {
     final nextTier = math.min(target, (_limit ~/ _step + 1) * _step);
 
     if (wasUnderPressure) {
-      // Recover only once the system can fund the first useful preload tier
-      // (or the smaller platform ceiling) with room for fluctuations.
-      final recoveryTier = math.min(2 * _step, ceiling);
+      // Resume one-image look-ahead before there is room for the next tier.
+      final recoveryTier = math.min(_step, ceiling);
       if (available < recoveryTier * _memoryDivisor + _growthHeadroom) {
         onChanged?.call(snapshot);
         return;
       }
-      _underPressure = _activeUnderPressure = false;
+      _underPressure = false;
     }
 
     // Drop to the measured target on a low sample. Growth needs extra headroom
@@ -203,7 +225,7 @@ class ReaderImageCachePolicy {
       _setLimit(targetLimit, reason);
       onConfigured?.call(available, targetLimit);
     } else {
-      onChanged?.call(snapshot);
+      _publishDecision();
     }
   }
 
@@ -212,7 +234,7 @@ class ReaderImageCachePolicy {
     _underPressure = true;
     _coolingDown = true;
     _pressureEvents++;
-    _activeUnderPressure = true;
+    _limitedPrecacheAvailable = false;
     ++_generation;
     _cancelSample();
     if (_memoryQuery == ReaderDiagnosticMemoryQuery.pending) {

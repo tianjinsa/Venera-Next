@@ -111,7 +111,7 @@ class GalleryModeState extends State<ReaderGalleryView>
     controller = PageController(initialPage: page);
     controller.addListener(_onScroll);
     _bindPrecacheResume();
-    ReaderImageCachePolicy.precacheAllowed.addListener(_refreshPrecache);
+    ReaderImageCachePolicy.precacheMode.addListener(_refreshPrecache);
     widget.onViewportChanged(this, true);
     Future.microtask(() {
       if (mounted) widget.onReady();
@@ -166,7 +166,7 @@ class GalleryModeState extends State<ReaderGalleryView>
   void dispose() {
     _disposed = true;
     _removePrecacheResume?.call();
-    ReaderImageCachePolicy.precacheAllowed.removeListener(_refreshPrecache);
+    ReaderImageCachePolicy.precacheMode.removeListener(_refreshPrecache);
     _longPressController = null;
     widget.onViewportChanged(this, false);
     keyRepeatTimer?.cancel();
@@ -329,12 +329,13 @@ class GalleryModeState extends State<ReaderGalleryView>
   void cache(int startPage) {
     final configuration = _precacheConfiguration;
     if (_disposed || !mounted || configuration == null) return;
-    if (!ReaderImageCachePolicy.allowActivePrecache) {
+    final mode = ReaderImageCachePolicy.precacheMode.value;
+    if (mode == ReaderPrecacheMode.off) {
       _lastPrecache = null;
       widget.imageWork.diagnostics?.recordPrecacheWindow(
         allowed: false,
         candidates: 0,
-        concurrencyLimit: _imagePrecache.maximumConcurrent,
+        concurrencyLimit: _imagePrecache.concurrencyLimit,
       );
       _imagePrecache.replace(const [], ImageConfiguration.empty);
       return;
@@ -364,13 +365,18 @@ class GalleryModeState extends State<ReaderGalleryView>
     );
     final decoded = <ReaderImageProvider>[];
     final retained = <ReaderImageProvider>[];
-    void addPage(int target, List<ReaderImageProvider> images) {
+    void addPage(
+      int target,
+      List<ReaderImageProvider> images, {
+      bool firstOnly = false,
+    }) {
       if (target < 1 || target > totalPages || isChapterCommentsPage(target)) {
         return;
       }
       final (start, end) = getPageImagesRange(target);
       for (var i = start; i < end; i++) {
         images.add(_imageProvider(data.images[i]));
+        if (firstOnly) break;
       }
     }
 
@@ -378,22 +384,26 @@ class GalleryModeState extends State<ReaderGalleryView>
     // Releasing it before PageView builds its consumer can cancel the decode.
     addPage(page, retained);
     addPage(startPage, retained);
-    if (preCacheCount > 0 && startPage != page) addPage(startPage, decoded);
-    // Both neighbours are warmed; direction determines queue priority only.
-    for (final adjacent in [
-      startPage + _precacheDirection,
-      startPage - _precacheDirection,
-    ]) {
-      // A zero preload setting retains the legacy previous-page-only policy.
-      if (preCacheCount <= 0 && adjacent > startPage) continue;
-      addPage(adjacent, decoded);
+    final limited = mode == ReaderPrecacheMode.limited;
+    final approachingPage = preCacheCount > 0 && startPage != page;
+    // A zero preload setting retains the legacy previous-page-only policy.
+    final preferredDirection = preCacheCount > 0 ? _precacheDirection : -1;
+    if (limited) {
+      // Keep the incoming image warm until the viewport can attach to it.
+      final next = approachingPage ? startPage : startPage + preferredDirection;
+      addPage(next, decoded, firstOnly: true);
+    } else {
+      if (approachingPage) addPage(startPage, decoded);
+      addPage(startPage + preferredDirection, decoded);
+      if (preCacheCount > 0) addPage(startPage - preferredDirection, decoded);
     }
     _imagePrecache.replace(decoded, configuration, retain: retained);
     widget.imageWork.diagnostics?.recordPrecacheWindow(
       allowed: true,
       candidates: decoded.length,
-      concurrencyLimit: _imagePrecache.maximumConcurrent,
+      concurrencyLimit: _imagePrecache.concurrencyLimit,
     );
+    if (limited) return;
     for (var distance = 2; distance <= preCacheCount; distance++) {
       final i = startPage + _precacheDirection * distance;
       if (i < 1 || i > totalPages || isChapterCommentsPage(i)) {

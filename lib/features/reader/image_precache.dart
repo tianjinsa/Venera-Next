@@ -23,11 +23,15 @@ class ReaderImagePrecache {
       2,
       'maximumConcurrent',
     );
-    ReaderImageCachePolicy.precacheAllowed.addListener(_onPermissionChanged);
+    ReaderImageCachePolicy.precacheMode.addListener(_onModeChanged);
   }
 
   static const maximumPending = 4;
   final int maximumConcurrent;
+  bool get _limited =>
+      ReaderImageCachePolicy.precacheMode.value == ReaderPrecacheMode.limited;
+  int get concurrencyLimit => _limited ? 1 : maximumConcurrent;
+  int get _pendingLimit => _limited ? 1 : maximumPending;
   final ImageWork _work;
   final _pending = <ReaderImageProvider, _ReaderPrecacheEntry>{};
   final _active = <_ReaderPrecacheEntry>{};
@@ -65,7 +69,7 @@ class ReaderImagePrecache {
     if (!ReaderImageCachePolicy.allowActivePrecache ||
         _disposal != null ||
         _pending.containsKey(provider) ||
-        _pending.length >= maximumPending ||
+        _pending.length >= _pendingLimit ||
         PaintingBinding.instance.imageCache.statusForKey(provider).keepAlive) {
       return;
     }
@@ -102,7 +106,7 @@ class ReaderImagePrecache {
     try {
       final cache = PaintingBinding.instance.imageCache;
       for (final provider in _wanted) {
-        if (_pending.length >= maximumPending) break;
+        if (_pending.length >= _pendingLimit) break;
         if (_pending.containsKey(provider) ||
             _attempted.contains(provider) ||
             cache.statusForKey(provider).keepAlive) {
@@ -116,7 +120,7 @@ class ReaderImagePrecache {
         ..._pending.values,
       };
       for (final entry in ordered) {
-        if (_active.length >= maximumConcurrent) break;
+        if (_active.length >= concurrencyLimit) break;
         if (entry.task.isCancelled || _active.contains(entry)) continue;
         _active.add(entry);
         entry.resolve();
@@ -126,8 +130,12 @@ class ReaderImagePrecache {
     }
   }
 
-  void _onPermissionChanged() {
-    if (ReaderImageCachePolicy.allowActivePrecache) return;
+  void _onModeChanged() {
+    if (ReaderImageCachePolicy.precacheMode.value ==
+        ReaderPrecacheMode.normal) {
+      return;
+    }
+    // Release the old window. Native cleanup still occupies its slots.
     _wanted = const [];
     _attempted.clear();
     for (final entry in _pending.values.toList()) {
@@ -137,7 +145,7 @@ class ReaderImagePrecache {
 
   Future<void> dispose() {
     if (_disposal != null) return _disposal!;
-    ReaderImageCachePolicy.precacheAllowed.removeListener(_onPermissionChanged);
+    ReaderImageCachePolicy.precacheMode.removeListener(_onModeChanged);
     final pending = _pending.values.toList();
     final completion = Completer<void>();
     _disposal = completion.future;

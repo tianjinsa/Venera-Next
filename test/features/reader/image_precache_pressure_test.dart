@@ -72,6 +72,51 @@ void main() {
   });
 
   testWidgets(
+    'limited precache starts one decode including the old native cleanup',
+    (tester) async {
+      final cache = PaintingBinding.instance.imageCache;
+      final policy = ReaderImageCachePolicy(
+        readAvailableMemory: () async => 800 << 20,
+        setLimit: (bytes) => cache.maximumSizeBytes = bytes,
+        onError: (error, _) => fail('$error'),
+      );
+      await policy.configure();
+      final work = ImageWork();
+      final prefetch = ReaderImagePrecache(work: work, maximumConcurrent: 2);
+      final data = Completer<Uint8List>();
+      final first = _Provider(data.future);
+      final second = _Provider(Future.value(_png));
+      try {
+        prefetch.replace([first, second], ImageConfiguration.empty);
+        expect(prefetch.concurrencyLimit, 1);
+        expect(first.loads, 1);
+        expect(second.loads, 0);
+        // On a direction change, a cancelled native load still owns the slot.
+        prefetch.replace([second], ImageConfiguration.empty);
+        expect(second.loads, 0);
+        data.complete(_png);
+        for (var i = 0; i < 40 && !cache.statusForKey(second).keepAlive; i++) {
+          await tester.runAsync(() => pumpEventQueue());
+          await tester.pump();
+        }
+        expect(second.loads, 1);
+        expect(cache.statusForKey(second).keepAlive, isTrue);
+      } finally {
+        if (!data.isCompleted) data.complete(_png);
+        final closing = prefetch.dispose();
+        await tester.pump();
+        await closing;
+        await work.dispose();
+        cache.clear();
+        cache.clearLiveImages();
+        policy.dispose();
+        await tester.pump(const Duration(seconds: 1));
+        expect(BaseImageProvider.debugActiveLoadCount, 0);
+      }
+    },
+  );
+
+  testWidgets(
     'pressure cancels queued prefetch while a visible load survives',
     (tester) async {
       final cache = PaintingBinding.instance.imageCache;

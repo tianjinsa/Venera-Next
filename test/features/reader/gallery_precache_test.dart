@@ -405,6 +405,71 @@ void main() {
   );
 
   testWidgets(
+    'a stable 32 MiB budget warms the next image before it becomes visible',
+    (tester) async {
+      final fixture = _Fixture(
+        cache,
+        'ltr',
+        initialPage: 3,
+        availableMemory: 800 << 20,
+      );
+      try {
+        await fixture.mount(tester);
+        expect(cache.maximumSizeBytes, 32 << 20);
+        expect(fixture.read(2).loads, 0);
+        expect(fixture.read(4).loads, 1);
+        expect(fixture.read(5).loads, 0);
+        fixture.completeAll();
+        await fixture.flush(
+          tester,
+          () => cache.statusForKey(fixture.provider(4)).keepAlive,
+        );
+        expect(fixture.navigation.toPage(4), isTrue);
+        await tester.pump();
+        expect(fixture.navigation.state.page, 3);
+        expect(fixture.read(5).loads, 0);
+        await tester.pumpAndSettle();
+        await fixture.flush(tester, () => fixture.gallery.autoReadingReady);
+        expect(fixture.navigation.state.page, 4);
+        expect(fixture.read(4).loads, 1);
+
+        fixture.gallery.toPage(3);
+        await tester.pump();
+        await fixture.flush(tester, () => fixture.read(2).loads > 0);
+        expect(fixture.read(2).loads, 1);
+        expect(fixture.read(1).loads, 0);
+      } finally {
+        await fixture.dispose(tester);
+      }
+    },
+  );
+
+  testWidgets('limited precache warms one image in the next spread', (
+    tester,
+  ) async {
+    final fixture = _Fixture(
+      cache,
+      'rtl',
+      imagesPerPage: 2,
+      initialPage: 2,
+      availableMemory: 800 << 20,
+    );
+    try {
+      await fixture.mount(tester);
+      expect(fixture.read(1).loads, 0);
+      expect(fixture.read(4).loads, 1);
+      fixture.completeAll();
+      await fixture.flush(
+        tester,
+        () => cache.statusForKey(fixture.provider(4)).keepAlive,
+      );
+      expect(fixture.read(5).loads, 0);
+    } finally {
+      await fixture.dispose(tester);
+    }
+  });
+
+  testWidgets(
     'memory pressure stops speculation and reversible exit resumes it',
     (tester) async {
       final fixture = _Fixture(cache, 'ltr');
@@ -504,11 +569,12 @@ class _Fixture {
     this.direction, {
     this.imagesPerPage = 1,
     this.initialPage = 1,
+    this.availableMemory = 2 << 30,
     ReaderDiagnostics? diagnostics,
   }) : work = ImageWork(diagnostics: diagnostics);
   final _Cache cache;
   final String direction;
-  final int imagesPerPage, initialPage;
+  final int imagesPerPage, initialPage, availableMemory;
   final ImageWork work;
   final binding = ReaderViewportBinding();
   final key = GlobalKey<GalleryModeState>();
@@ -516,7 +582,7 @@ class _Fixture {
   late ReaderGalleryData data;
   String _prefix = 'page', _chapter = 'chapter';
   late final policy = ReaderImageCachePolicy(
-    readAvailableMemory: () async => 2 << 30,
+    readAvailableMemory: () async => availableMemory,
     setLimit: (bytes) => cache.maximumSizeBytes = bytes,
     onError: (error, _) => fail('$error'),
   );

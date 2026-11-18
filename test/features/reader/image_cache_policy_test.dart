@@ -144,7 +144,7 @@ void main() {
       expect(policy.snapshot.pressureEvents, 2);
 
       // A valid but low memory sample cannot release the pressure gate.
-      memory = 1 << 30;
+      memory = 639 << 20;
       await tester.pump(const Duration(seconds: 1));
       expect(reads, 2);
       expect(policy.snapshot.underPressure, isTrue);
@@ -160,6 +160,72 @@ void main() {
       }
       policy.dispose();
       await tester.pump(const Duration(seconds: 1));
+    },
+  );
+
+  testWidgets(
+    'pressure can recover limited precache before growing past 32 MiB',
+    (tester) async {
+      int? memory = 2 << 30;
+      final policy = ReaderImageCachePolicy(
+        readAvailableMemory: () async => memory,
+        setLimit: (_) {},
+        onError: (error, _) => fail('$error'),
+      );
+      try {
+        await policy.configure();
+        expect(
+          ReaderImageCachePolicy.precacheMode.value,
+          ReaderPrecacheMode.normal,
+        );
+        policy.handleMemoryPressure();
+        memory = 640 << 20;
+        await tester.pump(const Duration(seconds: 29));
+        expect(
+          ReaderImageCachePolicy.precacheMode.value,
+          ReaderPrecacheMode.off,
+        );
+        await tester.pump(const Duration(seconds: 1));
+        expect(policy.snapshot.underPressure, isFalse);
+        expect(policy.snapshot.limitBytes, 32 << 20);
+        expect(policy.snapshot.precacheAllowed, isTrue);
+        expect(
+          ReaderImageCachePolicy.precacheMode.value,
+          ReaderPrecacheMode.limited,
+        );
+
+        policy.setForeground(false);
+        expect(
+          ReaderImageCachePolicy.precacheMode.value,
+          ReaderPrecacheMode.off,
+        );
+        memory = null;
+        policy.setForeground(true);
+        await tester.pump();
+        expect(
+          ReaderImageCachePolicy.precacheMode.value,
+          ReaderPrecacheMode.off,
+        );
+
+        memory = 1 << 30;
+        await tester.pump(const Duration(seconds: 30));
+        expect(policy.snapshot.limitBytes, 32 << 20);
+        expect(
+          ReaderImageCachePolicy.precacheMode.value,
+          ReaderPrecacheMode.limited,
+        );
+
+        memory = 1152 << 20;
+        await tester.pump(const Duration(seconds: 30));
+        expect(policy.snapshot.limitBytes, 64 << 20);
+        expect(
+          ReaderImageCachePolicy.precacheMode.value,
+          ReaderPrecacheMode.normal,
+        );
+      } finally {
+        policy.dispose();
+        await tester.pump(const Duration(seconds: 1));
+      }
     },
   );
 
