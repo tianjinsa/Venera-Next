@@ -4,21 +4,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/features/reader/reader_controller.dart';
 
 void main() {
-  test('a completed replacement releases an unfinished animation', () async {
+  test('a jump releases navigation while an animation is unfinished', () async {
     final controller = _Controller();
     final reader = _navigation(controller);
     reader.toPage(150);
+    final interrupted = controller.animations.single;
     reader.toPage(200);
-    controller.animations[1].complete();
-    await pumpEventQueue();
+    expect(controller.animations, hasLength(1));
+    expect(controller.destination, 200);
+    expect(reader.state.page, 200);
     expect(reader.state.isAnimating, isFalse);
+
     reader.toPage(250);
-    controller.animations[0].complete();
-    await pumpEventQueue();
-    expect(reader.state.isAnimating, isTrue);
-    controller.animations[2].complete();
+    expect(reader.state.pendingPage, 250);
+    expect(controller.animations, hasLength(2));
+    reader.reportPage(250);
+    controller.animations.last.complete();
     await pumpEventQueue();
     expect(reader.state.isAnimating, isFalse);
+    expect(reader.state.page, 250);
+
+    interrupted.complete();
+    await pumpEventQueue();
+    expect(reader.state.isAnimating, isFalse);
+    expect(reader.state.page, 250);
     reader.dispose();
   });
 

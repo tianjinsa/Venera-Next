@@ -2491,6 +2491,11 @@ void main() {
         appdata.settings['readerScreenPicNumberForPortrait'] = 2;
         appdata.settings['showSingleImageOnFirstPage'] = false;
         await fixture.mount(tester, pushed: false);
+        final shell = tester.state<ReaderScaffoldState>(
+          find.byType(ReaderScaffold),
+        );
+        shell.openOrClose();
+        await tester.pumpAndSettle();
         final reader = fixture.readerKey.currentState!;
         expect(reader.pageLayout.imageRange(1, 3), (0, 2));
         expect(await reader.createImageFavoriteQuery()!.read(), isNull);
