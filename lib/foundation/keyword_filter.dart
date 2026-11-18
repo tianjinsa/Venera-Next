@@ -3,6 +3,7 @@ import 'global_preference_store.dart';
 import 'keyword_rule.dart';
 import 'literal_substring_matcher.dart';
 import 'reader_preference_settings.dart';
+import 'unicode_simple_case_folding.dart';
 
 export 'keyword_rule.dart';
 
@@ -121,7 +122,7 @@ class _ComicMatchPlan {
         (groups[shape] ??= []).add(compiled);
       }
     }
-    // Bound each regex's alternation size even for large imported rule lists.
+    // Bound rule batches and the fallback regex for other Unicode versions.
     const batchSize = 128;
     for (final MapEntry(key: shape, value: group) in groups.entries) {
       for (var start = 0; start < group.length; start += batchSize) {
@@ -160,10 +161,13 @@ class _TextBatch {
     List<_CompiledRule> rules,
   ) {
     final words = rules.map((rule) => rule.rule.keyword).toSet();
-    if (shape.caseSensitive) {
-      return LiteralSubstringMatcher(words).hasMatch;
+    if (shape.caseSensitive || hasCompatibleUnicodeCaseFolding) {
+      return LiteralSubstringMatcher(
+        words,
+        unicodeIgnoreCase: !shape.caseSensitive,
+      ).hasMatch;
     }
-    // Retain RegExp's Unicode case folding for insensitive text searches.
+    // Keep a different engine's Unicode behavior for insensitive searches.
     return RegExp(
       '(?:${words.map(RegExp.escape).join('|')})',
       caseSensitive: false,

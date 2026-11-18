@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/app_data_sync_fields.dart';
 import 'package:venera_next/foundation/keyword_filter.dart';
+import 'package:venera_next/foundation/literal_substring_matcher.dart';
 import 'package:venera_next/foundation/reader_preference_settings.dart';
+import 'package:venera_next/foundation/unicode_simple_case_folding.dart';
 
 class _Settings implements ReaderPreferenceSettings {
   _Settings(this.values);
@@ -91,6 +93,78 @@ void main() {
     },
   );
 
+  test('insensitive literal detection follows Unicode RegExp folding', () {
+    final unpairedLead = String.fromCharCode(0xd801);
+    final unpairedTrail = String.fromCharCode(0xdc28);
+    for (final (pattern, input, expected) in [
+      ('s', 'xſx', true),
+      ('s', 'Ｓ', false),
+      ('i', 'İ', false),
+      ('i', 'ı', false),
+      ('σ', 'ς', true),
+      ('k', 'K', true),
+      ('ß', 'ẞ', true),
+      ('ß', 'SS', false),
+      ('𐐨', '𐐀', true),
+      ('é', 'e\u0301', false),
+      (unpairedLead, '𐐨', false),
+      (unpairedTrail, '𐐨', false),
+      (unpairedLead, 'x${unpairedLead}x', true),
+    ]) {
+      final native = RegExp(
+        RegExp.escape(pattern),
+        caseSensitive: false,
+        unicode: true,
+      );
+      final automaton = LiteralSubstringMatcher([
+        pattern,
+      ], unicodeIgnoreCase: true);
+      final filter = KeywordFilter.rules([KeywordRule(pattern)]);
+      final reason = '$pattern against $input';
+      expect(native.hasMatch(input), expected, reason: reason);
+      expect(automaton.hasMatch(input), expected, reason: reason);
+      expect(
+        filter.blocksComic(title: input, description: ''),
+        expected,
+        reason: reason,
+      );
+    }
+    for (final (pattern, input) in [
+      ('ﬅ', 'ﬆ'),
+      ('\u0390', '\u1fd3'),
+      ('\u1c89', '\u1c8a'),
+      ('\ua7dc', '\u019b'),
+      ('\u{10d50}', '\u{10d70}'),
+      ('\ua7ce', '\ua7cf'),
+    ]) {
+      final expected = RegExp(
+        pattern,
+        caseSensitive: false,
+        unicode: true,
+      ).hasMatch(input);
+      final filter = KeywordFilter.rules([KeywordRule(pattern)]);
+      expect(filter.blocksComic(title: input, description: ''), expected);
+      if (hasCompatibleUnicodeCaseFolding) {
+        expect(
+          LiteralSubstringMatcher([
+            pattern,
+          ], unicodeIgnoreCase: true).hasMatch(input),
+          expected,
+        );
+      }
+    }
+    if (hasCompatibleUnicodeCaseFolding) {
+      final automaton = LiteralSubstringMatcher([
+        'Abcdx',
+        'bC',
+        'ﬅ',
+      ], unicodeIgnoreCase: true);
+      expect(automaton.hasMatch('aBc'), isTrue);
+      expect(automaton.hasMatch('abxd'), isFalse);
+      expect(automaton.hasMatch('ﬆ'), isTrue);
+    }
+  });
+
   test('fast detection agrees with reasons across Unicode and tag modes', () {
     final texts = [
       '',
@@ -144,7 +218,7 @@ void main() {
     for (final mode in KeywordMatchMode.values) {
       for (final sensitive in [false, true]) {
         // Singletons catch false positives even when another rule would hide
-        // the same comic. Batches exercise the merged regex and tag index.
+        // the same comic. Batches exercise the text and tag indexes.
         for (final set in [
           words,
           for (final word in words) [word],

@@ -48,7 +48,7 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 | O01 | 历史首批 60 条后台分页，稳定时间/ID/类型游标，整库搜索、跨页选择/删除，过期查询结果丢弃 | `lib/features/history/history_paging.dart`、`history_pager.dart`、`history_page.dart`；`test/prime_migration/history_pagination_test.dart`、`history_pager_test.dart`、`history_page_test.dart` |
 | O02 | 封面按卡片尺寸解码；有效封面不补查详情；无效封面去重、限并发及失败冷却；过滤/更新保持图片状态；无关键盘/标签变化复用配置 | `lib/features/history/history_image_provider.dart`、`lib/components/image.dart`；`test/prime_migration/history_page_test.dart`、`test/network/image_config_ownership_test.dart` |
 | O03 | 缩略图最多 6 并发，同 key 合并、失败冷却 30 秒；消费者全部取消时撤销排队；保留流式进度和原生清理 | `lib/network/thumbnail_request_queue.dart`；`test/prime_migration/thumbnail_request_queue_test.dart`、`test/network/shared_image_requests_test.dart` |
-| O04 | 作者名称与 author/artist 标签精确匹配。列表用不可变快照检测任意命中，规则原地修改后更新快照。关键词统一按字段、边界和大小写编译，精确标签用索引，文字匹配复用编译结果 | `lib/features/comic_widgets/comic_blocking.dart`、`lib/foundation/keyword_filter.dart`，`test/prime_migration/comic_blocking_test.dart`、`test/foundation/keyword_rules_test.dart` |
+| O04 | 作者名称与 author/artist 标签精确匹配。列表用不可变快照检测任意命中，规则原地修改后更新快照。关键词统一按字段、边界和大小写编译，精确标签用索引，文字用 AC 自动机，可按运行时 Unicode 数据折叠大小写 | `lib/features/comic_widgets/comic_blocking.dart`、`lib/foundation/keyword_filter.dart`，`test/prime_migration/comic_blocking_test.dart`、`test/foundation/keyword_rules_test.dart` |
 | O05 | 收藏、历史、本地漫画、稍后再看、追更和 Agent 展示不按关键词/作者隐藏；发现/搜索继续过滤；独立扫描收藏用于调规则 | R00、R08、R09；`test/features/comic_widgets/keyword_filter_consumers_test.dart`、`test/agent/agent_showcase_filtering_test.dart` |
 | O06 | 无关键盘/阅读设置不重查全列表；收藏默认展示不逐本查历史，已读筛选缓存；查询/搜索/选择所有权及追更 generation 门禁保留 | R01；`lib/foundation/context.dart`、`lib/features/favorites/local_favorites_page.dart`；`test/features/favorites/local_favorites_refresh_test.dart`、`favorite_updates_service_test.dart` |
 | O07 | 取可用内存的 1/16，按 32 MiB 分档，上限 192 MiB 并受 TV 上限约束。前台每 30 秒复查，低读数可降档，有额外余量才逐档回升。压力时降至最多 32 MiB 并取消主动预解码及排队订阅，可见图片继续显示，冷却后用新读数恢复。后台暂停检查。分页预解码最多两并发，连续／瀑布流串行，每视图最多准入四个请求，原生收尾后归还名额。保留进入当前页的解码，按方向调整相邻窗口。退出 1 秒后收缩，重入取消旧收缩并继承现有额度 | `lib/features/reader/image_cache_policy.dart`、`image_precache.dart`，`test/features/reader/image_cache_policy_test.dart`、`image_precache_test.dart`、`image_precache_pressure_test.dart` |
@@ -152,6 +152,11 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 
 - O04 的列表规则用精确键索引、AC 自动机和 Unicode 合并正则检测。R08、R09 的原因窗口分批扫描，可见行按需定位一条命中。独立词搜索越过被拒绝的 UTF-16 代理对后继续匹配。
 - Windows 定向测试通过 106 项。两轮 Dart AOT 基准中，1200 部漫画、每部 20 个标签、128 条规则的整批匹配中位数由 359–396 ms 降至约 32 ms。详见[可复跑基准](../experiments/keyword_filter_performance.zh.md)和[迁移记录](migration.md#关键词列表检测与原因定位2026-11-18)。
+
+### 2026-11-18 Unicode 折叠与忽略大小写匹配
+
+- O04 的忽略大小写文字检测改用相同的 AC 自动机。按运行时选择 Unicode 15.1 或 16.0 的简单折叠表，探测到其他版本时使用转义后的合并正则。独立词边界、标签精确索引和原因高亮遵循现有规则。
+- Windows 的独立 Dart 和 Flutter 测试引擎各核对 4,643,628 对码点，实际匹配器与各自正则一致。213 项仓库定向测试与 1 项独立引擎核对通过。Windows AOT 复用快照的整批筛选中位数 30.023→21.257 ms。[对照及生成入口](../experiments/keyword_filter_performance.zh.md#unicode-折叠对照)
 
 ### 2026-11-18 阅读图片缓存压力恢复
 

@@ -186,11 +186,8 @@ void main() {
     secondLabel: 'Indexed Boolean',
   );
 
-  // Same UTF-16 literal-substring semantics for both text engines. The
-  // automaton in this probe does not implement case folding or word boundaries.
   final patterns = rules.map((rule) => rule.keyword).toList();
-  final regex = RegExp('(?:${patterns.map(RegExp.escape).join('|')})');
-  final automaton = LiteralSubstringMatcher(patterns);
+  final alternation = '(?:${patterns.map(RegExp.escape).join('|')})';
   final fields = [
     for (final comic in comics) ...[
       comic.title,
@@ -198,21 +195,32 @@ void main() {
       comic.description,
     ],
   ];
-  var fieldHits = 0;
-  for (final field in fields) {
-    final expected = patterns.any(field.contains);
-    if (regex.hasMatch(field) != expected ||
-        automaton.hasMatch(field) != expected) {
-      throw StateError('Text engine mismatch for $field');
+  for (final caseSensitive in [true, false]) {
+    final regex = RegExp(
+      alternation,
+      caseSensitive: caseSensitive,
+      unicode: !caseSensitive,
+    );
+    final automaton = LiteralSubstringMatcher(
+      patterns,
+      unicodeIgnoreCase: !caseSensitive,
+    );
+    var fieldHits = 0;
+    for (final field in fields) {
+      final expected = regex.hasMatch(field);
+      if (automaton.hasMatch(field) != expected) {
+        throw StateError('Text engine mismatch for $field');
+      }
+      if (expected) fieldHits++;
     }
-    if (expected) fieldHits++;
+    final mode = caseSensitive ? 'Case-sensitive' : 'Unicode ignore-case';
+    _compare(
+      name:
+          '$mode substring engines on ${fields.length} fields ($fieldHits matched)',
+      first: () => _measure(fields, regex.hasMatch, fieldHits),
+      second: () => _measure(fields, automaton.hasMatch, fieldHits),
+      firstLabel: 'Literal regex',
+      secondLabel: 'Sparse Aho–Corasick',
+    );
   }
-  _compare(
-    name:
-        'Case-sensitive substring engines on ${fields.length} fields ($fieldHits matched)',
-    first: () => _measure(fields, regex.hasMatch, fieldHits),
-    second: () => _measure(fields, automaton.hasMatch, fieldHits),
-    firstLabel: 'Literal regex',
-    secondLabel: 'Sparse Aho–Corasick',
-  );
 }
