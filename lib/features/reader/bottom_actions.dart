@@ -57,9 +57,7 @@ List<Widget> buildReaderBottomActions(
               },
         child: IconButton(
           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          icon:
-              imageCollecting ||
-                  imageFavoriteStatus == ReaderImageFavoriteStatus.loading
+          icon: imageCollecting
               ? SizedBox.square(
                   dimension: 20,
                   child: CircularProgressIndicator(

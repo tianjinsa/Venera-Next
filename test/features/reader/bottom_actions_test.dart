@@ -190,7 +190,7 @@ void main() {
     },
   );
 
-  testWidgets('loading and unavailable status cannot dispatch collection', (
+  testWidgets('status reads keep the collect button static and disabled', (
     tester,
   ) async {
     final calls = <String>[];
@@ -201,14 +201,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Builder(
-            builder: (context) => MediaQuery(
-              data: MediaQuery.of(context).copyWith(disableAnimations: true),
-              child: Builder(
-                builder: (context) => Scaffold(
-                  body: Row(
-                    children: actions(context, calls, favoriteStatus: status),
-                  ),
-                ),
+            builder: (context) => Scaffold(
+              body: Row(
+                children: actions(context, calls, favoriteStatus: status),
               ),
             ),
           ),
@@ -218,15 +213,10 @@ void main() {
         tester.widget<IconButton>(find.byType(IconButton).first).onPressed,
         isNull,
       );
+      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
       if (status == ReaderImageFavoriteStatus.loading) {
-        expect(
-          tester
-              .widget<CircularProgressIndicator>(
-                find.byType(CircularProgressIndicator),
-              )
-              .value,
-          0.5,
-        );
+        expect(find.byTooltip('Loading image collection'), findsOneWidget);
       }
     }
     expect(calls, isEmpty);
