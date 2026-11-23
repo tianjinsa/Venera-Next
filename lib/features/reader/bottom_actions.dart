@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/button.dart' as prism;
+import 'package:prism_ui/popup.dart' as prism;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/translations.dart';
 
@@ -65,7 +68,36 @@ List<Widget> buildReaderBottomActions(
     );
   }
 
-  return [
+  // The same command owns both its direct button and its overflow entry.
+  // Do not infer command identity from a translated label or widget order.
+  final overflow = <prism.PopupMenuItem>[];
+  List<Widget> secondary({
+    required String label,
+    required Icon icon,
+    required VoidCallback? onPressed,
+    bool selected = false,
+  }) {
+    if (!usePrism) {
+      return [
+        action(
+          label: label,
+          icon: icon,
+          onPressed: onPressed,
+          selected: selected,
+        ),
+      ];
+    }
+    overflow.add(
+      prism.PopupMenuItem(
+        label: label,
+        onPressed: onPressed,
+        checked: selected ? true : null,
+      ),
+    );
+    return const [];
+  }
+
+  final buttons = [
     Semantics(
       toggled: switch (imageFavoriteStatus) {
         ReaderImageFavoriteStatus.collected => true,
@@ -114,13 +146,13 @@ List<Widget> buildReaderBottomActions(
       ),
     ),
     if (onFullscreen != null)
-      action(
+      ...secondary(
         label: "${"Full Screen".tl}(F12)",
         icon: const Icon(Icons.fullscreen),
         onPressed: onFullscreen,
       ),
     if (onRotate != null)
-      action(
+      ...secondary(
         label: "Screen Rotation".tl,
         icon: Icon(switch (orientation) {
           ReaderOrientation.system => Icons.screen_rotation,
@@ -135,7 +167,7 @@ List<Widget> buildReaderBottomActions(
       selected: brightnessEnabled,
       onPressed: onBrightness,
     ),
-    action(
+    ...secondary(
       label: automaticReading.tooltip,
       icon: Icon(
         automaticReading.playing
@@ -146,23 +178,34 @@ List<Widget> buildReaderBottomActions(
       onPressed: automaticReading.onPressed,
     ),
     if (onChapters != null)
-      action(
+      ...secondary(
         label: "Chapters".tl,
         icon: const Icon(Icons.library_books),
         onPressed: onChapters,
       ),
-    action(
+    ...secondary(
       label: "Save Image".tl,
       icon: const Icon(Icons.download),
       onPressed: onSave,
     ),
-    action(
+    ...secondary(
       label: App.isHarmonyOS
           ? 'System sharing is not available on HarmonyOS. Save the image to Files instead.'
                 .tl
           : 'Share'.tl,
       icon: const Icon(Icons.share),
       onPressed: App.isHarmonyOS ? null : onShare,
+    ),
+  ];
+  if (!usePrism) return buttons;
+  return [
+    prism.TonalButtonGroup(
+      key: const ValueKey('reader-bottom-quick'),
+      children: buttons,
+    ),
+    MobileMenuButton(
+      key: const ValueKey('reader-bottom-more'),
+      items: overflow,
     ),
   ];
 }

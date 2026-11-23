@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:prism_ui/card.dart' as prism;
 import 'package:prism_ui/list_row.dart' as prism;
 import 'package:prism_ui/switch.dart' as prism;
 import 'package:venera_next/components/mobile_ui.dart';
@@ -187,6 +186,42 @@ class ReaderBrightnessPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final usePrism = this.usePrism ?? MobileUi.enabledOf(context);
+    final controls = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ReaderBrightnessControl(
+          compact: true,
+          usePrism: usePrism,
+          enabled: enabled,
+          brightness: brightness,
+          onEnabledChanged: onEnabledChanged,
+          onBrightnessChanged: onBrightnessChanged,
+          onBrightnessChangeEnd: onBrightnessChangeEnd,
+        ),
+        ?additionalSettings,
+        ?status,
+      ],
+    );
+    if (usePrism) {
+      // Consume the sheet's scroll controller. Dragging a long form hands
+      // off to the same gesture owner, not a fixed-height nested card.
+      return ListView(
+        primary: true,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              'Adjust picture'.tl,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+          const SizedBox(height: 8),
+          controls,
+        ],
+      );
+    }
     final panelWidth =
         (MediaQuery.sizeOf(context).width -
                 MediaQuery.paddingOf(context).left -
@@ -207,34 +242,17 @@ class ReaderBrightnessPanel extends StatelessWidget {
           width: panelWidth,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ReaderBrightnessControl(
-                  compact: true,
-                  usePrism: usePrism,
-                  enabled: enabled,
-                  brightness: brightness,
-                  onEnabledChanged: onEnabledChanged,
-                  onBrightnessChanged: onBrightnessChanged,
-                  onBrightnessChangeEnd: onBrightnessChangeEnd,
-                ),
-                ?additionalSettings,
-                ?status,
-              ],
-            ),
+            child: controls,
           ),
         ),
       ),
     );
-    return usePrism
-        ? prism.Card(inert: true, radius: 20, child: content)
-        : Material(
-            elevation: 8,
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            clipBehavior: Clip.antiAlias,
-            child: content,
-          );
+    return Material(
+      elevation: 8,
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: content,
+    );
   }
 }

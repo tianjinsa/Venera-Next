@@ -95,16 +95,13 @@ class ReaderBottomBar extends StatelessWidget {
           ),
           if (usePrism)
             Flexible(
-              child: Align(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  scrollDirection: Axis.horizontal,
-                  child: prism.TonalButtonTheme(
-                    glass: prism.LiquidGlassScope.of(context),
-                    child: prism.TonalButtonGroup(
-                      key: const ValueKey('reader-bottom-action-group'),
-                      children: actions,
-                    ),
+              child: Center(
+                child: prism.TonalButtonTheme(
+                  glass: prism.LiquidGlassScope.of(context),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: 8,
+                    children: actions,
                   ),
                 ),
               ),
@@ -157,28 +154,31 @@ class ReaderBottomBar extends StatelessWidget {
     );
 
     final padding = context.padding;
-    final panel = Container(
-      decoration: BoxDecoration(
-        color: usePrism
-            ? context.colorScheme.surface
-            : context.colorScheme.surface.toOpacity(0.92),
-        border: !usePrism && isOpen
-            ? Border(
-                top: BorderSide(color: Colors.grey.toOpacity(0.5), width: 0.5),
-              )
-            : null,
-      ),
-      padding: EdgeInsets.fromLTRB(
-        padding.left,
-        0,
-        padding.right,
-        padding.bottom,
-      ),
-      child: child,
+    final inset = EdgeInsets.fromLTRB(
+      padding.left,
+      0,
+      padding.right,
+      padding.bottom,
     );
-    // The compact bar uses Prism glass only on the controls, not a second
-    // full-width backdrop blur over the reading canvas.
-    return usePrism ? panel : BlurEffect(child: panel);
+    // Padding/Row do not paint or hit-test the gaps between the controls.
+    if (usePrism) return Padding(padding: inset, child: child);
+    return BlurEffect(
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.colorScheme.surface.toOpacity(0.92),
+          border: isOpen
+              ? Border(
+                  top: BorderSide(
+                    color: Colors.grey.toOpacity(0.5),
+                    width: 0.5,
+                  ),
+                )
+              : null,
+        ),
+        padding: inset,
+        child: child,
+      ),
+    );
   }
 }
 

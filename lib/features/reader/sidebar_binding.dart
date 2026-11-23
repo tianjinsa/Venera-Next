@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:venera_next/components/side_bar.dart';
+import 'package:venera_next/components/mobile_large_sheet.dart';
 import 'package:venera_next/components/window_selection_task.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/navigation_admission.dart';
@@ -22,11 +23,14 @@ class ReaderSidebarBinding {
   final _retiring = <_SidebarOperation>{};
   bool _disposed = false;
 
+  bool get hasMobileSheet => _active?.isMobileSheet == true;
+
   ReaderSidebarHandle? show(
     BuildContext context,
     Widget child, {
     double width = 400,
     bool showBarrier = true,
+    bool useMobileSheet = false,
     bool Function()? isRequestCurrent,
   }) {
     bool canShow() => canOpen() && (isRequestCurrent?.call() ?? true);
@@ -46,7 +50,10 @@ class ReaderSidebarBinding {
     final owner = WindowSelectionTask(context);
     if (!owner.active) return null;
     final originalNavigator = Navigator.maybeOf(context);
-    final operation = _active = _SidebarOperation(owner);
+    final operation = _active = _SidebarOperation(
+      owner,
+      isMobileSheet: useMobileSheet,
+    );
     final handle = ReaderSidebarHandle._(
       () =>
           identical(_active, operation) &&
@@ -91,19 +98,28 @@ class ReaderSidebarBinding {
             return;
           }
           final navigator = Navigator.of(context);
-          final route = SideBarRoute<void>(
-            child,
-            width: width,
-            showBarrier: showBarrier,
-            addTopPadding: false,
-            transitionDuration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 300),
-            isOwnerActive: () => handle.isCurrent,
-            // Navigator disposal can precede the first page build. Release
-            // the borrowed interaction after synchronous tree finalization.
-            onDispose: () => scheduleMicrotask(() => _finish(operation)),
-          );
+          // The shell owns both presentations. In particular, a replacing
+          // comic removes its exact route rather than popping a newer one.
+          void onDispose() => scheduleMicrotask(() => _finish(operation));
+          final route = useMobileSheet
+              ? mobileLargeSheetRoute<void>(
+                  context: context,
+                  builder: (_) => child,
+                  onDispose: onDispose,
+                )
+              : SideBarRoute<void>(
+                  child,
+                  width: width,
+                  showBarrier: showBarrier,
+                  addTopPadding: false,
+                  transitionDuration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 300),
+                  isOwnerActive: () => handle.isCurrent,
+                  // Navigator disposal can precede the first page build. Release
+                  // the borrowed interaction after synchronous tree finalization.
+                  onDispose: onDispose,
+                );
           operation.dismiss = () {
             if (navigator.mounted && route.isActive) {
               navigator.removeRoute(route);
@@ -211,11 +227,12 @@ class ReaderSidebarBinding {
 }
 
 class _SidebarOperation {
-  _SidebarOperation(this.owner) {
+  _SidebarOperation(this.owner, {required this.isMobileSheet}) {
     // Cancellation before the deferred run can leave this future unawaited.
     finished.future.ignore();
   }
 
+  final bool isMobileSheet;
   final WindowSelectionTask owner;
   final finished = Completer<void>();
   Future<void>? closing;

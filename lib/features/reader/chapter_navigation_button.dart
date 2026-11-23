@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/button.dart' as prism;
+import 'package:prism_ui/liquid_glass.dart' as prism;
 import 'package:venera_next/foundation/translations.dart';
 
 import 'chapter_navigation.dart';
@@ -48,10 +50,15 @@ class _ReaderChapterNavigationButtonState
             child: SizedBox.square(
               dimension: 58,
               child: widget.usePrism
-                  ? prism.IconButton.filled(
-                      tooltip: label,
-                      onPressed: visible ? action!.select : null,
-                      icon: icon,
+                  ? Center(
+                      child: prism.TonalButtonTheme(
+                        glass: prism.LiquidGlassScope.of(context),
+                        child: prism.IconButton(
+                          tooltip: label,
+                          onPressed: visible ? action!.select : null,
+                          icon: icon,
+                        ),
+                      ),
                     )
                   : Material(
                       color: colors.primaryContainer,

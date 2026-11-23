@@ -13,6 +13,9 @@ import 'package:venera_next/features/reader/chapter_menu.dart';
 import 'package:venera_next/features/reader/chapters.dart';
 import 'package:venera_next/features/reader/comments_controller.dart';
 import 'package:venera_next/features/reader/brightness.dart';
+import 'package:venera_next/features/reader/bottom_actions.dart';
+import 'package:venera_next/features/reader/image_favorite_controller.dart';
+import 'package:venera_next/features/reader/platform_effects_controller.dart';
 import 'package:venera_next/features/reader/chrome_action.dart';
 import 'package:venera_next/features/reader/progress_bar.dart';
 import 'package:venera_next/features/reader/top_bar.dart';
@@ -74,56 +77,128 @@ void main() {
   });
 
   testWidgets(
-    'narrow Prism bottom controls scroll without losing page control',
+    'phone chrome floats over the image; only two quick image commands',
     (tester) async {
       _narrowPhone(tester);
-      var next = 0;
-      final actions = <int>[];
+      final calls = <String>[];
       await tester.pumpWidget(
         _app(
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: ReaderBottomBar(
-              label: 'E1 : P2',
-              actions: [
-                for (var i = 0; i < 9; i++)
-                  ReaderChromeAction(
-                    key: ValueKey(i),
-                    usePrism: true,
-                    label: 'Action $i',
-                    icon: const Icon(Icons.bookmark),
-                    onPressed: () => actions.add(i),
+          Builder(
+            builder: (context) => Stack(
+              fit: StackFit.expand,
+              children: [
+                GestureDetector(
+                  onTap: () => calls.add('image'),
+                  child: const ColoredBox(color: Color(0xFF992255)),
+                ),
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    height: 56,
+                    child: ReaderTopBar(
+                      title: 'Comic',
+                      actions: const [],
+                      usePrism: true,
+                      onBack: () {},
+                    ),
                   ),
+                ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ReaderBottomBar(
+                    label: 'E1 : P2',
+                    actions: buildReaderBottomActions(
+                      context,
+                      usePrism: true,
+                      imageFavoriteStatus:
+                          ReaderImageFavoriteStatus.uncollected,
+                      onCollect: () => calls.add('collect'),
+                      orientation: ReaderOrientation.system,
+                      onRotate: () => calls.add('rotate'),
+                      brightnessEnabled: true,
+                      onBrightness: () => calls.add('picture'),
+                      automaticReading: ReaderAutomaticReadingAction(
+                        tooltip: 'Auto',
+                        active: false,
+                        playing: false,
+                        onPressed: () => calls.add('auto'),
+                      ),
+                      onChapters: () => calls.add('chapters'),
+                      onSave: () => calls.add('save'),
+                      onShare: () => calls.add('share'),
+                    ),
+                    usePrism: true,
+                    page: 2,
+                    maxPage: 12,
+                    reversed: true,
+                    isOpen: true,
+                    onPageChanged: (value) => calls.add('page $value'),
+                    onPrevious: () {},
+                    onNext: () => calls.add('next'),
+                    nextTooltip: 'Next chapter',
+                  ),
+                ),
               ],
-              usePrism: true,
-              page: 2,
-              maxPage: 12,
-              reversed: true,
-              isOpen: true,
-              onPageChanged: (_) {},
-              onPrevious: () {},
-              onNext: () => next++,
-              nextTooltip: 'Next chapter',
             ),
           ),
         ),
       );
-      expect(find.byType(ReaderProgressSlider), findsOneWidget);
-      expect(find.byType(Slider), findsOneWidget);
-      await tester.tap(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is prism.IconButton && widget.tooltip == 'Next chapter',
-        ),
+      expect(
+        tester
+            .widgetList<prism.TonalButtonGroup>(
+              find.byType(prism.TonalButtonGroup),
+            )
+            .map((group) => group.children.length),
+        everyElement(lessThanOrEqualTo(2)),
       );
-      await tester.drag(
-        find.byType(prism.TonalButtonGroup),
-        const Offset(-330, 0),
+      final quick = find.byKey(const ValueKey('reader-bottom-quick'));
+      final more = find.byKey(const ValueKey('reader-bottom-more'));
+      expect(tester.widget<prism.TonalButtonGroup>(quick).children.length, 2);
+      expect(tester.getRect(quick).right, lessThan(tester.getRect(more).left));
+      for (final key in [ReaderTopBar, ReaderBottomBar]) {
+        final bar = find.byType(key);
+        final backings = find.descendant(
+          of: bar,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Material && w.type != MaterialType.transparency ||
+                w is ColoredBox ||
+                w is DecoratedBox,
+          ),
+        );
+        for (final box in backings.evaluate()) {
+          expect(
+            box.size!.width,
+            lessThan(320),
+            reason: 'the artwork, not a toolbar backing, must fill the width',
+          );
+        }
+      }
+      await tester.tapAt(const Offset(140, 26)); // empty top/title
+      await tester.tapAt(const Offset(5, 701)); // lower edge outside capsules
+      Finder icon(String label) => find.byWidgetPredicate(
+        (widget) => widget is prism.IconButton && widget.tooltip == label,
       );
+      await tester.tap(icon('Next chapter'));
+      await tester.tap(icon('Collect the image'));
+      await tester.tap(icon('Adjust picture'));
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      expect(slider.semanticFormatterCallback!(5), contains('5 / 12'));
+      slider.onChanged!(5);
+      await tester.tap(more);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey(8)).hitTestable());
-      expect(actions, [8]);
-      expect(next, 1);
+      expect(find.text('Chapters').hitTestable(), findsOneWidget);
+      await tester.tap(find.text('Chapters').hitTestable());
+      await tester.pumpAndSettle();
+      expect(calls, [
+        'image',
+        'image',
+        'next',
+        'collect',
+        'picture',
+        'page 5',
+        'chapters',
+      ]);
       expect(tester.takeException(), isNull);
     },
   );

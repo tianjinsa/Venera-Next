@@ -11,6 +11,8 @@ import 'tv_input.dart';
 import 'package:venera_next/features/reader/status_info.dart';
 import 'package:flutter/material.dart';
 import 'package:prism_ui/button.dart' as prism;
+import 'package:prism_ui/liquid_glass.dart' as prism;
+import 'package:prism_ui/popup.dart' as prism;
 import 'package:venera_next/features/reader/progress_bar.dart';
 import 'package:venera_next/features/reader/bottom_actions.dart';
 import 'package:venera_next/features/reader/top_bar.dart';
@@ -134,6 +136,9 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_sidebarBinding.hasMobileSheet && !_usesMobileChrome) {
+      _sidebarBinding.close();
+    }
     // Theme, locale and accessibility changes still rebuild the controls.
     _topBar = _brightnessPanel = null;
     _bottomActionInputs = null;
@@ -205,6 +210,10 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
       _replaceBrightnessPreview();
       _isMenuLocked = false;
       _gesturePort?.cancelMenuRequests();
+    }
+    if (_sidebarBinding.hasMobileSheet &&
+        widget.data.preferences.eInkRefreshEnabled) {
+      _sidebarBinding.close();
     }
     if (oldWidget.data.swipeToCollect != widget.data.swipeToCollect) {
       addDragListener();
@@ -381,18 +390,19 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
             right: 0,
             child: _menuRegion(visible: _isOpen, child: _bindBottom(usePrism)),
           ),
-          AnimatedPositioned(
-            duration: menuDuration,
-            curve: Curves.easeOut,
-            right: 16 + context.padding.right,
-            bottom: brightnessPanelVisible
-                ? ReaderBottomBar.height + context.padding.bottom + 12
-                : -context.height,
-            child: _menuRegion(
-              visible: brightnessPanelVisible,
-              child: _buildBrightnessPanel(usePrism),
+          if (!usePrism)
+            AnimatedPositioned(
+              duration: menuDuration,
+              curve: Curves.easeOut,
+              right: 16 + context.padding.right,
+              bottom: brightnessPanelVisible
+                  ? ReaderBottomBar.height + context.padding.bottom + 12
+                  : -context.height,
+              child: _menuRegion(
+                visible: brightnessPanelVisible,
+                child: _buildBrightnessPanel(usePrism),
+              ),
             ),
-          ),
           if (_isMenuLocked)
             Positioned.fill(
               child: SafeArea(
@@ -402,15 +412,14 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
                       ? SizedBox.square(
                           dimension: 48,
                           child: Align(
-                            child: prism.TonalButtonGroup(
-                              children: [
-                                MobileToolbarButton(
-                                  key: const ValueKey('reader-menu-unlock'),
-                                  label: 'Unlock reader menu'.tl,
-                                  icon: const Icon(Icons.lock_outline),
-                                  onPressed: unlockMenu,
-                                ),
-                              ],
+                            child: prism.TonalButtonTheme(
+                              glass: prism.LiquidGlassScope.of(context),
+                              child: MobileToolbarButton(
+                                key: const ValueKey('reader-menu-unlock'),
+                                label: 'Unlock reader menu'.tl,
+                                icon: const Icon(Icons.lock_outline),
+                                onPressed: unlockMenu,
+                              ),
                             ),
                           ),
                         )
@@ -476,40 +485,73 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     );
     if (_topBar != null && _topBarInputs == inputs) return _topBar!;
     _topBarInputs = inputs;
+    final diagnostics = widget.onDiagnostics != null
+        ? widget.imageWork.diagnostics
+        : null;
+    void openDiagnostics() {
+      if (_isOpen) openOrClose();
+      widget.onDiagnostics?.call();
+    }
+
+    Widget diagnosticAction() => ListenableBuilder(
+      listenable: diagnostics!,
+      builder: (_, _) => ReaderChromeAction(
+        usePrism: usePrism,
+        label: diagnostics.isRecording
+            ? 'Stop and review'.tl
+            : 'Reading diagnostics'.tl,
+        icon: Icon(
+          diagnostics.isRecording ? Icons.stop_circle_outlined : Icons.speed,
+        ),
+        onPressed: openDiagnostics,
+      ),
+    );
+    Widget commentAction() => ReaderChromeAction(
+      usePrism: usePrism,
+      label: 'Chapter Comments'.tl,
+      icon: const Icon(Icons.comment),
+      onPressed: openChapterComments,
+    );
     return _topBar = ReaderTopBar(
+      key: ValueKey((
+        widget.data.comicId,
+        widget.data.sourceKey,
+        widget.imageWork,
+      )),
       usePrism: usePrism,
       toolbarHeight: toolbarHeight,
       title: widget.data.title,
       chapterTitle: widget.data.chapterTitle,
       onBack: () => unawaited(widget.onExit()),
-      actions: [
-        if (widget.onDiagnostics != null &&
-            widget.imageWork.diagnostics != null)
-          ListenableBuilder(
-            listenable: widget.imageWork.diagnostics!,
-            builder: (context, _) => ReaderChromeAction(
-              usePrism: usePrism,
-              label: widget.imageWork.diagnostics!.isRecording
-                  ? 'Stop and review'.tl
-                  : 'Reading diagnostics'.tl,
-              icon: Icon(
-                widget.imageWork.diagnostics!.isRecording
-                    ? Icons.stop_circle_outlined
-                    : Icons.speed,
+      // One extra command is direct. Only two distinct commands need a menu.
+      more: !usePrism
+          ? null
+          : showComments && diagnostics != null
+          ? ListenableBuilder(
+              listenable: diagnostics,
+              builder: (_, _) => MobileMenuButton(
+                items: [
+                  prism.PopupMenuItem(
+                    label: 'Chapter Comments'.tl,
+                    onPressed: openChapterComments,
+                  ),
+                  prism.PopupMenuItem(
+                    label: diagnostics.isRecording
+                        ? 'Stop and review'.tl
+                        : 'Reading diagnostics'.tl,
+                    onPressed: openDiagnostics,
+                  ),
+                ],
               ),
-              onPressed: () {
-                if (_isOpen) openOrClose();
-                widget.onDiagnostics!();
-              },
-            ),
-          ),
-        if (showComments)
-          ReaderChromeAction(
-            usePrism: usePrism,
-            label: "Chapter Comments".tl,
-            icon: const Icon(Icons.comment),
-            onPressed: openChapterComments,
-          ),
+            )
+          : showComments
+          ? commentAction()
+          : diagnostics != null
+          ? diagnosticAction()
+          : null,
+      actions: [
+        if (!usePrism && diagnostics != null) diagnosticAction(),
+        if (!usePrism && showComments) commentAction(),
         ReaderChromeAction(
           key: const ValueKey('reader-menu-lock'),
           usePrism: usePrism,
@@ -635,8 +677,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         orientation: widget.orientation,
         onRotate: widget.onRotate,
         brightnessEnabled: brightnessEnabled,
-        onBrightness: () =>
-            setState(() => _brightnessPanelOpen = !_brightnessPanelOpen),
+        onBrightness: _openOrTogglePictureAdjustment,
         automaticReading: ReaderAutomaticReadingAction(
           tooltip: switch (widget.data.automaticReading) {
             AutoReadingStatus.waiting =>
@@ -660,6 +701,11 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     }
 
     return ReaderBottomBar(
+      key: ValueKey((
+        widget.data.comicId,
+        widget.data.sourceKey,
+        widget.imageWork,
+      )),
       usePrism: usePrism,
       label: text,
       actions: _bottomActions!,
@@ -676,11 +722,30 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     );
   }
 
+  void _openOrTogglePictureAdjustment() {
+    if (!mounted || !_isOpen || _isMenuLocked) return;
+    if (!_usesMobileChrome) {
+      setState(() => _brightnessPanelOpen = !_brightnessPanelOpen);
+      return;
+    }
+    final preview = _brightnessPreview;
+    _sidebarBinding.show(
+      context,
+      _buildBrightnessPanel(true),
+      useMobileSheet: true,
+      isRequestCurrent: () =>
+          mounted &&
+          identical(_brightnessPreview, preview) &&
+          _usesMobileChrome,
+    );
+  }
+
   Widget _buildBrightnessPanel(bool usePrism) {
     if (_brightnessPanelUsesPrism != usePrism) {
       _brightnessPanelUsesPrism = usePrism;
       _brightnessPanel = null;
     }
+    final target = _brightnessPreview;
     return _brightnessPanel ??= SettingsSaveScope(
       work: widget.imageWork,
       child: ReaderBrightnessSetting(
@@ -689,7 +754,11 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         preview: _brightnessPreview,
         panel: true,
         usePrism: usePrism,
-        onChanged: _onSettingChanged,
+        onChanged: (key) {
+          if (mounted && identical(target, _brightnessPreview)) {
+            _onSettingChanged(key);
+          }
+        },
       ),
     );
   }
