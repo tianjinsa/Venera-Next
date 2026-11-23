@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:prism_ui/liquid_glass.dart' as prism;
 import 'package:prism_ui/list_row.dart' as prism;
 import 'package:prism_ui/shape.dart' as prism;
-import 'package:prism_ui/surface.dart' as prism;
-import 'package:prism_ui/theme_data.dart' as prism;
 
 import 'gesture.dart';
 import 'mobile_ui.dart';
@@ -17,9 +15,35 @@ enum MobileContentStyle {
   final double radius;
 }
 
+/// Values are relative to the *actual* page, not a second seed-generated
+/// colour scheme. Multiplying the page colour toward black keeps every stop
+/// below the page on a dark theme as well as on a light one. Pure black has
+/// no darker colour: the (subtle) outline still separates neighbouring cards.
+abstract final class MobileContentPalette {
+  static Color fill(BuildContext context, {bool selected = false}) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    return Color.alphaBlend(
+      Colors.black.withValues(
+        alpha: dark ? (selected ? .50 : .40) : (selected ? .095 : .060),
+      ),
+      theme.scaffoldBackgroundColor,
+    );
+  }
+
+  static List<Color> glaze(BuildContext context, Color base) {
+    final page = Theme.of(context).scaffoldBackgroundColor;
+    // Neither endpoint lightens beyond the page, including selected rows.
+    return [
+      Color.lerp(base, page, .18)!,
+      Color.lerp(base, Colors.black, .016)!,
+    ];
+  }
+}
+
 /// The matte content layer underneath floating liquid-glass controls.
 ///
-/// Like FlClash's DashboardCard and profile rows, this is a raised, rounded
+/// Like FlClash's DashboardCard and profile rows, this is a separate, rounded
 /// content surface, not another lens. Glass-on adds a static tonal treatment
 /// and rim. There is deliberately no backdrop capture, filter or per-item
 /// shader in a lazily built list. Callers retain their own gesture targets.
@@ -83,14 +107,7 @@ class MobileContentSurface extends StatelessWidget {
     final glass = prism.LiquidGlassScope.of(context);
     final dark = scheme.brightness == Brightness.dark;
     final shape = prism.AppShape.all(style.radius);
-    final prismColors = prism.Theme.of(context).colorScheme;
-    final base = selected
-        ? scheme.secondaryContainer
-        : prism.SurfaceLevel.card.colorOf(prismColors);
-    final tint = Color.alphaBlend(
-      scheme.primary.withValues(alpha: dark ? 0.055 : 0.035),
-      base,
-    );
+    final base = MobileContentPalette.fill(context, selected: selected);
     return Padding(
       padding: insets,
       child: DecoratedBox(
@@ -100,13 +117,7 @@ class MobileContentSurface extends StatelessWidget {
               ? LinearGradient(
                   begin: AlignmentDirectional.topStart,
                   end: AlignmentDirectional.bottomEnd,
-                  colors: [
-                    Color.alphaBlend(
-                      Colors.white.withValues(alpha: dark ? 0.09 : 0.40),
-                      base,
-                    ),
-                    tint.withValues(alpha: dark ? 0.94 : 0.92),
-                  ],
+                  colors: MobileContentPalette.glaze(context, base),
                 )
               : null,
           shape: shape,
@@ -130,8 +141,10 @@ class MobileContentSurface extends StatelessWidget {
                     (selected
                         ? scheme.primary.withValues(alpha: 0.6)
                         : glass && dark
-                        ? Colors.white.withValues(alpha: 0.13)
-                        : scheme.outlineVariant.withValues(alpha: 0.65)),
+                        ? scheme.outlineVariant.withValues(alpha: 0.40)
+                        : scheme.outlineVariant.withValues(
+                            alpha: dark ? 0.30 : 0.48,
+                          )),
                 width: selected ? 1 : 0.75,
               ),
             ),

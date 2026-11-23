@@ -117,6 +117,70 @@ void main() {
     );
   }
 
+  for (final brightness in Brightness.values) {
+    for (final selected in [false, true]) {
+      testWidgets(
+        'card stays darker than its actual scaffold, still readable: $brightness selected=$selected',
+        (tester) async {
+          tester.view
+            ..devicePixelRatio = 1
+            ..physicalSize = const Size(390, 750);
+          addTearDown(tester.view.reset);
+          final scheme = ColorScheme.fromSeed(
+            seedColor: Colors.indigo,
+            brightness: brightness,
+          );
+          // Explicit override catches the former independently seeded Prism card.
+          final page = brightness == Brightness.dark
+              ? const Color(0xff101115)
+              : const Color(0xfffafafa);
+          for (final quality in ['off', 'standard', 'ultra']) {
+            await tester.pumpWidget(
+              MaterialApp(
+                theme: ThemeData(
+                  colorScheme: scheme,
+                  scaffoldBackgroundColor: page,
+                ),
+                builder: (_, child) =>
+                    MobileUiTheme(glass: quality, child: child!),
+                home: Scaffold(
+                  body: MobileContentSurface(
+                    key: _summary,
+                    selected: selected,
+                    child: const Text('Readable card'),
+                  ),
+                ),
+              ),
+            );
+            await tester.pump();
+            final fill = tester
+                .widgetList<DecoratedBox>(
+                  find.descendant(
+                    of: find.byKey(_summary),
+                    matching: find.byType(DecoratedBox),
+                  ),
+                )
+                .map((w) => w.decoration)
+                .whereType<ShapeDecoration>()
+                .firstWhere((d) => d.color != null || d.gradient != null);
+            expect(fill.gradient == null, quality == 'off');
+            final stops = fill.gradient?.colors ?? [fill.color!];
+            for (final color in stops) {
+              final ink = scheme.onSurface.computeLuminance();
+              final body = color.computeLuminance();
+              expect(body, lessThan(page.computeLuminance()));
+              final contrast = ink > body
+                  ? (ink + .05) / (body + .05)
+                  : (body + .05) / (ink + .05);
+              expect(contrast, greaterThanOrEqualTo(4.5));
+            }
+            expect(find.byType(BackdropFilter), findsNothing);
+          }
+        },
+      );
+    }
+  }
+
   testWidgets('desktop keeps plain rows and the original summary decoration', (
     tester,
   ) async {
