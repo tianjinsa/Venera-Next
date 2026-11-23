@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:prism_ui/card.dart' as prism;
 import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/popup.dart' as prism;
+import 'package:prism_ui/search_field.dart' as prism;
 import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/translations.dart';
@@ -180,4 +181,23 @@ class MobileCollectionTileFrame extends StatelessWidget {
       ),
     );
   }
+}
+
+class MobileCollectionSearchField extends StatelessWidget {
+  const MobileCollectionSearchField({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => prism.SearchField(
+    controller: controller,
+    autofocus: true,
+    hintText: 'Search'.tl,
+    onChanged: onChanged,
+  );
 }

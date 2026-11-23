@@ -421,17 +421,22 @@ class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
                 },
               ),
             ),
-            title: TextField(
-              autofocus: true,
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: "Search".tl,
-                border: InputBorder.none,
-              ),
-              onChanged: (v) {
-                updateImageFavorites();
-              },
-            ),
+            title: mobile
+                ? MobileCollectionSearchField(
+                    controller: controller,
+                    onChanged: (_) => updateImageFavorites(),
+                  )
+                : TextField(
+                    autofocus: true,
+                    controller: controller,
+                    decoration: InputDecoration(
+                      hintText: "Search".tl,
+                      border: InputBorder.none,
+                    ),
+                    onChanged: (v) {
+                      updateImageFavorites();
+                    },
+                  ),
           ),
         if (_loading || _deleting)
           const SliverToBoxAdapter(child: LinearProgressIndicator()),

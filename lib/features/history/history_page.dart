@@ -314,6 +314,7 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   void _deleteSelection() {
+    if (!multiSelectMode || _selectingAll || selectedComics.isEmpty) return;
     final comicsToDelete = selectedComics.toList();
     _exitMultiSelect();
     _manager.batchDeleteHistories(comicsToDelete);
@@ -457,7 +458,7 @@ class _HistoryPageState extends State<HistoryPage> {
           ];
 
     final searchActions = [
-      if (query.isNotEmpty)
+      if (!mobile && query.isNotEmpty)
         collectionShortcut(
           context,
           icon: const Icon(Icons.clear),
@@ -522,15 +523,20 @@ class _HistoryPageState extends State<HistoryPage> {
                   title: multiSelectMode
                       ? Text(selectedComics.length.toString())
                       : searchMode
-                      ? TextField(
-                          controller: searchController,
-                          autofocus: true,
-                          decoration: InputDecoration(
-                            hintText: 'Search'.tl,
-                            border: InputBorder.none,
-                          ),
-                          onChanged: _search,
-                        )
+                      ? mobile
+                            ? MobileCollectionSearchField(
+                                controller: searchController,
+                                onChanged: _search,
+                              )
+                            : TextField(
+                                controller: searchController,
+                                autofocus: true,
+                                decoration: InputDecoration(
+                                  hintText: 'Search'.tl,
+                                  border: InputBorder.none,
+                                ),
+                                onChanged: _search,
+                              )
                       : Text('History'.tl),
                   mobileMore: !mobile || (!multiSelectMode && searchMode)
                       ? null

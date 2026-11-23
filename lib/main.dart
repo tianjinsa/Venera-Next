@@ -605,19 +605,22 @@ class _SystemUiProvider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var brightness = Theme.of(context).brightness;
+    final mobileContrast = App.isAndroid && !AppProfile.current.isTv
+        ? false
+        : null;
     SystemUiOverlayStyle systemUiStyle;
     if (brightness == Brightness.light) {
       systemUiStyle = SystemUiOverlayStyle.dark.copyWith(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarContrastEnforced: false,
+        systemNavigationBarContrastEnforced: mobileContrast,
         systemNavigationBarIconBrightness: Brightness.dark,
       );
     } else {
       systemUiStyle = SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarContrastEnforced: false,
+        systemNavigationBarContrastEnforced: mobileContrast,
         systemNavigationBarIconBrightness: Brightness.light,
       );
     }

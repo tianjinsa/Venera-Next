@@ -100,6 +100,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   bool searchHasUpper = false;
 
   bool searchMode = false;
+  final _mobileSearchController = TextEditingController();
 
   bool multiSelectMode = false;
 
@@ -397,6 +398,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     _retireUpdateFlyout();
     _observedManager.removeListener(updateComics);
     _observedHistory.removeListener(_onHistoryChanged);
+    _mobileSearchController.dispose();
     scrollController.dispose();
     super.dispose();
   }
@@ -854,11 +856,18 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
         : const <MenuEntry>[];
 
     void openSearch() {
+      if (mobile) _mobileSearchController.clear();
       setState(() {
         keyword = "";
         searchMode = true;
         updateSearchResult();
       });
+    }
+
+    void applySearch(String value) {
+      keyword = value;
+      searchHasUpper = value.contains(RegExp(r'[A-Z]'));
+      updateSearchResult();
     }
 
     Widget folderButton() => collectionShortcut(
@@ -1125,7 +1134,9 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
               context,
               label: "Cancel".tl,
               icon: const Icon(Icons.close),
-              onPressed: () => setState(() => searchMode = false),
+              onPressed: mobile
+                  ? _dismissLocalMode
+                  : () => setState(() => searchMode = false),
             ),
             actions: mobile
                 ? [
@@ -1137,18 +1148,19 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     ),
                   ]
                 : null,
-            title: TextField(
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: "Search".tl,
-                border: UnderlineInputBorder(),
-              ),
-              onChanged: (v) {
-                keyword = v;
-                searchHasUpper = keyword.contains(RegExp(r'[A-Z]'));
-                updateSearchResult();
-              },
-            ).paddingBottom(8).paddingRight(8),
+            title: mobile
+                ? MobileCollectionSearchField(
+                    controller: _mobileSearchController,
+                    onChanged: applySearch,
+                  )
+                : TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: "Search".tl,
+                      border: UnderlineInputBorder(),
+                    ),
+                    onChanged: applySearch,
+                  ).paddingBottom(8).paddingRight(8),
           ),
         if (!searchMode && !multiSelectMode && childFolders.isNotEmpty) ...[
           SliverToBoxAdapter(

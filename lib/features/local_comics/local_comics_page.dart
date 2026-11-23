@@ -49,6 +49,7 @@ class _LocalComicsPageState extends SettingsSaveState<LocalComicsPage> {
   String keyword = "";
 
   bool searchMode = false;
+  final _mobileSearchController = TextEditingController();
 
   bool multiSelectMode = false;
 
@@ -99,6 +100,7 @@ class _LocalComicsPageState extends SettingsSaveState<LocalComicsPage> {
   @override
   void dispose() {
     LocalManager().removeListener(update);
+    _mobileSearchController.dispose();
     appdata.settings.removeListener(onSettingsChanged);
     super.dispose();
   }
@@ -353,12 +355,8 @@ class _LocalComicsPageState extends SettingsSaveState<LocalComicsPage> {
               title: multiSelectMode
                   ? Text(selectedComics.length.toString())
                   : searchMode
-                  ? TextField(
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: 'Search'.tl,
-                        border: InputBorder.none,
-                      ),
+                  ? MobileCollectionSearchField(
+                      controller: _mobileSearchController,
                       onChanged: (value) {
                         keyword = value;
                         update();
@@ -373,7 +371,10 @@ class _LocalComicsPageState extends SettingsSaveState<LocalComicsPage> {
                       context,
                       label: 'Search'.tl,
                       icon: const Icon(Icons.search),
-                      onPressed: () => setState(() => searchMode = true),
+                      onPressed: () {
+                        _mobileSearchController.clear();
+                        setState(() => searchMode = true);
+                      },
                     ),
                   collectionShortcut(
                     context,
