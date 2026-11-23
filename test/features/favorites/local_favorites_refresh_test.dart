@@ -9,6 +9,8 @@ import 'package:venera_next/components/mobile_collection_ui.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:prism_ui/search_field.dart' as prism;
 import 'package:venera_next/features/comic_details/comic_details.dart';
+import 'package:venera_next/features/comic_source/comic_source_api.dart'
+    show Comic, FavoriteData, configureFavoriteDataResolver;
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/features/favorites/favorite_models.dart';
 import 'package:venera_next/features/favorites/favorites_manager.dart';
@@ -16,6 +18,7 @@ import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/features/favorites/favorites_page.dart';
 import 'package:venera_next/features/favorites/favorite_folder_browser.dart';
 import 'package:venera_next/features/favorites/local_favorites_page.dart';
+import 'package:venera_next/features/favorites/network_favorites_page.dart';
 import 'package:venera_next/features/history/history.dart';
 import 'package:venera_next/features/history/history_scope.dart';
 import 'package:venera_next/foundation/app.dart';
@@ -24,6 +27,7 @@ import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/comic_type.dart';
 import 'package:venera_next/foundation/opencc.dart';
+import 'package:venera_next/foundation/res.dart';
 import 'package:venera_next/routing/app_navigation.dart';
 
 FavoriteItem _comic(String id, String title) => FavoriteItem(
@@ -236,10 +240,6 @@ void main() {
           _comic('nested-one', 'Nested book'),
         );
       });
-      appdata.implicitData['favoriteFolder'] = {
-        'name': 'B',
-        'isNetwork': false,
-      };
       await tester.pumpWidget(
         fixture.host(phone: true, page: const FavoritesPage()),
       );
@@ -252,6 +252,12 @@ void main() {
           find.descendant(of: panel, matching: find.text(label)).hitTestable();
 
       expect(find.byIcon(Icons.menu), findsNothing);
+      await tester.tap(find.text('Unselected'));
+      await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+      await tester.tap(option('B'));
+      await _settle(tester);
+      expect(panel, findsNothing);
       expect(
         tester.getCenter(chevron).dx,
         greaterThan(tester.getCenter(find.text('B')).dx),
@@ -294,6 +300,56 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final multiFolder in [false, true]) {
+    testWidgets(
+      'network favorite roots open the selector by name: multi=$multiFolder',
+      (tester) async {
+        tester.view
+          ..devicePixelRatio = 1
+          ..physicalSize = const Size(390, 844);
+        addTearDown(tester.view.reset);
+        final fixture = await _prepare(tester, 0);
+        final data = FavoriteData(
+          key: 'shallow-network-test',
+          title: 'Network Library',
+          multiFolder: multiFolder,
+          loadComic: (_, [_]) async => const Res<List<Comic>>([], subData: 1),
+          loadNext: null,
+          loadFolders: ([_]) async => const Res({'sub': 'Network list'}),
+        );
+        configureFavoriteDataResolver((key) => key == data.key ? data : null);
+        addTearDown(() => configureFavoriteDataResolver(null));
+        appdata.implicitData['favoriteFolder'] = {
+          'name': data.key,
+          'isNetwork': true,
+        };
+        await tester.pumpWidget(
+          fixture.host(phone: true, page: const FavoritesPage()),
+        );
+        await _settle(tester);
+        final panel = find.byKey(const ValueKey('mobile-side-sheet-surface'));
+        final name = find.text(data.title);
+        final chevron = find.byKey(const ValueKey('favorite-path-open-sheet'));
+        expect(
+          tester.getCenter(chevron).dx,
+          greaterThan(tester.getCenter(name).dx),
+        );
+        expect(find.byIcon(Icons.menu), findsNothing);
+        await tester.tap(name);
+        await tester.pumpAndSettle();
+        expect(panel, findsOneWidget);
+        await tester.tap(
+          find.descendant(of: panel, matching: find.byType(CloseButton)),
+        );
+        await tester.pumpAndSettle();
+        expect(panel, findsNothing);
+        expect(find.byType(NetworkFavoritePage), findsOneWidget);
+        expect(name.hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   for (final nested in [false, true]) {
     testWidgets(
