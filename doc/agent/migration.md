@@ -402,3 +402,9 @@
 - 基线 `4fc04302f5e3ab631e3c651de6523fc430622491`。翻译覆盖测试在 Windows Flutter 3.47.9 上复现九个 Prism 文案缺失，已补入简体及繁体字典。
 - CI 的分页保留用例在 `pumpAndSettle` 超时。本地让下一页继续加载时，在同一行复现超时。用例现在保留选页时的 PhotoView 和控制器同一对象断言，推进分页动画后检查滚动已停止，再提供下一页数据并等待真实解码。
 - 7 个定向测试文件共 89 项通过，覆盖左向、右向和纵向分页、图片预缓存、翻译字典与 Prism 控件。变更文件的严格静态分析、格式、架构边界和版本检查通过。
+
+## 原生剪贴板编译 SDK（2026-11-23）
+
+- 基线 `e0e241fb84efd7bee786827c35a9378707663099` 的 `assembleMobileRelease` 在 `super_native_extensions` 的 `checkReleaseAarMetadata` 任务失败。这个模块和 `irondash_engine_context` 都固定为 API 31，Flutter embedding 引入的 AndroidX AAR 最高要求 API 34。[失败日志](https://github.com/tianjinsa/Venera-Next/actions/runs/45152844841/job/137619061654) · [上游问题](https://github.com/superlistapp/super_native_extensions/issues/578)
+- Android 根工程通过 AGP 的 `finalizeDsl` 为这两个插件取其原始编译 SDK 和应用编译 SDK 中的较大值。Flutter 3.47.9 下两者都采用 API 36。
+- Windows 隔离工程使用 Gradle 8.14、AGP 8.13.2、锁定的两个插件和 Flutter 3.47.9 Release embedding，复现基线的两个 API 31 错误，修改后两个 Release AAR 元数据任务都通过。Android、SAF 和工作流脚本定向检查 47 项通过、5 项按条件跳过。结构、架构依赖和版本同步检查通过。本次验证范围为 AAR 元数据和脚本检查。
