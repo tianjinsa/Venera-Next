@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/window_frame.dart';
 import 'package:venera_next/features/settings/setting_components.dart';
 import 'package:venera_next/foundation/app.dart';
@@ -64,6 +66,49 @@ Widget _host(Widget child) =>
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('narrow phone SelectSetting trails its wrapped label', (
+    tester,
+  ) async {
+    _prepare();
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(320, 720);
+    addTearDown(tester.view.reset);
+    const title = '主题模式及显示方式';
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [MobileUiLocalizations.delegate],
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(2)),
+          child: MobileUiTheme(glass: 'off', child: child!),
+        ),
+        home: Scaffold(
+          body: SelectSetting.preference(
+            preference: AppearancePreferences.themeMode,
+            title: title,
+            optionTranslation: const {
+              'system': '跟随系统',
+              'light': '浅色',
+              'dark': '深色',
+            },
+          ),
+        ),
+      ),
+    );
+    final label = tester.getRect(find.text(title));
+    final button = tester.getRect(find.byType(MobileChoiceButton));
+    expect(label.right, lessThanOrEqualTo(button.left));
+    expect(label.center.dy, closeTo(button.center.dy, 1));
+    await tester.tap(find.byType(MobileChoiceButton));
+    await tester.pumpAndSettle();
+    expect(find.text('深色').hitTestable(), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets(
     'switch waits for admission and reports success only after persistence',
