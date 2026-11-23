@@ -230,17 +230,45 @@ class _MobileCollectionSearchToolbarState
   final _origin = GlobalKey();
   final _stack = GlobalKey();
   final _focus = FocusNode();
-  late final _motion = AnimationController(
+  // The controller holds actual geometry, not elapsed time. Retargeting an
+  // interrupted gesture starts at the last painted rect in either direction.
+  late final _motion = AnimationController.unbounded(
     vsync: this,
-    duration: const Duration(milliseconds: 450),
-    reverseDuration: const Duration(milliseconds: 280),
     value: widget.search.open ? 1 : 0,
   );
   static final _growth = prism.SpringCurve(
     SpringDescription.withDampingRatio(mass: 1, stiffness: 390, ratio: .75),
     seconds: .45,
   );
+  static final _fold = prism.SpringCurve(
+    SpringDescription.withDampingRatio(mass: 1, stiffness: 600, ratio: .75),
+    seconds: .30,
+  );
   Rect? _from;
+
+  void _move(bool opening) {
+    final target = opening ? 1.0 : 0.0;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _motion.value = target;
+      return;
+    }
+    final distance = (target - _motion.value).abs().clamp(.25, 1.0);
+    _motion.animateTo(
+      target,
+      duration: Duration(
+        milliseconds: ((opening ? 450 : 300) * distance).round(),
+      ),
+      curve: opening ? _growth : _fold,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context) && _motion.isAnimating) {
+      _motion.value = widget.search.open ? 1 : 0;
+    }
+  }
 
   void _measure() {
     final source = _origin.currentContext?.findRenderObject();
@@ -276,12 +304,11 @@ class _MobileCollectionSearchToolbarState
     if (oldWidget.search.open == widget.search.open) return;
     _measure(); // Also refresh after rotation / a system back.
     if (widget.search.open) {
-      _motion.forward();
       _requestFocus();
     } else {
       _focus.unfocus();
-      _motion.reverse();
     }
+    _move(widget.search.open);
   }
 
   @override
@@ -325,7 +352,9 @@ class _MobileCollectionSearchToolbarState
     );
     final glass = prism.LiquidGlassScope.of(context);
     return Material(
-      color: colors.surface,
+      // The closed MobileToolbar paints the Material page color. Keep this
+      // exact backing under both layers (Prism's seeded surface may differ).
+      color: Theme.of(context).colorScheme.surface,
       child: LayoutBuilder(
         builder: (context, constraints) {
           const gap = 8.0;
@@ -343,13 +372,15 @@ class _MobileCollectionSearchToolbarState
           return AnimatedBuilder(
             animation: _motion,
             builder: (_, _) {
-              final t = _motion.value;
-              final visible = spec.open || t > 0;
+              final growth = _motion.value;
+              final t = growth.clamp(0.0, 1.0);
+              final visible = spec.open || _motion.isAnimating;
               final begin =
                   _from ??
                   Rect.fromLTWH(rtl ? left : right - height, y, height, height);
-              final rect = Rect.lerp(begin, slot, _growth.transform(t))!;
-              final opacity = const Interval(.24, .78).transform(t);
+              final rect = Rect.lerp(begin, slot, math.max(0, growth))!;
+              final opacity = const Interval(.24, .86).transform(t);
+              final controls = const Interval(.05, .64).transform(t);
               return Stack(
                 key: _stack,
                 fit: StackFit.expand,
@@ -360,10 +391,7 @@ class _MobileCollectionSearchToolbarState
                       excluding: spec.open,
                       child: IgnorePointer(
                         ignoring: spec.open,
-                        child: Opacity(
-                          opacity: 1 - const Interval(0, .54).transform(t),
-                          child: toolbar,
-                        ),
+                        child: Opacity(opacity: 1 - controls, child: toolbar),
                       ),
                     ),
                   ),
@@ -374,69 +402,74 @@ class _MobileCollectionSearchToolbarState
                         excluding: !spec.open,
                         child: IgnorePointer(
                           ignoring: !spec.open,
-                          child: prism.GooSurface(
-                            glass: glass
-                                ? prism.LiquidGlassStyle.regular(colors)
-                                : null,
-                            color: colors.surfaceContainerHigh,
-                            child: prism.TonalButtonTheme(
-                              glass: glass,
-                              child: Stack(
-                                children: [
-                                  Positioned.fromRect(
-                                    rect: rect,
-                                    child: prism.ElasticPress(
-                                      child: prism.GooPane(
-                                        key: const ValueKey(
-                                          'collection-search-pane',
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            height,
+                          child: Opacity(
+                            // At both endpoints the actual source button,
+                            // rather than a second glass circle, paints.
+                            opacity: const Interval(0, .12).transform(t),
+                            child: prism.GooSurface(
+                              glass: glass
+                                  ? prism.LiquidGlassStyle.regular(colors)
+                                  : null,
+                              color: colors.surfaceContainerHigh,
+                              child: prism.TonalButtonTheme(
+                                glass: glass,
+                                child: Stack(
+                                  children: [
+                                    Positioned.fromRect(
+                                      rect: rect,
+                                      child: prism.ElasticPress(
+                                        child: prism.GooPane(
+                                          key: const ValueKey(
+                                            'collection-search-pane',
                                           ),
-                                          child: Stack(
-                                            fit: StackFit.expand,
-                                            children: [
-                                              Opacity(
-                                                opacity: opacity,
-                                                child: OverflowBox(
-                                                  alignment:
-                                                      AlignmentDirectional
-                                                          .centerStart,
-                                                  minWidth: slot.width,
-                                                  maxWidth: slot.width,
-                                                  child: field,
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              height,
+                                            ),
+                                            child: Stack(
+                                              fit: StackFit.expand,
+                                              children: [
+                                                Opacity(
+                                                  opacity: opacity,
+                                                  child: OverflowBox(
+                                                    alignment:
+                                                        AlignmentDirectional
+                                                            .centerStart,
+                                                    minWidth: slot.width,
+                                                    maxWidth: slot.width,
+                                                    child: field,
+                                                  ),
                                                 ),
-                                              ),
-                                              if (opacity < 1)
-                                                IgnorePointer(
-                                                  child: Opacity(
-                                                    opacity: 1 - opacity,
-                                                    child: const Center(
-                                                      child: prism.GlyphIcon(
-                                                        prism.Glyphs.search,
+                                                if (opacity < 1)
+                                                  IgnorePointer(
+                                                    child: Opacity(
+                                                      opacity: 1 - opacity,
+                                                      child: const Center(
+                                                        child: prism.GlyphIcon(
+                                                          prism.Glyphs.search,
+                                                        ),
                                                       ),
                                                     ),
                                                   ),
-                                                ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  PositionedDirectional(
-                                    end:
-                                        (rtl ? padding.left : padding.right) +
-                                        16,
-                                    top: y,
-                                    height: height,
-                                    child: Opacity(
-                                      opacity: opacity,
-                                      child: flanks,
+                                    PositionedDirectional(
+                                      end:
+                                          (rtl ? padding.left : padding.right) +
+                                          16,
+                                      top: y,
+                                      height: height,
+                                      child: Opacity(
+                                        opacity: controls,
+                                        child: flanks,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),

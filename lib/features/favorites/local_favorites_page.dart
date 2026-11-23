@@ -100,9 +100,15 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   bool searchHasUpper = false;
 
   bool searchMode = false;
-  final _mobileSearchController = TextEditingController();
+  final _searchController = TextEditingController();
 
   bool multiSelectMode = false;
+  final _shortcutFocus = FocusNode(debugLabel: 'Local favorites shortcuts');
+
+  void _startSelection() {
+    multiSelectMode = true;
+    _shortcutFocus.requestFocus();
+  }
 
   int? lastSelectedIndex;
 
@@ -135,10 +141,6 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   late String readFilterSelect;
 
   var searchResults = <FavoriteItem>[];
-
-  void updateSearchResult() {
-    setState(_refreshSearchResults);
-  }
 
   void _refreshSearchResults() {
     if (keyword.trim().isEmpty) {
@@ -398,7 +400,8 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     _retireUpdateFlyout();
     _observedManager.removeListener(updateComics);
     _observedHistory.removeListener(_onHistoryChanged);
-    _mobileSearchController.dispose();
+    _shortcutFocus.dispose();
+    _searchController.dispose();
     scrollController.dispose();
     super.dispose();
   }
@@ -435,7 +438,10 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
       setState(() {
         searchMode = false;
         keyword = '';
-        updateComics();
+        searchHasUpper = false;
+        // Search only filtered the current snapshot. Querying again here
+        // would briefly replace large folders with the loading sliver.
+        searchResults = [];
       });
       return true;
     }
@@ -545,7 +551,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
       setState(() {
         selectedComics.clear();
         lastSelectedIndex = null;
-        multiSelectMode = true;
+        _startSelection();
       });
     }
 
@@ -862,18 +868,22 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
         : const <MenuEntry>[];
 
     void openSearch() {
-      if (mobile) _mobileSearchController.clear();
+      _searchController.clear();
       setState(() {
         keyword = "";
+        searchHasUpper = false;
         searchMode = true;
-        updateSearchResult();
+        _refreshSearchResults();
       });
     }
 
     void applySearch(String value) {
-      keyword = value;
-      searchHasUpper = value.contains(RegExp(r'[A-Z]'));
-      updateSearchResult();
+      if (!searchMode || keyword == value) return;
+      setState(() {
+        keyword = value;
+        searchHasUpper = value.contains(RegExp(r'[A-Z]'));
+        _refreshSearchResults();
+      });
     }
 
     prism.PopupMenuItem selectEntry() => collectionSelectionEntry(
@@ -896,7 +906,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
             mobileSearch: mobile
                 ? CollectionBarSearch(
                     open: searchMode,
-                    controller: _mobileSearchController,
+                    controller: _searchController,
                     onOpen: openSearch,
                     onClose: _dismissLocalMode,
                     onChanged: applySearch,
@@ -1164,9 +1174,10 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
               context,
               label: "Cancel".tl,
               icon: const Icon(Icons.close),
-              onPressed: () => setState(() => searchMode = false),
+              onPressed: _dismissLocalMode,
             ),
             title: TextField(
+              controller: _searchController,
               autofocus: true,
               decoration: InputDecoration(
                 hintText: "Search".tl,
@@ -1241,6 +1252,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
               ),
             ),
           SliverGridComics(
+            key: const ValueKey('local-favorites-comics'),
             filterBlockedComics: false,
             comics: displayedComics,
             showHiddenCount: true,
@@ -1301,7 +1313,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                   onClick: () {
                     setState(() {
                       if (!multiSelectMode) {
-                        multiSelectMode = true;
+                        _startSelection();
                       }
                       if (selectedComics.containsKey(c as FavoriteItem)) {
                         selectedComics.remove(c);
@@ -1373,7 +1385,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
               final visible = _visibleComics;
               setState(() {
                 if (!multiSelectMode) {
-                  multiSelectMode = true;
+                  _startSelection();
                   if (!selectedComics.containsKey(c as FavoriteItem)) {
                     selectedComics[c] = true;
                   }
@@ -1416,14 +1428,16 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
         child: body,
       ),
     );
-    if (multiSelectMode || searchMode) {
-      body = CallbackShortcuts(
-        bindings: {
+    // Keep the scroll position, header Element and search animation alive.
+    // Inserting a wrapper only while searching remounts the entire sliver
+    // tree, so the newly created search controller starts *at* its endpoint.
+    body = CallbackShortcuts(
+      bindings: {
+        if (multiSelectMode || searchMode)
           const SingleActivator(LogicalKeyboardKey.escape): _dismissLocalMode,
-        },
-        child: Focus(autofocus: true, child: body),
-      );
-    }
+      },
+      child: Focus(focusNode: _shortcutFocus, skipTraversal: true, child: body),
+    );
     return PopScope(
       canPop: !multiSelectMode && !searchMode && parentFolder == null,
       onPopInvokedWithResult: (didPop, result) {

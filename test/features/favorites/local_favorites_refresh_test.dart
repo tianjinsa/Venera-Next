@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/components/button.dart';
+import 'package:venera_next/components/mobile_collection_ui.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:prism_ui/search_field.dart' as prism;
 import 'package:venera_next/features/comic_details/comic_details.dart';
@@ -12,6 +13,7 @@ import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/features/favorites/favorite_models.dart';
 import 'package:venera_next/features/favorites/favorites_manager.dart';
 import 'package:venera_next/features/favorites/favorites_scope.dart';
+import 'package:venera_next/features/favorites/favorites_page.dart';
 import 'package:venera_next/features/favorites/favorite_folder_browser.dart';
 import 'package:venera_next/features/favorites/local_favorites_page.dart';
 import 'package:venera_next/features/history/history.dart';
@@ -54,7 +56,12 @@ class _Fixture {
   double textScale = 1;
   bool dark = false;
 
-  Widget host({String folder = 'B', bool phone = false}) => FavoritesScope(
+  Widget host({
+    String folder = 'B',
+    bool phone = false,
+    bool reduceMotion = true,
+    Widget? page,
+  }) => FavoritesScope(
     manager: manager,
     child: HistoryScope(
       manager: history,
@@ -71,18 +78,20 @@ class _Fixture {
           child: MediaQuery(
             data: MediaQuery.of(context).copyWith(
               textScaler: TextScaler.linear(textScale),
-              disableAnimations: true,
+              disableAnimations: reduceMotion,
             ),
             child: phone ? MobileUiTheme(glass: 'off', child: child!) : child!,
           ),
         ),
         home: Scaffold(
-          body: LocalFavoritesPage(
-            folder: folder,
-            showFolders: () {},
-            onFolderSelected: (_, _) {},
-            updateFolderList: () {},
-          ),
+          body:
+              page ??
+              LocalFavoritesPage(
+                folder: folder,
+                showFolders: () {},
+                onFolderSelected: (_, _) {},
+                updateFolderList: () {},
+              ),
         ),
       ),
     ),
@@ -208,6 +217,122 @@ void main() {
   App.dataPath = Directory.systemTemp.path;
   App.cachePath = Directory.systemTemp.path;
 
+  for (final nested in [false, true]) {
+    testWidgets(
+      'favorites tab: local search morph keeps the pinned header and snapshot '
+      '(nested=$nested)',
+      (tester) async {
+        tester.view
+          ..devicePixelRatio = 1
+          ..physicalSize = const Size(390, 844);
+        addTearDown(tester.view.reset);
+        // The real async threshold is 500; closing search must not swap a
+        // large, already loaded grid for a spinner while the field retracts.
+        final fixture = await _prepare(tester, nested ? 0 : 501);
+        await tester.runAsync(() async {
+          await fixture.manager.createChildFolder(
+            'Sub',
+            fixture.manager.folderTree.named('B')!.id,
+          );
+          await fixture.manager.addComic('Sub', _comic('sub', 'Existing sub'));
+        });
+        appdata.implicitData['favoriteFolder'] = {
+          'name': nested ? 'Sub' : 'B',
+          'isNetwork': false,
+        };
+        await tester.pumpWidget(
+          fixture.host(
+            phone: true,
+            reduceMotion: false,
+            page: const FavoritesPage(),
+          ),
+        );
+        await _settle(tester);
+        final page = find.byType(LocalFavoritesPage);
+        Finder local(Finder target) =>
+            find.descendant(of: page, matching: target);
+        Finder button(String name) => local(
+          find.byWidgetPredicate(
+            (w) => w is MobileToolbarButton && w.label == name,
+          ),
+        ).hitTestable();
+        final bar = local(find.byType(MobileCollectionSearchToolbar));
+        final pane = local(
+          find.byKey(const ValueKey('collection-search-pane')),
+        );
+        final grid = local(find.byType(SliverGridComics));
+        final scroll = local(find.byType(CustomScrollView));
+        final barOwner = tester.state(bar);
+        final gridOwner = tester.state(grid);
+        final position = tester
+            .widget<CustomScrollView>(scroll)
+            .controller!
+            .position;
+        final buttonRect = tester.getRect(button('Search'));
+        final barRect = tester.getRect(bar);
+        void stillMounted() {
+          expect(tester.state(bar), same(barOwner));
+          expect(tester.state(grid), same(gridOwner));
+          expect(
+            tester.widget<CustomScrollView>(scroll).controller!.position,
+            same(position),
+          );
+          expect(tester.getRect(bar), barRect);
+          expect(local(find.byType(CircularProgressIndicator)), findsNothing);
+        }
+
+        await tester.tap(button('Search'));
+        await tester.pump();
+        stillMounted(); // Round 2 lost both owners on this very first frame.
+        final first = tester.getRect(pane);
+        expect(first.width, closeTo(buttonRect.width, 1));
+        expect(first.center.dx, closeTo(buttonRect.center.dx, 1));
+        await tester.pump(const Duration(milliseconds: 35));
+        final early = tester.getRect(pane).width;
+        expect(early, greaterThan(first.width + 2));
+        await tester.pump(const Duration(milliseconds: 55));
+        final later = tester.getRect(pane).width;
+        expect(later, greaterThan(early + 6));
+        await tester.pumpAndSettle();
+        final full = tester.getRect(pane);
+        expect(full.width, greaterThan(later));
+        final editor = local(find.byType(EditableText));
+        final input = tester.widget<EditableText>(editor);
+        expect(input.focusNode.hasPrimaryFocus, isTrue);
+        final query = nested ? 'Existing sub' : 'Existing 499';
+        await tester.enterText(editor, query);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 290);
+        await tester.pump();
+        final resized = tester.widget<EditableText>(editor);
+        expect(resized.controller, same(input.controller));
+        expect(resized.focusNode, same(input.focusNode));
+        expect(resized.focusNode.hasPrimaryFocus, isTrue);
+        expect(resized.controller.text, query);
+        expect(local(_tile(nested ? 'sub' : 'seed-499')), findsOneWidget);
+        expect(button('More'), findsOneWidget);
+        stillMounted();
+
+        await tester.tap(button('Cancel'));
+        await tester.pump();
+        expect(tester.getRect(pane).width, closeTo(full.width, 1));
+        stillMounted();
+        tester.view.resetViewInsets();
+        await tester.pump(const Duration(milliseconds: 45));
+        final folding = tester.getRect(pane).width;
+        expect(folding, lessThan(full.width - 3));
+        await tester.pump(const Duration(milliseconds: 45));
+        expect(tester.getRect(pane).width, lessThan(folding - 3));
+        stillMounted();
+        await tester.pumpAndSettle();
+        expect(pane, findsNothing);
+        expect(tester.getRect(button('Search')), buttonRect);
+        expect(button('More'), findsOneWidget);
+        stillMounted();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets(
     'compact favorites enters batch only from More and restores the filtered search on back',
     (tester) async {
@@ -225,7 +350,13 @@ void main() {
           .hitTestable();
       expect(button('Select comics'), findsNothing);
       expect(_tile('seed-0'), findsOneWidget);
+      final pane = find.byKey(const ValueKey('collection-search-pane'));
+      final source = tester.getRect(button('Search'));
       await tester.tap(button('Search'));
+      // This fixture has Reduce Motion on: reach the editable width on the
+      // first frame, even though the very same sliver animates without it.
+      await tester.pump();
+      expect(tester.getRect(pane).width, greaterThan(source.width * 2));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(EditableText), 'Existing 2');
       await _settle(tester);
