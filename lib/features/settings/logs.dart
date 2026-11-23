@@ -38,6 +38,7 @@ class _LogsPageState extends State<LogsPage> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 140),
                     child: MobileChoice<String>(
+                      setting: true,
                       label: 'Filter'.tl,
                       value: logLevelToShow,
                       options: [

@@ -218,6 +218,9 @@ class _SwitchSettingState extends _SettingState<SwitchSetting, bool> {
     final value = currentValue;
     return withSaveStatus(
       SettingRow(
+        onTap: MobileUi.enabledOf(context) && acceptsSettingsChanges
+            ? () => change(!value!)
+            : null,
         title: Text(widget.title),
         subtitle: widget.subtitle == null ? null : Text(widget.subtitle!),
         trailing: pendingControl(
@@ -621,6 +624,7 @@ class _EndSelectorSelectSettingState
                     target.scope,
                     target.preference,
                   )),
+                  setting: true,
                   label: widget.title,
                   value: value,
                   options: [
@@ -642,8 +646,10 @@ class _EndSelectorSelectSettingState
     );
     return withSaveStatus(
       mobile
-          ? SettingRow(
-              title: MobileChoiceRow(title: title, choice: choice),
+          ? SettingChoiceRow(
+              title: title,
+              choice: choice,
+              enabled: acceptsSettingsChanges,
             )
           : SettingRow(title: title, trailing: choice),
     );
@@ -794,7 +800,7 @@ class PopupWindowSetting extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingRow(
       title: Text(title),
-      trailing: const Icon(Icons.arrow_right),
+      trailing: const SettingDisclosure(),
       onTap: () {
         showPopUpWidget(appNavigation.rootContext, builder());
       },
@@ -1055,6 +1061,9 @@ class SettingPartTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MobileUi.enabledOf(context)) {
+      return SliverToBoxAdapter(child: SettingSectionLabel(title));
+    }
     return SliverToBoxAdapter(
       child: Container(
         padding: const EdgeInsets.only(left: 16, top: 16, bottom: 8),

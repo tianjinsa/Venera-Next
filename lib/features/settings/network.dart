@@ -1,3 +1,5 @@
+import 'mobile_setting_row.dart';
+
 import 'package:venera_next/foundation/proxy_configuration.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
@@ -30,24 +32,29 @@ class _NetworkSettingsState extends State<NetworkSettings> {
     return SmoothCustomScrollView(
       slivers: [
         SliverAppbar(title: Text("Network".tl)),
-        PopupWindowSetting(
-          title: "Proxy".tl,
-          builder: () => const _ProxySettingView(),
-        ).toSliver(),
-        PopupWindowSetting(
-          title: "DNS Overrides".tl,
-          builder: () => const _DNSOverrides(),
-        ).toSliver(),
-        SliderSetting.preference(
-          title: "Download Threads".tl,
-          preference: NetworkPreferences.downloadThreads,
-        ).toSliver(),
-        SwitchSetting.preference(
-          title: 'Continue past unavailable images by default'.tl,
-          subtitle: 'Applies only to new image download tasks. Existing tasks keep their own setting.'
-              .tl,
-          preference: NetworkPreferences.skipUnavailableDownloadImages,
-        ).toSliver(),
+        ...settingGroup(context, [
+          PopupWindowSetting(
+            title: "Proxy".tl,
+            builder: () => const _ProxySettingView(),
+          ).toSliver(),
+          PopupWindowSetting(
+            title: "DNS Overrides".tl,
+            builder: () => const _DNSOverrides(),
+          ).toSliver(),
+        ]),
+        if (MobileUi.enabledOf(context)) settingSectionGap(context),
+        ...settingGroup(context, [
+          SliderSetting.preference(
+            title: "Download Threads".tl,
+            preference: NetworkPreferences.downloadThreads,
+          ).toSliver(),
+          SwitchSetting.preference(
+            title: 'Continue past unavailable images by default'.tl,
+            subtitle: 'Applies only to new image download tasks. Existing tasks keep their own setting.'
+                .tl,
+            preference: NetworkPreferences.skipUnavailableDownloadImages,
+          ).toSliver(),
+        ]),
       ],
     );
   }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:prism_ui/card.dart' as prism show Card;
+
+import 'mobile_setting_row.dart';
+
 import 'package:prism_ui/icons/icons.dart' as prism;
-import 'package:prism_ui/list_row.dart' as prism show ListRow;
-import 'package:prism_ui/shape.dart' as prism show AppCorner;
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/context.dart';
@@ -131,28 +131,23 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           MobileToolbar(title: Text('Settings'.tl), showBack: true),
           Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                8,
-                16,
-                context.padding.bottom + 16,
+            child: ListView(
+              padding: EdgeInsets.only(
+                top: 8,
+                bottom: context.padding.bottom + 16,
               ),
-              itemCount: categories.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 6),
-              itemBuilder: (context, index) => prism.Card(
-                radius: prism.AppCorner.md,
-                onPressed: () =>
-                    context.to(() => _SettingsDetailPage(pageIndex: index)),
-                child: prism.ListRow(
-                  leading: Icon(icons[index], size: 22),
-                  title: Text(categories[index].tl),
-                  trailing: const prism.GlyphIcon(
-                    prism.Glyphs.chevronForward,
-                    size: 18,
+              children: settingGroup(context, [
+                for (final (index, category) in categories.indexed)
+                  SettingRow(
+                    leading: Icon(icons[index], size: 22),
+                    title: Text(category.tl),
+                    trailing: const prism.GlyphIcon(
+                      prism.Glyphs.chevronForward,
+                    ),
+                    onTap: () =>
+                        context.to(() => _SettingsDetailPage(pageIndex: index)),
                   ),
-                ),
-              ),
+              ]),
             ),
           ),
         ],

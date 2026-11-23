@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prism_ui/popup.dart' as prism;
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/icons/icons.dart' as prism;
+import 'package:prism_ui/item_position.dart' as prism;
+import 'package:prism_ui/inherited.dart' as prism;
+import 'package:prism_ui/list.dart' as prism;
+import 'package:venera_next/components/mobile_setting_row.dart';
+import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:prism_ui/search_field.dart' as prism;
 import 'package:venera_next/components/mobile_choice.dart';
 import 'package:venera_next/components/mobile_ui.dart';
@@ -111,6 +118,180 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+  }
+
+  testWidgets(
+    'production setting group joins rows, opens from title and cancels without a write',
+    (tester) async {
+      _phone(tester);
+      final changes = <int>[];
+      final toggles = <bool>[];
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: settingGroup(context, [
+                SettingChoiceRow(
+                  title: const Text('Reading mode'),
+                  subtitle: const Text('Only this comic'),
+                  choice: MobileChoice<int>(
+                    setting: true,
+                    value: 1,
+                    options: _short,
+                    onChanged: changes.add,
+                  ),
+                ),
+                SettingSwitchRow(
+                  title: const Text('Dim reader'),
+                  value: false,
+                  onChanged: toggles.add,
+                ),
+                const SettingRow(
+                  title: Text('Update preferences'),
+                  trailing: SettingDisclosure(),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      );
+      final rows = find.byType(prism.DecorationListItem);
+      expect(rows, findsNWidgets(3));
+      expect(
+        rows.evaluate().map((e) => prism.ItemPositionProvider.of(e)!.position),
+        [
+          prism.ItemPosition.start,
+          prism.ItemPosition.middle,
+          prism.ItemPosition.end,
+        ],
+      );
+      expect(
+        tester.getBottomLeft(rows.at(0)).dy,
+        tester.getTopLeft(rows.at(1)).dy,
+      );
+      expect(
+        tester.getBottomLeft(rows.at(1)).dy,
+        tester.getTopLeft(rows.at(2)).dy,
+      );
+      final button = find.byType(MobileChoiceButton);
+      expect(
+        tester.getRect(find.text('Reading mode')).right,
+        lessThan(tester.getRect(button).left),
+      );
+      expect(
+        tester.getRect(find.text('Only this comic')).top,
+        greaterThanOrEqualTo(tester.getRect(find.text('Reading mode')).bottom),
+      );
+      await tester.tap(find.text('Reading mode'));
+      await tester.pumpAndSettle();
+      expect(find.byType(prism.PopupMenu), findsOneWidget);
+      expect(find.byType(MobileChoiceSheetFrame), findsNothing);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(changes, isEmpty);
+      await tester.tap(find.text('Dim reader'));
+      await tester.pumpAndSettle();
+      expect(toggles, [true]);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final direction in TextDirection.values) {
+    testWidgets('long setting stays at its value and scrolls ($direction)', (
+      tester,
+    ) async {
+      _phone(tester);
+      final changes = <int>[];
+      await tester.pumpWidget(
+        _app(
+          Directionality(
+            textDirection: direction,
+            child: MobileChoiceFormField<int>(
+              label: 'Reader mode',
+              initialValue: 2,
+              options: [
+                for (var i = 0; i < 50; i++) MobileChoiceOption(i, 'Mode $i'),
+              ],
+              onChanged: changes.add,
+            ),
+          ),
+        ),
+      );
+      final target = find.byType(MobileChoiceButton);
+      final reference = tester.getRect(target);
+      final textButton = tester.widget<prism.TextButton>(
+        find.descendant(of: target, matching: find.byType(prism.TextButton)),
+      );
+      expect(find.byType(prism.OutlinedButton), findsNothing);
+      expect(
+        textButton.style!.foregroundColor!.resolve({}),
+        prism.Theme.of(tester.element(target)).colorScheme.onSurfaceVariant,
+      );
+      expect(
+        tester
+            .widget<prism.GlyphIcon>(
+              find.descendant(
+                of: target,
+                matching: find.byType(prism.GlyphIcon),
+              ),
+            )
+            .glyph,
+        prism.Glyphs.picker,
+      );
+      // Tap the row label rather than the value. The popup still leaves the value.
+      await tester.tap(find.text('Reader mode'));
+      await tester.pumpAndSettle();
+      final pop = find.byType(prism.PopupMenu);
+      final menu = tester.widget<prism.PopupMenu>(pop);
+      final menuRect = tester.getRect(pop);
+      expect(
+        tester
+            .widget<prism.PopupAnchor>(find.byType(prism.PopupAnchor))
+            .placement,
+        direction == TextDirection.ltr
+            ? prism.PopupPlacement.overAnchorEnd
+            : prism.PopupPlacement.overAnchorStart,
+      );
+      expect(find.byType(MobileChoiceSheetFrame), findsNothing);
+      expect(
+        menu.items.where((item) => item.checked == true).single.label,
+        'Mode 2',
+      );
+      expect(menuRect.height, lessThan(420));
+      expect(menuRect.width, lessThan(350));
+      expect(
+        direction == TextDirection.ltr ? menuRect.right : menuRect.left,
+        closeTo(
+          direction == TextDirection.ltr ? reference.right : reference.left,
+          2,
+        ),
+      );
+      await tester.tapAt(const Offset(8, 24));
+      await tester.pumpAndSettle();
+      expect(changes, isEmpty);
+      expect(pop, findsNothing);
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+      final scroll = find.descendant(
+        of: pop,
+        matching: find.byType(Scrollable),
+      );
+      expect(scroll, findsOneWidget);
+      final destination = find.text('Mode 32').hitTestable();
+      final viewport = tester.state<ScrollableState>(scroll).position;
+      expect(viewport.pixels, 0);
+      for (var i = 0; i < 20 && destination.evaluate().isEmpty; i++) {
+        await tester.drag(scroll, const Offset(0, -120));
+        await tester.pumpAndSettle();
+      }
+      expect(viewport.pixels, greaterThan(0));
+      expect(destination, findsOneWidget);
+      await tester.tap(destination);
+      await tester.pumpAndSettle();
+      expect(changes, [32]);
+      expect(tester.takeException(), isNull);
+    });
   }
 
   testWidgets('choice form participates in validation, reset, and save', (

@@ -49,131 +49,136 @@ class _AppSettingsState extends State<AppSettings> {
         SliverAppbar(title: Text("App".tl)),
         SettingPartTitle(title: "Data".tl, icon: Icons.storage),
         const LocalStorageSettings().toSliver(),
-        SettingRow(
-          title: Text("Cache Size".tl),
-          subtitle: Text(bytesToReadableString(CacheManager().currentSize)),
-        ).toSliver(),
-        CallbackSetting(
-          title: "Clear Cache".tl,
-          actionTitle: "Clear".tl,
-          callback: () async {
-            await _tasks.run(
-              context,
-              task: (_) async {
-                await CacheManager().clear();
-                return null;
-              },
-              errorMessage: "Error".tl,
-              successMessage: "Cache cleared".tl,
-              onSuccess: () => setState(() {}),
-            );
-          },
-        ).toSliver(),
-        const CacheLimitSetting().toSliver(),
-        const HistoryRetentionSetting().toSliver(),
-        CallbackSetting(
-          title: "Export App Data".tl,
-          callback: () async {
-            await _tasks.run(
-              context,
-              task: (operation) async {
-                await operation.useTemporaryFile(
-                  cacheDirectory: Directory(App.cachePath),
-                  filename: 'data.venera',
-                  prepare: (file) async {
-                    await exportAppData(sync: false, destination: file);
-                  },
-                  consume: (file) => saveFile(
-                    operation: operation,
+        ...settingGroup(context, [
+          SettingRow(
+            title: Text("Cache Size".tl),
+            subtitle: Text(bytesToReadableString(CacheManager().currentSize)),
+          ).toSliver(),
+          CallbackSetting(
+            title: "Clear Cache".tl,
+            actionTitle: "Clear".tl,
+            callback: () async {
+              await _tasks.run(
+                context,
+                task: (_) async {
+                  await CacheManager().clear();
+                  return null;
+                },
+                errorMessage: "Error".tl,
+                successMessage: "Cache cleared".tl,
+                onSuccess: () => setState(() {}),
+              );
+            },
+          ).toSliver(),
+          const CacheLimitSetting().toSliver(),
+          const HistoryRetentionSetting().toSliver(),
+          CallbackSetting(
+            title: "Export App Data".tl,
+            callback: () async {
+              await _tasks.run(
+                context,
+                task: (operation) async {
+                  await operation.useTemporaryFile(
+                    cacheDirectory: Directory(App.cachePath),
                     filename: 'data.venera',
-                    file: file,
-                    checkStop: operation.checkActive,
-                  ),
-                );
-                return null;
-              },
-              errorMessage: "Error".tl,
-            );
-          },
-          actionTitle: 'Export'.tl,
-        ).toSliver(),
-        CallbackSetting(
-          title: "Import App Data".tl,
-          callback: () async {
-            await _tasks.run(
-              context,
-              task: (operation) async {
-                final file = await operation.pickFile(
-                  () => selectFile(
-                    ext: ['venera', 'picadata'],
-                    checkStop: operation.checkActive,
-                  ),
-                );
-                if (file == null) return null;
-                return operation.useFileCopy(
-                  file,
-                  cacheDirectory: Directory(App.cachePath),
-                  consume: (cacheFile) async {
-                    try {
-                      if (file.name.endsWith('picadata')) {
-                        await importPicaData(cacheFile);
-                      } else {
-                        await importAppData(cacheFile);
+                    prepare: (file) async {
+                      await exportAppData(sync: false, destination: file);
+                    },
+                    consume: (file) => saveFile(
+                      operation: operation,
+                      filename: 'data.venera',
+                      file: file,
+                      checkStop: operation.checkActive,
+                    ),
+                  );
+                  return null;
+                },
+                errorMessage: "Error".tl,
+              );
+            },
+            actionTitle: 'Export'.tl,
+          ).toSliver(),
+          CallbackSetting(
+            title: "Import App Data".tl,
+            callback: () async {
+              await _tasks.run(
+                context,
+                task: (operation) async {
+                  final file = await operation.pickFile(
+                    () => selectFile(
+                      ext: ['venera', 'picadata'],
+                      checkStop: operation.checkActive,
+                    ),
+                  );
+                  if (file == null) return null;
+                  return operation.useFileCopy(
+                    file,
+                    cacheDirectory: Directory(App.cachePath),
+                    consume: (cacheFile) async {
+                      try {
+                        if (file.name.endsWith('picadata')) {
+                          await importPicaData(cacheFile);
+                        } else {
+                          await importAppData(cacheFile);
+                        }
+                      } finally {
+                        appNavigation.forceRebuild();
                       }
-                    } finally {
-                      appNavigation.forceRebuild();
-                    }
-                    return null;
-                  },
-                );
-              },
-              errorMessage: "Failed to import data".tl,
-            );
-          },
-          actionTitle: 'Import'.tl,
-        ).toSliver(),
-        CallbackSetting(
-          title: "Data Sync".tl,
-          callback: () async {
-            showPopUpWidget(context, const _WebdavSetting());
-          },
-          actionTitle: 'Set'.tl,
-        ).toSliver(),
-        CallbackSetting(
-          title: "Comic Archive Backup".tl,
-          subtitle: "This is only used for CBZ archive backup and restore.".tl,
-          callback: () async {
-            showPopUpWidget(context, const BackupWebdavSetting());
-          },
-          actionTitle: 'Set'.tl,
-        ).toSliver(),
-        CallbackSetting(
-          title: "WebDAV Comic Library".tl,
-          subtitle: "Online reading uses directory image structure only; CBZ is kept for archive backup and restore."
-              .tl,
-          callback: () async {
-            showPopUpWidget(
-              context,
-              WebDavComicLibrarySetting(WebDavLibraryScope.of(context)),
-            );
-          },
-          actionTitle: 'Set'.tl,
-        ).toSliver(),
+                      return null;
+                    },
+                  );
+                },
+                errorMessage: "Failed to import data".tl,
+              );
+            },
+            actionTitle: 'Import'.tl,
+          ).toSliver(),
+          CallbackSetting(
+            title: "Data Sync".tl,
+            callback: () async {
+              showPopUpWidget(context, const _WebdavSetting());
+            },
+            actionTitle: 'Set'.tl,
+          ).toSliver(),
+          CallbackSetting(
+            title: "Comic Archive Backup".tl,
+            subtitle:
+                "This is only used for CBZ archive backup and restore.".tl,
+            callback: () async {
+              showPopUpWidget(context, const BackupWebdavSetting());
+            },
+            actionTitle: 'Set'.tl,
+          ).toSliver(),
+          CallbackSetting(
+            title: "WebDAV Comic Library".tl,
+            subtitle: "Online reading uses directory image structure only; CBZ is kept for archive backup and restore."
+                .tl,
+            callback: () async {
+              showPopUpWidget(
+                context,
+                WebDavComicLibrarySetting(WebDavLibraryScope.of(context)),
+              );
+            },
+            actionTitle: 'Set'.tl,
+          ).toSliver(),
+        ]),
         SettingPartTitle(title: "User".tl, icon: Icons.person_outline),
-        SelectSetting.preference(
-          title: "Language".tl,
-          preference: AppPreferences.language,
-          optionTranslation: const {
-            "system": "System",
-            "zh-CN": "简体中文",
-            "zh-TW": "繁體中文",
-            "en-US": "English",
-          },
-          onChanged: () {
-            appNavigation.forceRebuild();
-          },
-        ).toSliver(),
-        if (!App.isLinux) const AuthorizationRequiredSetting().toSliver(),
+        ...settingGroup(context, [
+          SelectSetting.preference(
+            title: "Language".tl,
+            preference: AppPreferences.language,
+            optionTranslation: const {
+              "system": "System",
+              "zh-CN": "简体中文",
+              "zh-TW": "繁體中文",
+              "en-US": "English",
+            },
+            onChanged: () {
+              appNavigation.forceRebuild();
+            },
+          ).toSliver(),
+          if (!App.isLinux) const AuthorizationRequiredSetting().toSliver(),
+        ]),
         if (App.isWindows && hotkey != null) ...[
           SettingPartTitle(title: 'Window'.tl, icon: Icons.desktop_windows),
           WindowHotkeySetting(controller: hotkey).toSliver(),

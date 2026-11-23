@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:prism_ui/list_row.dart' as prism;
 import 'package:prism_ui/switch.dart' as prism;
+import 'package:prism_ui/slider.dart' as prism;
+import 'package:venera_next/components/mobile_setting_row.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/translations.dart';
 
@@ -103,6 +105,32 @@ class ReaderBrightnessControl extends StatelessWidget {
   Widget build(BuildContext context) {
     final usePrism = this.usePrism ?? MobileUi.enabledOf(context);
     final normalizedBrightness = normalizeReaderBrightness(brightness);
+    if (usePrism && !compact && MobileUi.enabledOf(context)) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: settingGroup(context, [
+          SettingSwitchRow(
+            title: Text('Night dimming'.tl),
+            value: enabled,
+            onChanged: onEnabledChanged,
+          ),
+          if (enabled)
+            SettingRow(
+              title: Text('Reader brightness'.tl),
+              trailing: Text('$normalizedBrightness%'),
+              subtitle: prism.Slider(
+                min: readerBrightnessMin.toDouble(),
+                max: readerBrightnessMax.toDouble(),
+                divisions: (readerBrightnessMax - readerBrightnessMin) ~/ 5,
+                value: normalizedBrightness.toDouble(),
+                onChanged: (value) => onBrightnessChanged(value.round()),
+                onChangeEnd: (value) =>
+                    onBrightnessChangeEnd?.call(value.round()),
+              ),
+            ),
+        ]),
+      );
+    }
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

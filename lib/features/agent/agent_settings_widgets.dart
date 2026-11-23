@@ -74,7 +74,7 @@ class _AgentSettingsGroup extends StatelessWidget {
     padding: padding,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
+      children: settingGroup(context, children),
     ),
   );
 }
@@ -96,18 +96,13 @@ class _AgentSettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MobileUi.enabledOf(context)
-      ? Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          child: prism.Card(
-            padding: EdgeInsets.zero,
-            onPressed: onTap,
-            child: prism.ListRow(
-              leading: Icon(icon),
-              title: Text(title),
-              subtitle: Text(subtitle),
-              trailing: trailing ?? const Icon(Icons.chevron_right),
-            ),
-          ),
+      ? SettingRow(
+          enabled: onTap != null || trailing != null,
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          trailing: trailing ?? const SettingDisclosure(),
+          onTap: onTap,
         )
       : ListTile(
           enabled: onTap != null,
@@ -136,20 +131,18 @@ class _AgentSettingsSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MobileUi.enabledOf(context)
-      ? Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          child: prism.Card(
-            padding: EdgeInsets.zero,
-            child: prism.ListRow(
-              title: title,
-              subtitle: subtitle,
-              trailing: prism.Switch(
-                key: controlKey,
-                semanticLabel: title.data,
-                value: value,
-                onChanged: onChanged,
-              ),
+      ? MergeSemantics(
+          child: SettingRow(
+            enabled: onChanged != null,
+            title: title,
+            subtitle: subtitle,
+            trailing: prism.Switch(
+              key: controlKey,
+              semanticLabel: title.data,
+              value: value,
+              onChanged: onChanged,
             ),
+            onTap: onChanged == null ? null : () => onChanged!(!value),
           ),
         )
       : SwitchListTile(
@@ -238,23 +231,24 @@ class _AgentSectionTitle extends StatelessWidget {
   final String title;
   const _AgentSectionTitle(this.title);
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-    decoration: BoxDecoration(
-      border: Border(
-        bottom: BorderSide(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-        ),
-      ),
-    ),
-    child: Text(
-      title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontSize: 18,
-        fontWeight: FontWeight.normal,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) => MobileUi.enabledOf(context)
+      ? SettingSectionLabel(title)
+      : Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.1),
+              ),
+            ),
+          ),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontSize: 18, fontWeight: FontWeight.normal),
+          ),
+        );
 }
 
 class _AgentHelpText extends StatelessWidget {
@@ -363,30 +357,32 @@ Widget _agentField({
           )
         else
           TextFormField(
-          key: fieldKey,
-          controller: controller,
-          enabled: enabled,
-          minLines: lines,
-          maxLines: lines == 1 ? 1 : lines + 5,
-          keyboardType: lines == 1
-              ? TextInputType.text
-              : TextInputType.multiline,
-          autocorrect: false,
-          // Keep the ordinary Android keyboard and its long-press paste menu.
-          enableSuggestions: true,
-          enableIMEPersonalizedLearning: !secret,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 14,
+            key: fieldKey,
+            controller: controller,
+            enabled: enabled,
+            minLines: lines,
+            maxLines: lines == 1 ? 1 : lines + 5,
+            keyboardType: lines == 1
+                ? TextInputType.text
+                : TextInputType.multiline,
+            autocorrect: false,
+            // Keep the ordinary Android keyboard and its long-press paste menu.
+            enableSuggestions: true,
+            enableIMEPersonalizedLearning: !secret,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              errorMaxLines: 4,
             ),
-            errorMaxLines: 4,
+            validator: required
+                ? (value) => value?.trim().isEmpty != false ? '请填写此项' : null
+                : null,
           ),
-          validator: required
-              ? (value) => value?.trim().isEmpty != false ? '请填写此项' : null
-              : null,
-        ),
         if (hint != null) ...[const SizedBox(height: 8), _AgentHelpText(hint)],
       ],
     ),

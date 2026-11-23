@@ -1,7 +1,10 @@
+import 'mobile_setting_row.dart';
+
 import 'package:flutter/material.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/reader_preferences.dart';
 import 'package:venera_next/foundation/translations.dart';
+
 import 'setting_components.dart';
 
 /// Shared placement for the full settings page and the reader's picture menu.
@@ -38,7 +41,7 @@ class ReaderAppearanceSettings extends StatelessWidget {
       contentPadding: compact ? EdgeInsets.zero : null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: settingGroup(context, [
           SwitchSetting.reader(
             title: 'Line enhancement'.tl,
             preference: ReaderPreferences.readerLineEnhancement,
@@ -83,7 +86,7 @@ class ReaderAppearanceSettings extends StatelessWidget {
             useDeviceSettings: device,
             onChanged: () => onChanged?.call('readerNightModeIntensity'),
           ),
-        ],
+        ]),
       ),
     );
   }

@@ -3,11 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:prism_ui/card.dart' as prism show Card;
 import 'package:prism_ui/common_button.dart'
     as prism
     show FilledButton, TextButton;
-import 'package:prism_ui/list_row.dart' as prism show ListRow;
 import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
 import 'package:prism_ui/switch.dart' as prism show Switch;
 import 'package:prism_ui/text_field.dart'
@@ -15,6 +13,7 @@ import 'package:prism_ui/text_field.dart'
     show InputDecoration, TextFormField;
 import 'package:venera_next/components/mobile_choice.dart';
 import 'package:venera_next/components/mobile_ui.dart';
+import 'package:venera_next/components/mobile_setting_row.dart';
 import 'package:venera_next/foundation/app_page_route.dart';
 import 'package:venera_next/components/appbar.dart';
 

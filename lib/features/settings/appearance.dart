@@ -1,3 +1,5 @@
+import 'mobile_setting_row.dart';
+
 import 'dart:ui' show ImageFilter;
 
 import 'package:venera_next/foundation/application_preferences.dart';
@@ -25,50 +27,52 @@ class _AppearanceSettingsState extends State<AppearanceSettings> {
     return SmoothCustomScrollView(
       slivers: [
         SliverAppbar(title: Text("Appearance".tl)),
-        SelectSetting.preference(
-          title: "Theme Mode".tl,
-          preference: AppearancePreferences.themeMode,
-          optionTranslation: {
-            "system": "System".tl,
-            "light": "Light".tl,
-            "dark": "Dark".tl,
-          },
-          onChanged: () async {
-            appNavigation.forceRebuild();
-          },
-        ).toSliver(),
-        SelectSetting.preference(
-          title: "Theme Color".tl,
-          preference: AppearancePreferences.color,
-          optionTranslation: {
-            "system": "System".tl,
-            "red": "Red".tl,
-            "pink": "Pink".tl,
-            "purple": "Purple".tl,
-            "green": "Green".tl,
-            "orange": "Orange".tl,
-            "blue": "Blue".tl,
-          },
-          onChanged: () async {
-            await App.init();
-            appNavigation.forceRebuild();
-          },
-        ).toSliver(),
-        if (MobileUi.enabledOf(context))
+        ...settingGroup(context, [
           SelectSetting.preference(
-            title: 'Glass effect'.tl,
-            preference: AppearancePreferences.mobileGlass,
-            stacked: true,
+            title: "Theme Mode".tl,
+            preference: AppearancePreferences.themeMode,
             optionTranslation: {
-              'off': 'Off'.tl,
-              'standard': 'Standard glass'.tl,
-              'ultra': 'Ultra glass'.tl,
+              "system": "System".tl,
+              "light": "Light".tl,
+              "dark": "Dark".tl,
             },
-            selectorBuilder: (context, value, select) => _GlassSelector(
-              value: value ?? AppearancePreferences.mobileGlass.defaultValue,
-              select: select!,
-            ),
+            onChanged: () async {
+              appNavigation.forceRebuild();
+            },
           ).toSliver(),
+          SelectSetting.preference(
+            title: "Theme Color".tl,
+            preference: AppearancePreferences.color,
+            optionTranslation: {
+              "system": "System".tl,
+              "red": "Red".tl,
+              "pink": "Pink".tl,
+              "purple": "Purple".tl,
+              "green": "Green".tl,
+              "orange": "Orange".tl,
+              "blue": "Blue".tl,
+            },
+            onChanged: () async {
+              await App.init();
+              appNavigation.forceRebuild();
+            },
+          ).toSliver(),
+          if (MobileUi.enabledOf(context))
+            SelectSetting.preference(
+              title: 'Glass effect'.tl,
+              preference: AppearancePreferences.mobileGlass,
+              stacked: true,
+              optionTranslation: {
+                'off': 'Off'.tl,
+                'standard': 'Standard glass'.tl,
+                'ultra': 'Ultra glass'.tl,
+              },
+              selectorBuilder: (context, value, select) => _GlassSelector(
+                value: value ?? AppearancePreferences.mobileGlass.defaultValue,
+                select: select!,
+              ),
+            ).toSliver(),
+        ]),
       ],
     );
   }

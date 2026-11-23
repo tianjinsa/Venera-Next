@@ -63,7 +63,7 @@ class _LocalStorageSettingsState extends State<LocalStorageSettings> {
     final canSetPath = DirectoryPicker.supportsPersistentDirectories;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [
+      children: settingGroup(context, [
         SettingRow(
           title: Text('Storage Path for local comics'.tl),
           subtitle: Semantics(
@@ -103,7 +103,7 @@ class _LocalStorageSettingsState extends State<LocalStorageSettings> {
           ),
           onTap: recovering || canSetPath ? () => _run(manager) : null,
         ),
-      ],
+      ]),
     );
   }
 }

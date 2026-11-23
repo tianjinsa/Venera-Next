@@ -5,6 +5,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/popup.dart' as prism;
+import 'package:prism_ui/list.dart' as prism;
+import 'package:venera_next/features/settings/reader_mode.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/mobile_choice.dart';
 import 'package:venera_next/components/mobile_ui.dart';
@@ -109,6 +112,60 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'per-comic reading mode opens an anchored list; cancel changes nothing',
+    (tester) async {
+      _prepare();
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+      final before = jsonEncode(
+        appdata.settings.comicReaderModeOverride('42', 'source'),
+      );
+      var callbacks = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [MobileUiLocalizations.delegate],
+          builder: (_, child) => MobileUiTheme(glass: 'off', child: child!),
+          home: Scaffold(
+            body: ListView(
+              children: [
+                ReaderModeSettings(
+                  comicId: '42',
+                  sourceKey: 'source',
+                  onChanged: () => callbacks++,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      final row = find.ancestor(
+        of: find.byType(MobileChoiceButton),
+        matching: find.byType(prism.DecorationListItem),
+      );
+      expect(row, findsOneWidget);
+      await tester.tap(
+        find.byWidget(tester.widget<prism.DecorationListItem>(row).title),
+      );
+      await tester.pumpAndSettle();
+      final menu = tester.widget<prism.PopupMenu>(find.byType(prism.PopupMenu));
+      expect(menu.items.length, 8); // seven reading modes plus follow-default
+      expect(menu.items.where((item) => item.checked == true), hasLength(1));
+      expect(find.byType(MobileChoiceSheetFrame), findsNothing);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        jsonEncode(appdata.settings.comicReaderModeOverride('42', 'source')),
+        before,
+      );
+      expect(callbacks, 0);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets(
     'switch waits for admission and reports success only after persistence',

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:prism_ui/card.dart' as prism;
 import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/context.dart' as prism;
 import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/list_row.dart' as prism;
 import 'package:prism_ui/popup.dart' as prism;
@@ -40,6 +41,7 @@ class MobileChoice<T extends Object> extends StatefulWidget {
     this.label,
     this.placeholder,
     this.searchable = false,
+    this.setting = false,
     this.minWidth = 64,
   });
 
@@ -51,6 +53,10 @@ class MobileChoice<T extends Object> extends StatefulWidget {
   final String? label;
   final String? placeholder;
   final bool searchable;
+
+  /// Setting fields stay anchored to their value, irrespective of list size.
+  /// Business pickers can still opt into the searchable sheet.
+  final bool setting;
   final double minWidth;
 
   @override
@@ -111,6 +117,7 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
       label: widget.label,
       child: MobileChoiceButton(
         value: text,
+        setting: widget.setting,
         minWidth: widget.minWidth,
         onPressed: onPressed,
       ),
@@ -119,11 +126,16 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
     if (changed == null || !widget.options.any((option) => option.enabled)) {
       return target(null);
     }
-    if (widget.searchable || widget.options.length > MobileChoice.menuLimit) {
+    if (!widget.setting &&
+        (widget.searchable || widget.options.length > MobileChoice.menuLimit)) {
       return target(() => unawaited(_showSheet()));
     }
     return MobilePopupAnchor(
       targetBuilder: target,
+      placement: Directionality.of(context) == TextDirection.rtl
+          ? prism.PopupPlacement.overAnchorStart
+          : prism.PopupPlacement.overAnchorEnd,
+      maxVisibleItems: widget.setting ? 7 : null,
       items: [
         for (final option in widget.options)
           prism.PopupMenuItem(
@@ -147,35 +159,89 @@ class MobileChoiceButton extends StatelessWidget {
     super.key,
     required this.value,
     this.minWidth = 64,
+    this.setting = false,
     this.onPressed,
   });
 
   final String value;
+  final bool setting;
   final double minWidth;
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => prism.OutlinedButton(
-    key: ValueKey(onPressed != null),
-    onPressed: onPressed,
-    style: prism.ButtonStyle.from(
-      minimumSize: Size(minWidth, 48),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: 8,
-      children: [
-        Flexible(
-          child: prism.PopupValueText(
-            value,
-            alignment: AlignmentDirectional.centerStart,
-          ),
+  Widget build(BuildContext context) {
+    MobileChoiceTapLink.bind(context, onPressed);
+    if (!setting) {
+      return prism.OutlinedButton(
+        key: ValueKey(onPressed != null),
+        onPressed: onPressed,
+        style: prism.ButtonStyle.from(
+          minimumSize: Size(minWidth, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
-        const prism.GlyphIcon(prism.Glyphs.picker, size: 16),
-      ],
-    ),
-  );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 8,
+          children: [
+            Flexible(
+              child: prism.PopupValueText(
+                value,
+                alignment: AlignmentDirectional.centerStart,
+              ),
+            ),
+            const prism.GlyphIcon(prism.Glyphs.picker, size: 16),
+          ],
+        ),
+      );
+    }
+    return prism.TextButton(
+      key: ValueKey(onPressed != null),
+      onPressed: onPressed,
+      style: prism.ButtonStyle.from(
+        foregroundColor: prism.Theme.of(context).colorScheme.onSurfaceVariant,
+        textStyle: prism.BuildContextExtension(context).listTitleStyle,
+        minimumSize: Size(minWidth, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 4,
+        children: [
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 160),
+              child: prism.PopupValueText(
+                value,
+                alignment: AlignmentDirectional.centerEnd,
+              ),
+            ),
+          ),
+          const prism.GlyphIcon(prism.Glyphs.picker),
+        ],
+      ),
+    );
+  }
+}
+
+/// A row press uses the very same anchor as its value. No extra navigator,
+/// no hidden button and no mutation of the selected value on dismissal.
+class MobileChoiceTapLink {
+  VoidCallback? _open;
+  void open() => _open?.call();
+
+  Widget wrap(Widget child) => _ChoiceTapScope(link: this, child: child);
+
+  static void bind(BuildContext context, VoidCallback? open) {
+    final scope = context.dependOnInheritedWidgetOfExactType<_ChoiceTapScope>();
+    scope?.link._open = open;
+  }
+}
+
+class _ChoiceTapScope extends InheritedWidget {
+  const _ChoiceTapScope({required this.link, required super.child});
+  final MobileChoiceTapLink link;
+  @override
+  bool updateShouldNotify(_ChoiceTapScope old) => link != old.link;
 }
 
 /// A choice stays at the reading end, even on small handsets. Both columns
@@ -234,6 +300,7 @@ class MobileChoiceFormField<T extends Object> extends FormField<T> {
          builder: (field) {
            final choice = MobileChoice<T>(
              options: options,
+             setting: !searchable,
              value: field.value,
              label: label.isEmpty ? null : label,
              placeholder: placeholder,
@@ -245,6 +312,7 @@ class MobileChoiceFormField<T extends Object> extends FormField<T> {
                      onChanged(value);
                    },
            );
+           final link = MobileChoiceTapLink();
            return Column(
              crossAxisAlignment: CrossAxisAlignment.stretch,
              mainAxisSize: MainAxisSize.min,
@@ -252,9 +320,22 @@ class MobileChoiceFormField<T extends Object> extends FormField<T> {
                if (label.isEmpty)
                  choice
                else
-                 MobileChoiceRow(
-                   title: ExcludeSemantics(child: Text(label)),
-                   choice: choice,
+                 link.wrap(
+                   GestureDetector(
+                     behavior: HitTestBehavior.opaque,
+                     excludeFromSemantics: true,
+                     onTap: field.widget.enabled ? link.open : null,
+                     child: MobileChoiceRow(
+                       title: ExcludeSemantics(
+                         child: Text(
+                           label,
+                           style: prism.BuildContextExtension(field.context)
+                               .listTitleStyle,
+                         ),
+                       ),
+                       choice: choice,
+                     ),
+                   ),
                  ),
                if (field.errorText case final error?)
                  Padding(

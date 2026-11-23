@@ -1,3 +1,5 @@
+import 'package:venera_next/components/mobile_ui.dart';
+
 import 'mobile_setting_row.dart';
 
 import 'dart:async';
@@ -102,55 +104,61 @@ class _AboutSettingsState extends State<AboutSettings> {
             const SizedBox(height: 8),
           ],
         ).toSliver(),
-        SettingRow(
-          title: Text("Check for updates".tl),
-          trailing: FilledButton(
-            onPressed: _checking == null ? _checkUpdate : null,
-            child: _checkingNetwork
-                ? SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      semanticsLabel: 'Check for updates'.tl,
-                    ),
-                  )
-                : Text('Check'.tl),
-          ),
-        ).toSliver(),
-        SettingRow(
-          title: Text("Changelog".tl),
-          trailing: const Icon(Icons.keyboard_arrow_right),
-          onTap: () {
-            context.to(() => const ChangelogPage());
-          },
-        ).toSliver(),
-        SwitchSetting.preference(
-          title: "Check for updates on startup".tl,
-          preference: AppPreferences.checkUpdateOnStart,
-        ).toSliver(),
-        if (AppProfile.current.isTv)
+        ...settingGroup(context, [
           SettingRow(
-            leading: const Icon(Icons.tv),
-            title: const Text('Android TV'),
-            subtitle: Text(
-              'TV updates are published alongside mobile releases. Choose an android-tv APK; mobile and TV apps keep separate data.'
-                  .tl,
+            title: Text("Check for updates".tl),
+            trailing: FilledButton(
+              onPressed: _checking == null ? _checkUpdate : null,
+              child: _checkingNetwork
+                  ? SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        semanticsLabel: 'Check for updates'.tl,
+                      ),
+                    )
+                  : Text('Check'.tl),
             ),
           ).toSliver(),
-        SettingRow(
-          title: const Text("Github"),
-          trailing: const Icon(Icons.open_in_new),
-          onTap: () {
-            launchUrlString("https://github.com/CyrilPeng/venera-next");
-          },
-        ).toSliver(),
-        SettingRow(
-          title: Text("Sponsors".tl),
-          trailing: const Icon(Icons.keyboard_arrow_right),
-          onTap: () {
-            context.to(() => const SponsorsPage());
-          },
-        ).toSliver(),
+          SettingRow(
+            title: Text("Changelog".tl),
+            trailing: MobileUi.enabledOf(context)
+                ? const SettingDisclosure()
+                : const Icon(Icons.keyboard_arrow_right),
+            onTap: () {
+              context.to(() => const ChangelogPage());
+            },
+          ).toSliver(),
+          SwitchSetting.preference(
+            title: "Check for updates on startup".tl,
+            preference: AppPreferences.checkUpdateOnStart,
+          ).toSliver(),
+          if (AppProfile.current.isTv)
+            SettingRow(
+              leading: const Icon(Icons.tv),
+              title: const Text('Android TV'),
+              subtitle: Text(
+                'TV updates are published alongside mobile releases. Choose an android-tv APK; mobile and TV apps keep separate data.'
+                    .tl,
+              ),
+            ).toSliver(),
+          SettingRow(
+            title: const Text("Github"),
+            trailing: const Icon(Icons.open_in_new),
+            onTap: () {
+              launchUrlString("https://github.com/CyrilPeng/venera-next");
+            },
+          ).toSliver(),
+          SettingRow(
+            title: Text("Sponsors".tl),
+            trailing: MobileUi.enabledOf(context)
+                ? const SettingDisclosure()
+                : const Icon(Icons.keyboard_arrow_right),
+            onTap: () {
+              context.to(() => const SponsorsPage());
+            },
+          ).toSliver(),
+        ]),
       ],
     );
   }

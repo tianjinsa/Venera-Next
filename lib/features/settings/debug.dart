@@ -1,3 +1,5 @@
+import 'mobile_setting_row.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -90,22 +92,24 @@ class DebugPageState extends State<DebugPage> {
     return SmoothCustomScrollView(
       slivers: [
         SliverAppbar(title: Text("Debug".tl)),
-        CallbackSetting(
-          title: "Reload Configs".tl,
-          actionTitle: "Reload".tl,
-          callback: reload,
-        ).toSliver(),
-        CallbackSetting(
-          title: "Open Log".tl,
-          callback: () {
-            context.to(() => const LogsPage());
-          },
-          actionTitle: 'Open'.tl,
-        ).toSliver(),
-        SwitchSetting.preference(
-          title: "Ignore Certificate Errors".tl,
-          preference: NetworkPreferences.ignoreBadCertificate,
-        ).toSliver(),
+        ...settingGroup(context, [
+          CallbackSetting(
+            title: "Reload Configs".tl,
+            actionTitle: "Reload".tl,
+            callback: reload,
+          ).toSliver(),
+          CallbackSetting(
+            title: "Open Log".tl,
+            callback: () {
+              context.to(() => const LogsPage());
+            },
+            actionTitle: 'Open'.tl,
+          ).toSliver(),
+          SwitchSetting.preference(
+            title: "Ignore Certificate Errors".tl,
+            preference: NetworkPreferences.ignoreBadCertificate,
+          ).toSliver(),
+        ]),
         SliverToBoxAdapter(
           child: Column(
             children: [

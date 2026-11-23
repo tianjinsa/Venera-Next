@@ -8,7 +8,9 @@ import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/l10n.dart' as prism;
 import 'package:prism_ui/liquid_glass.dart' as prism;
 import 'package:prism_ui/popup.dart' as prism;
-import 'package:prism_ui/scaffold.dart' as prism show AppBar;
+import 'package:prism_ui/scaffold.dart'
+    as prism
+    show AppBar, appBarLeadingWidth, isCompactBar;
 import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:prism_ui/view_scope.dart' as prism;
 import 'package:venera_next/foundation/app.dart';
@@ -134,10 +136,8 @@ class MobileToolbar extends StatelessWidget {
   final Widget title;
   final Widget? leading;
 
-  /// Feature owners put optional commands in [more]. Preserve any extra
-  /// required contextual control (e.g. a dirty-save status) as its own slot.
+  /// Direct commands in display order, paired into independent capsules.
   final List<Widget> shortcuts;
-  static const maxGroupedActions = 2;
   final Widget? more;
   final bool showBack;
   final Color? backgroundColor;
@@ -158,38 +158,114 @@ class MobileToolbar extends StatelessWidget {
       color: backgroundColor ?? Theme.of(context).colorScheme.surface,
       child: prism.TonalButtonTheme(
         glass: prism.LiquidGlassScope.of(context),
-        child: prism.AppBar(
-          title: title,
-          titleSpacing: back == null ? 16 : 0,
-          toolbarHeight: height,
-          clipBehavior: Clip.none,
-          leading: back == null
-              ? null
-              : Center(child: prism.BarItemPresence(child: back)),
-          actions: [
-            if (shortcuts.isNotEmpty)
-              prism.BarItemPresence(
-                child: IconButtonTheme(
-                  data: const IconButtonThemeData(
-                    style: ButtonStyle(
-                      overlayColor: WidgetStatePropertyAll(Colors.transparent),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            const edge = 16.0;
+            final spacing = back == null ? edge : 0.0;
+            final leadingWidth = back == null
+                ? 0.0
+                : prism.appBarLeadingWidth(
+                    context,
+                    prism.isCompactBar(context, MobileUi.enabledOf(context)),
+                  );
+            // On narrow or inset-heavy screens, scroll the strip rather than
+            // let a large contextual selection displace Back or clip actions.
+            final actionWidth =
+                (constraints.maxWidth -
+                        MediaQuery.paddingOf(context).horizontal -
+                        leadingWidth -
+                        2 * spacing -
+                        edge)
+                    .clamp(0.0, double.infinity)
+                    .toDouble();
+            return prism.AppBar(
+              title: title,
+              titleSpacing: spacing,
+              toolbarHeight: height,
+              clipBehavior: Clip.none,
+              leading: back == null
+                  ? null
+                  : Center(child: prism.BarItemPresence(child: back)),
+              actions: [
+                if (shortcuts.isNotEmpty || more != null) ...[
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: actionWidth),
+                    child: MobileToolbarActions(
+                      shortcuts: shortcuts,
+                      more: more,
+                      scrollable: true,
                     ),
                   ),
-                  child: prism.TonalButtonGroup(
-                    children: shortcuts.take(maxGroupedActions).toList(),
-                  ),
-                ),
-              ),
-            for (final control in shortcuts.skip(maxGroupedActions)) ...[
-              const SizedBox(width: 6),
-              prism.BarItemPresence(child: control),
-            ],
-            if (shortcuts.isNotEmpty && more != null) const SizedBox(width: 8),
-            if (more != null) prism.BarItemPresence(child: more!),
-            if (shortcuts.isNotEmpty || more != null) const SizedBox(width: 16),
-          ],
+                  const SizedBox(width: edge),
+                ],
+              ],
+            );
+          },
         ),
       ),
+    );
+  }
+}
+
+/// Ordered direct actions for one side of a toolbar. Each pair owns its
+/// own Prism lens and press animation. An unpaired action and [more] each
+/// stand alone; no action is dropped or converted to a menu item implicitly.
+class MobileToolbarActions extends StatelessWidget {
+  const MobileToolbarActions({
+    super.key,
+    required this.shortcuts,
+    this.more,
+    this.scrollable = false,
+  });
+
+  static const gap = 8.0;
+  static const _groupSize = 2;
+
+  final List<Widget> shortcuts;
+  final Widget? more;
+  final bool scrollable;
+
+  @override
+  Widget build(BuildContext context) {
+    final direct = Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: gap,
+      children: [
+        for (var i = 0; i < shortcuts.length; i += _groupSize)
+          if (i + 1 == shortcuts.length)
+            prism.BarItemPresence(child: shortcuts[i])
+          else
+            prism.BarItemPresence(
+              child: IconButtonTheme(
+                data: const IconButtonThemeData(
+                  style: ButtonStyle(
+                    overlayColor: WidgetStatePropertyAll(Colors.transparent),
+                  ),
+                ),
+                child: prism.TonalButtonGroup(
+                  children: shortcuts.sublist(i, i + _groupSize),
+                ),
+              ),
+            ),
+      ],
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: gap,
+      children: [
+        if (shortcuts.isNotEmpty)
+          if (scrollable)
+            Flexible(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                primary: false,
+                child: direct,
+              ),
+            )
+          else
+            direct,
+        if (more != null) prism.BarItemPresence(child: more!),
+      ],
     );
   }
 }
@@ -250,22 +326,37 @@ class MobilePopupAnchor extends StatelessWidget {
     super.key,
     required this.targetBuilder,
     required this.items,
+    this.placement = prism.PopupPlacement.overAnchorEnd,
+    this.maxVisibleItems,
   });
 
   final Widget Function(VoidCallback open) targetBuilder;
   final List<prism.PopupMenuItem> items;
 
+  final prism.PopupPlacement placement;
+  final int? maxVisibleItems;
+
   @override
   Widget build(BuildContext owner) => prism.PopupAnchor(
+    placement: placement,
     targetBuilder: targetBuilder,
-    popupBuilder: (_) => _CommittedPopup(owner: owner, items: items),
+    popupBuilder: (_) => _CommittedPopup(
+      owner: owner,
+      items: items,
+      maxVisibleItems: maxVisibleItems,
+    ),
   );
 }
 
 class _CommittedPopup extends StatefulWidget {
-  const _CommittedPopup({required this.owner, required this.items});
+  const _CommittedPopup({
+    required this.owner,
+    required this.items,
+    this.maxVisibleItems,
+  });
 
   final BuildContext owner;
+  final int? maxVisibleItems;
   final List<prism.PopupMenuItem> items;
 
   @override
@@ -310,7 +401,8 @@ class _CommittedPopupState extends State<_CommittedPopup> {
   }
 
   @override
-  Widget build(BuildContext context) => prism.PopupMenu(items: _items);
+  Widget build(BuildContext context) =>
+      prism.PopupMenu(items: _items, maxVisibleItems: widget.maxVisibleItems);
 }
 
 /// NavigationDock accepts glyphs. These match the five Venera destinations.

@@ -136,29 +136,29 @@ class _ReaderModeSettingsState extends SettingsSaveState<ReaderModeSettings> {
     };
     if (MobileUi.enabledOf(context)) {
       final target = (widget.comicId, widget.sourceKey);
-      return SettingRow(
-        title: MobileChoiceRow(
-          title: Text(title),
-          description: description == null ? null : Text(description),
-          choice: MobileChoice<String>(
-            key: ValueKey((target, title)),
-            label: title,
-            value: value,
-            placeholder: value,
-            options: [
-              for (final option in options.entries)
-                MobileChoiceOption(option.key, option.value),
-            ],
-            onChanged: !acceptsSettingsChanges
-                ? null
-                : (selected) {
-                    if (mounted &&
-                        target == (widget.comicId, widget.sourceKey) &&
-                        acceptsSettingsChanges) {
-                      unawaited(onSelected(selected));
-                    }
-                  },
-          ),
+      return SettingChoiceRow(
+        title: Text(title),
+        subtitle: description == null ? null : Text(description),
+        enabled: acceptsSettingsChanges,
+        choice: MobileChoice<String>(
+          key: ValueKey((target, title)),
+          setting: true,
+          label: title,
+          value: value,
+          placeholder: value,
+          options: [
+            for (final option in options.entries)
+              MobileChoiceOption(option.key, option.value),
+          ],
+          onChanged: !acceptsSettingsChanges
+              ? null
+              : (selected) {
+                  if (mounted &&
+                      target == (widget.comicId, widget.sourceKey) &&
+                      acceptsSettingsChanges) {
+                    unawaited(onSelected(selected));
+                  }
+                },
         ),
       );
     }
@@ -196,30 +196,32 @@ class _ReaderModeSettingsState extends SettingsSaveState<ReaderModeSettings> {
       return Column(
         children: [
           settingsSaveStatus,
-          SettingSwitchRow(
-            title: Text('Choose reading mode automatically'.tl),
-            subtitle: Text(
-              'Recognize paged and long-strip comics from image proportions.'
-                  .tl,
+          ...settingGroup(context, [
+            SettingSwitchRow(
+              title: Text('Choose reading mode automatically'.tl),
+              subtitle: Text(
+                'Recognize paged and long-strip comics from image proportions.'
+                    .tl,
+              ),
+              value: auto,
+              onChanged: (value) =>
+                  _setPreference(ReaderPreferences.autoReaderMode, value),
             ),
-            value: auto,
-            onChanged: (value) =>
-                _setPreference(ReaderPreferences.autoReaderMode, value),
-          ),
-          if (auto) ...[
-            _preference('Paged comics', ReaderPreferences.pagedReaderMode),
+            if (auto) ...[
+              _preference('Paged comics', ReaderPreferences.pagedReaderMode),
+              _preference(
+                'Long-strip comics',
+                ReaderPreferences.longStripReaderMode,
+              ),
+            ],
             _preference(
-              'Long-strip comics',
-              ReaderPreferences.longStripReaderMode,
+              auto ? 'When layout is unknown' : 'Default reading mode',
+              ReaderPreferences.readerMode,
+              description: auto
+                  ? 'Used when there are too few images or their proportions are mixed.'
+                  : null,
             ),
-          ],
-          _preference(
-            auto ? 'When layout is unknown' : 'Default reading mode',
-            ReaderPreferences.readerMode,
-            description: auto
-                ? 'Used when there are too few images or their proportions are mixed.'
-                : null,
-          ),
+          ]),
         ],
       );
     }
@@ -304,16 +306,22 @@ class _ReaderModeSettingsState extends SettingsSaveState<ReaderModeSettings> {
               ),
             ),
         ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-          child: Text(
+        if (MobileUi.enabledOf(context))
+          SettingFootnote(
             'This selection only affects this comic. Change default preferences in Settings → Reader.'
                 .tl,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Text(
+              'This selection only affects this comic. Change default preferences in Settings → Reader.'
+                  .tl,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-        ),
       ],
     );
   }
