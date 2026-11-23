@@ -1,6 +1,7 @@
 import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/features/local_comics/import_export/comic_import_service.dart';
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:venera_next/components/button.dart';
@@ -62,16 +63,12 @@ class _LocalComicsSummaryState extends State<LocalComicsSummary> {
   @override
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 0.6,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: MobileContentSurface.summary(
         child: ClickInkWell(
+          customBorder: MobileContentSurface.inkShapeOf(
+            context,
+            MobileContentStyle.summary,
+          ),
           borderRadius: BorderRadius.circular(8),
           onTap: () {
             context.to(() => const LocalComicsPage());

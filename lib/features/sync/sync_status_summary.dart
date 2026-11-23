@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:sliver_tools/sliver_tools.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/message.dart';
@@ -28,9 +29,9 @@ class SyncStatusSummary extends StatelessWidget {
       child = const SliverPadding(padding: EdgeInsets.zero);
     } else if (syncStatus.isSyncing) {
       child = SliverToBoxAdapter(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
+        child: MobileContentSurface.summary(
+          accent: Theme.of(context).colorScheme.primary,
+          fallbackDecoration: BoxDecoration(
             border: Border.all(color: Theme.of(context).colorScheme.primary),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -46,9 +47,8 @@ class SyncStatusSummary extends StatelessWidget {
       );
     } else {
       child = SliverToBoxAdapter(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
+        child: MobileContentSurface.summary(
+          fallbackDecoration: BoxDecoration(
             border: Border.all(
               color: Theme.of(context).colorScheme.outlineVariant,
             ),

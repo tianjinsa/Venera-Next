@@ -1,5 +1,6 @@
 import 'package:venera_next/features/history/history_scope.dart';
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/comic_source/comic_source_api.dart';
@@ -74,16 +75,12 @@ class _ImageFavoritesSummaryState extends State<ImageFavoritesSummary> {
     bool hasData =
         imageFavoritesCompute != null && !imageFavoritesCompute!.isEmpty;
     return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 0.6,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: MobileContentSurface.summary(
         child: ClickInkWell(
+          customBorder: MobileContentSurface.inkShapeOf(
+            context,
+            MobileContentStyle.summary,
+          ),
           borderRadius: BorderRadius.circular(8),
           onTap: () {
             context.to(() => ImageFavoritesPage(manager: _manager));

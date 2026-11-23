@@ -1,5 +1,6 @@
 import 'package:venera_next/features/history/history_api.dart';
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/summary_header.dart';
 import 'package:venera_next/features/comic_details/comic_details.dart';
@@ -89,16 +90,12 @@ class _HistorySummaryState extends State<HistorySummary> {
 
   Widget _buildSummary(BuildContext context, List<History> history, int count) {
     return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 0.6,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: MobileContentSurface.summary(
         child: ClickInkWell(
+          customBorder: MobileContentSurface.inkShapeOf(
+            context,
+            MobileContentStyle.summary,
+          ),
           borderRadius: BorderRadius.circular(8),
           onTap: () {
             context.to(() => HistoryPage(manager: widget.manager));

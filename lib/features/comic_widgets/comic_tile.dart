@@ -1,5 +1,5 @@
-import 'comic_blocking.dart';
 import 'dart:math' as math;
+
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/keyword_settings_store.dart';
@@ -13,6 +13,8 @@ import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/image.dart';
 import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/select.dart';
 import 'package:venera_next/features/comic_source/comic_source_api.dart';
 import 'package:venera_next/routing/app_navigation.dart';
@@ -23,6 +25,7 @@ import 'package:venera_next/foundation/extensions.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 
+import 'comic_blocking.dart';
 import 'rating.dart';
 
 typedef ComicPageBuilder =
@@ -207,6 +210,7 @@ class ComicTile extends StatelessWidget {
     this.onBlocked,
     this.heroID,
     this.displayMode,
+    this.mobileSelected = false,
   });
 
   final Comic comic;
@@ -226,6 +230,8 @@ class ComicTile extends StatelessWidget {
   final int? heroID;
 
   final ComicTileDisplayMode? displayMode;
+
+  final bool mobileSelected;
 
   void _onTap(BuildContext context) {
     if (onTap != null) {
@@ -348,6 +354,21 @@ class ComicTile extends StatelessWidget {
       _ => _buildBriefMode(context, state),
     };
 
+    final mobile = MobileUi.enabledOf(context);
+    final content = _withStatus(child, state, type);
+    if (!mobile) return content;
+
+    return MobileContentSurface(
+      style: type == 'detailed'
+          ? MobileContentStyle.row
+          : MobileContentStyle.cover,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      selected: mobileSelected,
+      child: content,
+    );
+  }
+
+  Widget _withStatus(Widget child, ComicTileState state, String type) {
     final historyPage = state.historyPage == 0 ? 1 : state.historyPage;
     if (!state.isFavorite && historyPage == null && !state.hasNewUpdate) {
       return child;
@@ -464,6 +485,10 @@ class ComicTile extends StatelessWidget {
         }
 
         return ClickInkWell(
+          customBorder: MobileContentSurface.inkShapeOf(
+            context,
+            MobileContentStyle.row,
+          ),
           borderRadius: BorderRadius.circular(12),
           onTap: () => _onTap(context),
           onLongPress: enableLongPressed ? () => _onLongPressed(context) : null,
@@ -527,6 +552,10 @@ class ComicTile extends StatelessWidget {
         }
 
         return ClickInkWell(
+          customBorder: MobileContentSurface.inkShapeOf(
+            context,
+            MobileContentStyle.cover,
+          ),
           borderRadius: BorderRadius.circular(8),
           onTap: () => _onTap(context),
           onLongPress: enableLongPressed ? () => _onLongPressed(context) : null,
@@ -659,6 +688,10 @@ class ComicTile extends StatelessWidget {
         }
 
         return ClickInkWell(
+          customBorder: MobileContentSurface.inkShapeOf(
+            context,
+            MobileContentStyle.cover,
+          ),
           borderRadius: BorderRadius.circular(8),
           onTap: () => _onTap(context),
           onLongPress: enableLongPressed ? () => _onLongPressed(context) : null,

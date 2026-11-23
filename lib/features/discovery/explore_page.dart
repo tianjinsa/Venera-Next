@@ -1,20 +1,23 @@
-import 'package:venera_next/foundation/operation_failure.dart';
-import 'package:venera_next/foundation/application_preferences.dart';
-import 'package:venera_next/foundation/global_preference_store.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/loading.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
+import 'package:venera_next/components/mobile_scroll_top.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/navigation_bar.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/foundation/appdata.dart';
+import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
+import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/global_state.dart';
+import 'package:venera_next/foundation/operation_failure.dart';
 import 'package:venera_next/foundation/res.dart';
 import 'package:venera_next/routing/page_jump_target.dart';
 import 'package:venera_next/routing/settings.dart';
@@ -153,6 +156,7 @@ class _ExplorePageState extends State<ExplorePage>
       return buildEmpty();
     }
 
+    final mobile = MobileUi.enabledOf(context);
     Widget tabBar = Material(
       child: AppTabBar(
         key: PageStorageKey(pages.toString()),
@@ -175,6 +179,7 @@ class _ExplorePageState extends State<ExplorePage>
               Expanded(
                 child: NotificationListener<ScrollNotification>(
                   onNotification: (notifications) {
+                    if (mobile) return false;
                     if (notifications.metrics.axis == Axis.horizontal) {
                       if (!showFB) {
                         setState(() {
@@ -215,25 +220,26 @@ class _ExplorePageState extends State<ExplorePage>
             ],
           ),
         ),
-        Positioned(
-          right: 16,
-          bottom: 16,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 150),
-            reverseDuration: const Duration(milliseconds: 150),
-            child: showFB ? buildFAB() : const SizedBox(),
-            transitionBuilder: (widget, animation) {
-              var tween = Tween<Offset>(
-                begin: const Offset(0, 1),
-                end: const Offset(0, 0),
-              );
-              return SlideTransition(
-                position: tween.animate(animation),
-                child: widget,
-              );
-            },
+        if (!mobile)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              reverseDuration: const Duration(milliseconds: 150),
+              child: showFB ? buildFAB() : const SizedBox(),
+              transitionBuilder: (widget, animation) {
+                var tween = Tween<Offset>(
+                  begin: const Offset(0, 1),
+                  end: const Offset(0, 0),
+                );
+                return SlideTransition(
+                  position: tween.animate(animation),
+                  child: widget,
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }
@@ -259,7 +265,7 @@ class _SingleExplorePageState extends AutomaticGlobalState<_SingleExplorePage>
 
   bool _wantKeepAlive = true;
 
-  var scrollController = ScrollController();
+  final scrollController = ScrollController();
 
   VoidCallback? refreshHandler;
 
@@ -300,12 +306,24 @@ class _SingleExplorePageState extends AutomaticGlobalState<_SingleExplorePage>
   void dispose() {
     appdata.settings.removeListener(onSettingsChanged);
     data.changeListenable?.removeListener(onDataChanged);
+    scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final content = _buildContent();
+    return MobileUi.enabledOf(context)
+        ? MobileScrollTopOverlay(
+            controller: scrollController,
+            onRefresh: refresh,
+            child: content,
+          )
+        : content;
+  }
+
+  Widget _buildContent() {
     if (data.loadMultiPart != null) {
       return _MultiPartExplorePage(
         key: const PageStorageKey("comic_list"),
@@ -460,33 +478,55 @@ Iterable<Widget> _buildExplorePagePart(
   String sourceKey,
 ) sync* {
   Widget buildTitle(ExplorePagePart part) {
+    void viewMore() {
+      var context = appNavigation.mainNavigatorKey!.currentContext!;
+      part.viewMore!.jump(context);
+    }
+
     return SliverToBoxAdapter(
-      child: SizedBox(
-        height: 60,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 5, 10),
-          child: Row(
-            children: [
-              Text(
-                part.title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
+      child: Builder(
+        builder: (context) {
+          if (MobileUi.enabledOf(context)) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+              child: MobileContentRow(
+                title: Text(
+                  part.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
+                trailing: part.viewMore == null
+                    ? null
+                    : TextButton(
+                        onPressed: viewMore,
+                        child: Text("View more".tl),
+                      ),
               ),
-              const Spacer(),
-              if (part.viewMore != null)
-                TextButton(
-                  onPressed: () {
-                    var context =
-                        appNavigation.mainNavigatorKey!.currentContext!;
-                    part.viewMore!.jump(context);
-                  },
-                  child: Text("View more".tl),
-                ),
-            ],
-          ),
-        ),
+            );
+          }
+          return SizedBox(
+            height: 60,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 5, 10),
+              child: Row(
+                children: [
+                  Text(
+                    part.title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (part.viewMore != null)
+                    TextButton(
+                      onPressed: viewMore,
+                      child: Text("View more".tl),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

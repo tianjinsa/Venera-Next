@@ -309,6 +309,7 @@ class _SliverGridComics extends StatelessWidget {
             onBlocked: onBlocked,
             heroID: heroIDs[index],
             displayMode: favoriteDisplayMode,
+            mobileSelected: mobileCollection && selectionMode && isSelected,
           );
           if (mobileCollection) {
             return MobileCollectionTileFrame(
