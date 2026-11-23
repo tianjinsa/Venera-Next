@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/card_surface.dart' as prism;
+import 'package:prism_ui/press_surface.dart' as prism;
+import 'package:prism_ui/shape.dart' as prism;
+import 'package:prism_ui/surface.dart' as prism;
+import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:venera_next/components/gesture.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 
@@ -35,6 +41,47 @@ class ComicDetailActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = !(isLoading ?? false);
+    final content = IconTheme.merge(
+      data: IconThemeData(size: 20, color: iconColor),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!enabled)
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 1.8),
+            )
+          else
+            (isActive ?? false) ? (activeIcon ?? icon) : icon,
+          const SizedBox(width: 8),
+          Text(text),
+        ],
+      ),
+    );
+    if (MobileUi.enabledOf(context)) {
+      final colors = prism.Theme.of(context).colorScheme;
+      final level = prism.SurfaceScope.of(context).next;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        // Prism owns the short tap, focus and pressed tint. Only the
+        // quick-favorite long press is supplied by the app. A horizontal
+        // scroll continues to win over both recognizers.
+        child: GestureDetector(
+          onLongPress: enabled ? onLongPressed : null,
+          child: prism.PressSurface(
+            fill: level.colorOf(colors),
+            shape: prism.AppShape.full,
+            look: prism.PressLook.tint,
+            minimum: const BoxConstraints(minWidth: 48, minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            selected: isActive ?? false,
+            onPressed: enabled ? onPressed : null,
+            child: content,
+          ),
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Semantics(
@@ -59,24 +106,7 @@ class ComicDetailActionButton extends StatelessWidget {
                   width: 0.6,
                 ),
               ),
-              child: IconTheme.merge(
-                data: IconThemeData(size: 20, color: iconColor),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!enabled)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 1.8),
-                      )
-                    else
-                      (isActive ?? false) ? (activeIcon ?? icon) : icon,
-                    const SizedBox(width: 8),
-                    Text(text),
-                  ],
-                ).paddingHorizontal(16),
-              ),
+              child: content.paddingHorizontal(16),
             ),
           ),
         ),

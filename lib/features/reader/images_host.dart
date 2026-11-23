@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/loading.dart';
+
 import 'images.dart';
 import 'chapter_request.dart';
 import 'reader_viewport.dart';
+
 import 'package:venera_next/features/reader/reader_page.dart';
 import 'package:venera_next/features/reader/reader_controller.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
 import 'package:venera_next/features/reader/chapter_comments.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/tv_reader_policy.dart';
+
 import 'image_read.dart';
 
 import 'gallery_view.dart';
 import 'gallery_data.dart';
 import 'continuous_data.dart';
+
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/network/request_scope.dart';
+
 import 'continuous_view.dart';
 
 /// Application composition for reader content, view inputs and shell actions.
@@ -175,6 +180,7 @@ class ReaderImagesHost extends StatelessWidget {
             ? null
             : (_) => EmbeddedChapterCommentsPage(
                 request: comments,
+                allowPrism: !preferences.eInkRefreshEnabled,
                 work: reader.imageWork,
                 onExit: reader.requestExit,
               ),

@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/common_button.dart' as prism;
 import 'package:venera_next/foundation/translations.dart';
+
 import 'chapter_navigation.dart';
 
 /// Keeps only the last glyph for the exit animation. Hidden actions have no
 /// pointer, keyboard or accessibility target, including during that animation.
 class ReaderChapterNavigationButton extends StatefulWidget {
-  const ReaderChapterNavigationButton({super.key, required this.action});
+  const ReaderChapterNavigationButton({
+    super.key,
+    required this.action,
+    this.usePrism = false,
+  });
   final ReaderChapterNavigationAction? action;
+  final bool usePrism;
   @override
   State<ReaderChapterNavigationButton> createState() =>
       _ReaderChapterNavigationButtonState();
@@ -21,6 +28,11 @@ class _ReaderChapterNavigationButtonState
     final visible = action?.isCurrent == true;
     if (visible) _pointsLeft = (action!.direction == -1) != action.reversed;
     final colors = Theme.of(context).colorScheme;
+    final label =
+        (action?.direction == -1 ? 'Previous chapter' : 'Next chapter').tl;
+    final icon = Icon(
+      _pointsLeft ? Icons.arrow_back_ios_outlined : Icons.arrow_forward_ios,
+    );
     return AnimatedPositioned(
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
@@ -35,31 +47,29 @@ class _ReaderChapterNavigationButtonState
             excluding: !visible,
             child: SizedBox.square(
               dimension: 58,
-              child: Material(
-                color: colors.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
-                elevation: visible ? 2 : 0,
-                child: IconButton(
-                  style: IconButton.styleFrom(
-                    minimumSize: const Size.square(58),
-                    shape: RoundedRectangleBorder(
+              child: widget.usePrism
+                  ? prism.IconButton.filled(
+                      tooltip: label,
+                      onPressed: visible ? action!.select : null,
+                      icon: icon,
+                    )
+                  : Material(
+                      color: colors.primaryContainer,
                       borderRadius: BorderRadius.circular(16),
+                      elevation: visible ? 2 : 0,
+                      child: IconButton(
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size.square(58),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          foregroundColor: colors.onPrimaryContainer,
+                        ),
+                        tooltip: label,
+                        onPressed: visible ? action!.select : null,
+                        icon: icon,
+                      ),
                     ),
-                    foregroundColor: colors.onPrimaryContainer,
-                  ),
-                  tooltip:
-                      (action?.direction == -1
-                              ? 'Previous chapter'
-                              : 'Next chapter')
-                          .tl,
-                  onPressed: visible ? action!.select : null,
-                  icon: Icon(
-                    _pointsLeft
-                        ? Icons.arrow_back_ios_outlined
-                        : Icons.arrow_forward_ios,
-                  ),
-                ),
-              ),
             ),
           ),
         ),

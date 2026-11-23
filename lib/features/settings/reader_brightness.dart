@@ -1,4 +1,5 @@
 import 'reader_appearance.dart';
+
 import 'package:flutter/material.dart';
 import 'package:venera_next/features/reader/brightness.dart';
 import 'package:venera_next/components/settings_save_state.dart';
@@ -6,6 +7,7 @@ import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/preferences.dart';
 import 'package:venera_next/foundation/reader_preference_store.dart';
 import 'package:venera_next/foundation/reader_preferences.dart';
+
 import 'setting_field.dart';
 
 class ReaderBrightnessSetting extends StatefulWidget {
@@ -16,10 +18,12 @@ class ReaderBrightnessSetting extends StatefulWidget {
     this.preview,
     this.panel = false,
     this.onChanged,
+    this.usePrism,
   });
   final String? comicId, sourceKey;
   final ReaderBrightnessPreview? preview;
   final bool panel;
+  final bool? usePrism;
   final ValueChanged<String>? onChanged;
 
   @override
@@ -123,6 +127,7 @@ class _ReaderBrightnessSettingState
     return protectSettings(
       widget.panel
           ? ReaderBrightnessPanel(
+              usePrism: widget.usePrism,
               enabled: enabled,
               brightness: brightness,
               onEnabledChanged: _enabled,

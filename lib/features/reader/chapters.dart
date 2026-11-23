@@ -2,10 +2,16 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:prism_ui/card_surface.dart' as prism;
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/press_surface.dart' as prism;
+import 'package:prism_ui/shape.dart' as prism;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/foundation/translations.dart';
 
 import 'chapter_menu.dart';
+import 'chrome_action.dart';
 
 /// Chapter presentation has no reader, manager or Navigator dependency.
 class ReaderChaptersView extends StatelessWidget {
@@ -14,10 +20,12 @@ class ReaderChaptersView extends StatelessWidget {
     required this.data,
     required this.onSelect,
     required this.onClose,
+    this.usePrism = false,
   });
   final ReaderChapterMenuData data;
   final ValueChanged<int> onSelect;
   final VoidCallback onClose;
+  final bool usePrism;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
@@ -27,7 +35,12 @@ class ReaderChaptersView extends StatelessWidget {
     animationDuration: MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 200),
-    child: _ChapterMenuBody(data: data, onSelect: onSelect, onClose: onClose),
+    child: _ChapterMenuBody(
+      data: data,
+      onSelect: onSelect,
+      onClose: onClose,
+      usePrism: usePrism,
+    ),
   );
 }
 
@@ -36,10 +49,12 @@ class _ChapterMenuBody extends StatefulWidget {
     required this.data,
     required this.onSelect,
     required this.onClose,
+    required this.usePrism,
   });
   final ReaderChapterMenuData data;
   final ValueChanged<int> onSelect;
   final VoidCallback onClose;
+  final bool usePrism;
   @override
   State<_ChapterMenuBody> createState() => _ChapterMenuBodyState();
 }
@@ -51,50 +66,77 @@ class _ChapterMenuBodyState extends State<_ChapterMenuBody> {
     final data = widget.data;
     final colors = Theme.of(context).colorScheme;
     final textScale = MediaQuery.textScalerOf(context);
+    final sortIcon = Icon(
+      _descending ? Icons.arrow_downward : Icons.arrow_upward,
+    );
+    final sortLabel = Text(_descending ? 'Descending'.tl : 'Ascending'.tl);
+    void toggleSort() => setState(() => _descending = !_descending);
     return Material(
       color: colors.surface,
       child: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Back'.tl,
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
-                    onPressed: widget.onClose,
-                    icon: const Icon(Icons.arrow_back),
+            if (widget.usePrism)
+              MobileToolbar(
+                title: Text('Chapters'.tl),
+                leading: ReaderChromeAction(
+                  usePrism: true,
+                  label: 'Back'.tl,
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Chapters'.tl,
-                      style: Theme.of(context).textTheme.titleLarge,
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: widget.onClose,
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Back'.tl,
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      onPressed: widget.onClose,
+                      icon: const Icon(Icons.arrow_back),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Chapters'.tl,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
             if (!data.isGrouped)
               Align(
                 alignment: AlignmentDirectional.centerEnd,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(48, 48),
-                    ),
-                    icon: Icon(
-                      _descending ? Icons.arrow_downward : Icons.arrow_upward,
-                    ),
-                    label: Text(_descending ? 'Descending'.tl : 'Ascending'.tl),
-                    onPressed: () => setState(() => _descending = !_descending),
-                  ),
+                  child: widget.usePrism
+                      ? prism.TextButton.icon(
+                          style: const prism.ButtonStyle(
+                            minimumSize: Size(48, 48),
+                          ),
+                          icon: sortIcon,
+                          label: sortLabel,
+                          onPressed: toggleSort,
+                        )
+                      : TextButton.icon(
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                          ),
+                          icon: sortIcon,
+                          label: sortLabel,
+                          onPressed: toggleSort,
+                        ),
                 ),
               ),
             if (data.isGrouped && data.groups.isNotEmpty)
@@ -124,6 +166,7 @@ class _ChapterMenuBodyState extends State<_ChapterMenuBody> {
                             group: data.groups[i],
                             currentChapter: data.currentChapter,
                             descending: _descending,
+                            usePrism: widget.usePrism,
                             onSelect: widget.onSelect,
                           ),
                       ],
@@ -148,11 +191,12 @@ class _ChapterList extends StatefulWidget {
     required this.group,
     required this.currentChapter,
     required this.descending,
+    required this.usePrism,
     required this.onSelect,
   });
   final ReaderChapterGroup group;
   final int currentChapter;
-  final bool descending;
+  final bool descending, usePrism;
   final ValueChanged<int> onSelect;
   @override
   State<_ChapterList> createState() => _ChapterListState();
@@ -189,6 +233,7 @@ class _ChapterListState extends State<_ChapterList> {
           key: ValueKey(entry.index),
           entry: entry,
           active: entry.index == widget.currentChapter,
+          usePrism: widget.usePrism,
           onTap: () => widget.onSelect(entry.index),
         ),
       );
@@ -269,14 +314,61 @@ class _ChapterListTile extends StatelessWidget {
     super.key,
     required this.entry,
     required this.active,
+    required this.usePrism,
     required this.onTap,
   });
   final ReaderChapterEntry entry;
-  final bool active;
+  final bool active, usePrism;
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            entry.title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: active ? FontWeight.bold : FontWeight.normal,
+              color: active ? colors.primary : colors.onSurface,
+            ),
+          ),
+        ),
+        if (entry.downloaded) ...[
+          const SizedBox(width: 12),
+          Padding(
+            padding: EdgeInsets.only(
+              top: math.max(
+                0,
+                (MediaQuery.textScalerOf(context).scale(16) * 1.2 - 24) / 2,
+              ),
+            ),
+            child: Icon(
+              Icons.download_done_rounded,
+              color: colors.secondary,
+              semanticLabel: 'Chapter downloaded'.tl,
+            ),
+          ),
+        ],
+      ],
+    );
+    if (usePrism) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: prism.PressSurface(
+          fill: active ? colors.primaryContainer : colors.surfaceContainerLow,
+          shape: prism.AppShape.all(14),
+          look: prism.PressLook.tint,
+          minimum: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          selected: active,
+          onPressed: onTap,
+          child: row,
+        ),
+      );
+    }
     return MergeSemantics(
       child: Semantics(
         button: true,
@@ -294,39 +386,7 @@ class _ChapterListTile extends StatelessWidget {
                 ),
               ),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    entry.title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: active ? FontWeight.bold : FontWeight.normal,
-                      color: active ? colors.primary : colors.onSurface,
-                    ),
-                  ),
-                ),
-                if (entry.downloaded) ...[
-                  const SizedBox(width: 12),
-                  Padding(
-                    padding: EdgeInsets.only(
-                      top: math.max(
-                        0,
-                        (MediaQuery.textScalerOf(context).scale(16) * 1.2 -
-                                24) /
-                            2,
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.download_done_rounded,
-                      color: colors.secondary,
-                      semanticLabel: 'Chapter downloaded'.tl,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            child: row,
           ),
         ),
       ),

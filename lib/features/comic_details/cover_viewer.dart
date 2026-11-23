@@ -1,10 +1,12 @@
 import 'package:venera_next/components/file_save_task.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:venera_next/components/effects.dart';
 import 'package:venera_next/components/image_save_binding.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/image_provider/read_image.dart';
 import 'package:venera_next/foundation/image_save_work.dart';
@@ -97,6 +99,36 @@ class _ComicCoverViewerState extends State<ComicCoverViewer> {
   }
 
   Widget _buildAppBar() {
+    if (MobileUi.enabledOf(context)) {
+      return TickerMode(
+        enabled: isAppBarShow,
+        child: ExcludeFocus(
+          excluding: !isAppBarShow,
+          child: ExcludeSemantics(
+            excluding: !isAppBarShow,
+            child: IgnorePointer(
+              ignoring: !isAppBarShow,
+              child: MobileToolbar(
+                title: Text(widget.title),
+                height: 52,
+                leading: MobileToolbarButton(
+                  label: 'Close'.tl,
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+                shortcuts: [
+                  MobileToolbarButton(
+                    label: 'Save Image'.tl,
+                    icon: const Icon(Icons.save_alt),
+                    onPressed: _saveCover,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Material(
       color: context.colorScheme.surface.toOpacity(0.72),
       child: BlurEffect(

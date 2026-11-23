@@ -2,9 +2,12 @@ import 'package:venera_next/features/history/history_scope.dart';
 import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/components/file_save_task.dart';
 import 'package:venera_next/network/request_scope.dart';
+
 import 'dart:async';
+
 import 'package:venera_next/foundation/app.dart';
 import 'package:flutter/material.dart';
+import 'package:prism_ui/common_button.dart' as prism;
 import 'package:flutter/services.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:venera_next/routing/local_reading.dart';
@@ -122,9 +125,8 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
 
   @override
   void onReadEnd() {
-    history ??= HistoryScope.read(
-      context,
-    ).find(widget.id, ComicType(widget.sourceKey.hashCode));
+    history ??= HistoryScope.read(context)
+        .find(widget.id, ComicType(widget.sourceKey.hashCode));
     update();
   }
 
@@ -300,12 +302,10 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
     if (comicSource == null) {
       return const Res.error('Comic source not found');
     }
-    isAddToLocalFav = FavoritesScope.read(
-      context,
-    ).isExist(widget.id, ComicType(widget.sourceKey.hashCode));
-    history = HistoryScope.read(
-      context,
-    ).find(widget.id, ComicType(widget.sourceKey.hashCode));
+    isAddToLocalFav = FavoritesScope.read(context)
+        .isExist(widget.id, ComicType(widget.sourceKey.hashCode));
+    history = HistoryScope.read(context)
+        .find(widget.id, ComicType(widget.sourceKey.hashCode));
     return comicSource.loadComicInfo!(widget.id);
   }
 
@@ -412,9 +412,8 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
 
   Widget buildActions() {
     bool hasHistory = history != null && (history!.ep > 1 || history!.page > 1);
-    bool hasUpdate = FavoritesScope.read(
-      context,
-    ).hasNewUpdate(comic.id, comic.comicType);
+    bool hasUpdate = FavoritesScope.read(context)
+        .hasNewUpdate(comic.id, comic.comicType);
 
     Widget buildMainButtonChild(IconData icon, String text) {
       return Row(
@@ -428,6 +427,34 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
           ),
         ],
       );
+    }
+
+    Widget mainButton({
+      required IconData icon,
+      required String title,
+      required VoidCallback onPressed,
+      bool secondary = false,
+    }) {
+      final child = buildMainButtonChild(icon, title);
+      if (MobileUi.enabledOf(context)) {
+        // Keep page actions opaque: covers and thumbnails already own
+        // their image layers, and only floating chrome needs glass.
+        if (secondary) {
+          return prism.OutlinedButton(
+            style: const prism.ButtonStyle(minimumSize: Size(64, 44)),
+            onPressed: onPressed,
+            child: child,
+          );
+        }
+        return prism.FilledButton(
+          style: const prism.ButtonStyle(minimumSize: Size(64, 44)),
+          onPressed: onPressed,
+          child: child,
+        );
+      }
+      return secondary
+          ? FilledButton.tonal(onPressed: onPressed, child: child)
+          : FilledButton(onPressed: onPressed, child: child);
     }
 
     return SliverLazyToBoxAdapter(
@@ -483,30 +510,25 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
               child: Row(
                 children: [
                   Expanded(
-                    child: FilledButton.tonal(
+                    child: mainButton(
+                      icon: Icons.download,
+                      title: "Download".tl,
                       onPressed: download,
-                      child: buildMainButtonChild(
-                        Icons.download,
-                        "Download".tl,
-                      ),
+                      secondary: true,
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: hasHistory
-                        ? FilledButton(
+                        ? mainButton(
+                            icon: Icons.menu_book,
+                            title: "Continue".tl,
                             onPressed: continueRead,
-                            child: buildMainButtonChild(
-                              Icons.menu_book,
-                              "Continue".tl,
-                            ),
                           )
-                        : FilledButton(
+                        : mainButton(
+                            icon: Icons.play_circle_outline,
+                            title: "Read".tl,
                             onPressed: read,
-                            child: buildMainButtonChild(
-                              Icons.play_circle_outline,
-                              "Read".tl,
-                            ),
                           ),
                   ),
                 ],
@@ -688,13 +710,13 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
       if (int.tryParse(time) != null) {
         var t = int.tryParse(time);
         if (t! > 1000000000000) {
-          return DateTime.fromMillisecondsSinceEpoch(
-            t,
-          ).toString().substring(0, 19);
+          return DateTime.fromMillisecondsSinceEpoch(t)
+              .toString()
+              .substring(0, 19);
         } else {
-          return DateTime.fromMillisecondsSinceEpoch(
-            t * 1000,
-          ).toString().substring(0, 19);
+          return DateTime.fromMillisecondsSinceEpoch(t * 1000)
+              .toString()
+              .substring(0, 19);
         }
       }
       if (time.contains('T') || time.contains('Z')) {
@@ -992,9 +1014,9 @@ class _ComicPageLoadingPlaceHolder extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 8),
           Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2.4,
-            ).fixHeight(24).fixWidth(24),
+            child: CircularProgressIndicator(strokeWidth: 2.4)
+                .fixHeight(24)
+                .fixWidth(24),
           ),
         ],
       ),

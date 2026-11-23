@@ -1,6 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:prism_ui/card.dart' as prism;
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/text_field.dart' as prism;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/image.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/rich_comment_content.dart';
@@ -15,6 +20,8 @@ import 'package:venera_next/foundation/image_work.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
+
+import 'chrome_action.dart';
 import 'comments_controller.dart';
 import 'sidebar_binding.dart';
 
@@ -24,15 +31,18 @@ class ChapterCommentsPage extends StatelessWidget {
     required this.request,
     required this.work,
     this.onRetired,
+    this.usePrism,
   });
   final ReaderChapterCommentsRequest request;
   final ImageWork work;
   final VoidCallback? onRetired;
+  final bool? usePrism;
   @override
   Widget build(BuildContext context) => _ChapterCommentsView(
     request: request,
     work: work,
     embedded: false,
+    usePrism: usePrism ?? MobileUi.enabledOf(context),
     onRetired: onRetired,
   );
 }
@@ -43,15 +53,18 @@ class EmbeddedChapterCommentsPage extends StatelessWidget {
     required this.request,
     required this.work,
     required this.onExit,
+    this.allowPrism = true,
   });
   final ReaderChapterCommentsRequest request;
   final ImageWork work;
   final Future<void> Function() onExit;
+  final bool allowPrism;
   @override
   Widget build(BuildContext context) => _ChapterCommentsView(
     request: request,
     work: work,
     embedded: true,
+    usePrism: allowPrism && MobileUi.enabledOf(context),
     onExit: onExit,
   );
 }
@@ -61,12 +74,13 @@ class _ChapterCommentsView extends StatefulWidget {
     required this.request,
     required this.work,
     required this.embedded,
+    required this.usePrism,
     this.onExit,
     this.onRetired,
   });
   final ReaderChapterCommentsRequest request;
   final ImageWork work;
-  final bool embedded;
+  final bool embedded, usePrism;
   final Future<void> Function()? onExit;
   final VoidCallback? onRetired;
   @override
@@ -115,6 +129,7 @@ class _ChapterCommentsViewState extends State<_ChapterCommentsView> {
       ChapterCommentsPage(
         request: request,
         work: owner.work,
+        usePrism: widget.usePrism,
         onRetired: () => handle?.close(),
       ),
       width: 500,
@@ -221,58 +236,76 @@ class _ChapterCommentsViewState extends State<_ChapterCommentsView> {
     );
   }
 
-  Widget _header() => Padding(
-    padding: const EdgeInsets.all(8),
-    child: Row(
+  Widget _header() {
+    final label = (widget.embedded ? 'Exit' : 'Back').tl;
+    void close() {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      if (widget.embedded) {
+        unawaited(widget.onExit!());
+      } else {
+        Navigator.maybePop(context);
+      }
+    }
+
+    final heading = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          style: IconButton.styleFrom(
-            minimumSize: const Size.square(48),
-            visualDensity: VisualDensity.standard,
+        if (MediaQuery.viewInsetsOf(context).bottom == 0 &&
+            (MediaQuery.sizeOf(context).height >= 500 ||
+                MediaQuery.textScalerOf(context).scale(18) <= 27))
+          Text(
+            'Chapter Comments'.tl,
+            style: ts.s18,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          icon: const Icon(Icons.arrow_back),
-          tooltip: (widget.embedded ? 'Exit' : 'Back').tl,
-          onPressed: () {
-            if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
-            if (widget.embedded) {
-              unawaited(widget.onExit!());
-            } else {
-              Navigator.maybePop(context);
-            }
-          },
-        ),
-        const SizedBox(width: 4),
-        const ExcludeSemantics(child: Icon(Icons.comment)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (MediaQuery.viewInsetsOf(context).bottom == 0 &&
-                  (MediaQuery.sizeOf(context).height >= 500 ||
-                      MediaQuery.textScalerOf(context).scale(18) <= 27))
-                Text(
-                  'Chapter Comments'.tl,
-                  style: ts.s18,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              Tooltip(
-                message: widget.request.chapterTitle,
-                child: Text(
-                  widget.request.chapterTitle,
-                  style: ts.s12,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+        Tooltip(
+          message: widget.request.chapterTitle,
+          child: Text(
+            widget.request.chapterTitle,
+            style: ts.s12,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
-    ),
-  );
+    );
+    if (widget.usePrism) {
+      final scale = MediaQuery.textScalerOf(context).scale(18) / 18;
+      return MobileToolbar(
+        title: heading,
+        height: 56.0 * scale.clamp(1.0, 1.34),
+        leading: ReaderChromeAction(
+          usePrism: true,
+          label: label,
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          icon: const Icon(Icons.arrow_back),
+          onPressed: close,
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        children: [
+          IconButton(
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(48),
+              visualDensity: VisualDensity.standard,
+            ),
+            icon: const Icon(Icons.arrow_back),
+            tooltip: label,
+            onPressed: close,
+          ),
+          const SizedBox(width: 4),
+          const ExcludeSemantics(child: Icon(Icons.comment)),
+          const SizedBox(width: 12),
+          Expanded(child: heading),
+        ],
+      ),
+    );
+  }
 
   Widget _body() {
     if (_comments.loading) return Center(child: _progress());
@@ -300,6 +333,7 @@ class _ChapterCommentsViewState extends State<_ChapterCommentsView> {
         owner: _comments,
         onReplies: (comment) => _openReplies(owner, comment),
         showAvatar: avatars,
+        usePrism: widget.usePrism,
       );
     }
 
@@ -340,6 +374,7 @@ class _ChapterCommentsViewState extends State<_ChapterCommentsView> {
                 owner: _comments,
                 onReplies: (comment) => _openReplies(owner, comment),
                 showAvatar: avatars,
+                usePrism: widget.usePrism,
                 showActions: false,
               ),
               Padding(
@@ -356,10 +391,11 @@ class _ChapterCommentsViewState extends State<_ChapterCommentsView> {
   Widget _more() {
     if (!_comments.hasMore) return const SizedBox();
     if (_comments.moreError case final error?) {
-      return TextButton(
-        onPressed: () => unawaited(_comments.loadMore(notify: true)),
-        child: Text(error.toString()),
-      );
+      void retry() => unawaited(_comments.loadMore(notify: true));
+      final label = Text(error.toString());
+      return widget.usePrism
+          ? prism.TextButton(onPressed: retry, child: label)
+          : TextButton(onPressed: retry, child: label);
     }
     unawaited(_comments.loadMore());
     return Padding(
@@ -373,57 +409,73 @@ class _ChapterCommentsViewState extends State<_ChapterCommentsView> {
   );
   Widget _composer() {
     if (widget.request.send == null) return const SizedBox();
+    final maxLines =
+        MediaQuery.viewInsetsOf(context).bottom > 0 &&
+            MediaQuery.orientationOf(context) == Orientation.landscape
+        ? 1
+        : 5;
+    final field = widget.usePrism
+        ? prism.TextField(
+            controller: _text,
+            decoration: prism.InputDecoration.collapsed(hintText: 'Comment'.tl),
+            minLines: 1,
+            maxLines: maxLines,
+          )
+        : TextField(
+            controller: _text,
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              isCollapsed: true,
+              hintText: 'Comment'.tl,
+            ),
+            minLines: 1,
+            maxLines: maxLines,
+          );
+    final VoidCallback? send = _comments.isCurrent
+        ? () => unawaited(_send())
+        : null;
+    final sendIcon = Icon(Icons.send, color: context.colorScheme.secondary);
+    final row = Padding(
+      padding: const EdgeInsets.only(left: 16, right: 4),
+      child: Row(
+        children: [
+          Expanded(child: field),
+          if (_comments.sending)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: SizedBox(width: 24, height: 24, child: _progress()),
+            )
+          else if (widget.usePrism)
+            ReaderChromeAction(
+              usePrism: true,
+              label: 'Send'.tl,
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: send,
+              icon: sendIcon,
+            )
+          else
+            IconButton(
+              style: IconButton.styleFrom(
+                minimumSize: const Size.square(48),
+                visualDensity: VisualDensity.standard,
+              ),
+              tooltip: 'Send'.tl,
+              onPressed: send,
+              icon: sendIcon,
+            ),
+        ],
+      ),
+    );
     return FocusTraversalGroup(
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Material(
-          color: context.colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16, right: 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _text,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      isCollapsed: true,
-                      hintText: 'Comment'.tl,
-                    ),
-                    minLines: 1,
-                    maxLines:
-                        MediaQuery.viewInsetsOf(context).bottom > 0 &&
-                            MediaQuery.orientationOf(context) ==
-                                Orientation.landscape
-                        ? 1
-                        : 5,
-                  ),
-                ),
-                if (_comments.sending)
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: SizedBox(width: 24, height: 24, child: _progress()),
-                  )
-                else
-                  IconButton(
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size.square(48),
-                      visualDensity: VisualDensity.standard,
-                    ),
-                    tooltip: 'Send'.tl,
-                    onPressed: _comments.isCurrent
-                        ? () => unawaited(_send())
-                        : null,
-                    icon: Icon(
-                      Icons.send,
-                      color: context.colorScheme.secondary,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
+        child: widget.usePrism
+            ? prism.Card(inert: true, radius: 24, child: row)
+            : Material(
+                color: context.colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(24),
+                child: row,
+              ),
       ),
     );
   }
@@ -436,12 +488,13 @@ class _ChapterCommentTile extends StatefulWidget {
     required this.owner,
     required this.showAvatar,
     required this.onReplies,
+    required this.usePrism,
     this.showActions = true,
   });
   final Comment comment;
   final ReaderChapterCommentsController owner;
   final void Function(Comment) onReplies;
-  final bool showAvatar, showActions;
+  final bool showAvatar, showActions, usePrism;
   @override
   State<_ChapterCommentTile> createState() => _ChapterCommentTileState();
 }
@@ -533,15 +586,9 @@ class _ChapterCommentTileState extends State<_ChapterCommentTile> {
     required VoidCallback? onPressed,
     bool busy = false,
     bool selected = false,
-  }) => IconButton(
-    style: IconButton.styleFrom(
-      minimumSize: const Size.square(48),
-      visualDensity: VisualDensity.standard,
-    ),
-    tooltip: label,
-    isSelected: selected,
-    onPressed: busy || !widget.owner.isCurrent ? null : onPressed,
-    icon: busy
+  }) {
+    final callback = busy || !widget.owner.isCurrent ? null : onPressed;
+    final glyph = busy
         ? SizedBox(
             width: 18,
             height: 18,
@@ -549,8 +596,27 @@ class _ChapterCommentTileState extends State<_ChapterCommentTile> {
               value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
             ),
           )
-        : Icon(icon),
-  );
+        : Icon(icon);
+    return widget.usePrism
+        ? ReaderChromeAction(
+            usePrism: true,
+            label: label,
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            selected: selected,
+            onPressed: callback,
+            icon: glyph,
+          )
+        : IconButton(
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(48),
+              visualDensity: VisualDensity.standard,
+            ),
+            tooltip: label,
+            isSelected: selected,
+            onPressed: callback,
+            icon: glyph,
+          );
+  }
 
   @override
   Widget build(BuildContext context) {

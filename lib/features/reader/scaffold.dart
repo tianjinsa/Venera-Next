@@ -1,11 +1,16 @@
 import 'reader_appearance.dart';
+
 import 'dart:async';
+
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/components/tv_navigation.dart';
+
 import 'tv_input.dart';
 
 import 'package:venera_next/features/reader/status_info.dart';
 import 'package:flutter/material.dart';
+import 'package:prism_ui/button.dart' as prism;
 import 'package:venera_next/features/reader/progress_bar.dart';
 import 'package:venera_next/features/reader/bottom_actions.dart';
 import 'package:venera_next/features/reader/top_bar.dart';
@@ -27,8 +32,11 @@ import 'package:venera_next/features/reader/eink_refresh_controller.dart';
 import 'package:venera_next/features/reader/gesture_port.dart';
 import 'package:venera_next/features/reader/image_favorite_swipe.dart';
 import 'package:venera_next/features/reader/platform_effects_controller.dart';
+
 import 'shell_data.dart';
+import 'chrome_action.dart';
 import 'progress_navigation.dart';
+
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/reader_preferences.dart';
 import 'package:venera_next/foundation/reader_settings.dart';
@@ -119,6 +127,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   bool _brightnessPanelOpen = false;
 
   Widget? _topBar, _brightnessPanel;
+  bool? _brightnessPanelUsesPrism;
   Object? _topBarInputs, _bottomActionInputs;
   List<Widget>? _bottomActions;
 
@@ -135,6 +144,10 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   static const kTopBarHeight = 56.0;
 
   bool get isOpen => _isOpen;
+
+  bool get _usesMobileChrome =>
+      MobileUi.enabledOf(context) &&
+      !widget.data.preferences.eInkRefreshEnabled;
 
   bool get isMenuLocked => _isMenuLocked;
 
@@ -282,6 +295,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    final usePrism = _usesMobileChrome;
     final isOnChapterCommentsPage = widget.data.onCommentsPage;
     final brightnessPanelVisible = _isOpen && _brightnessPanelOpen;
     final menuDuration = MediaQuery.disableAnimationsOf(context)
@@ -338,7 +352,10 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
               ),
             ),
           if (!isOnChapterCommentsPage) _buildInformation(),
-          ReaderChapterNavigationButton(action: widget.chapterNavigation),
+          ReaderChapterNavigationButton(
+            action: widget.chapterNavigation,
+            usePrism: usePrism,
+          ),
           AnimatedPositioned(
             duration: menuDuration,
             top: _isOpen ? 0 : -(topBarHeight + context.padding.top),
@@ -348,7 +365,10 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
             // Keep content height in sync; animate only its entrance position.
             child: SizedBox(
               height: topBarHeight + context.padding.top,
-              child: _menuRegion(visible: _isOpen, child: buildTop()),
+              child: _menuRegion(
+                visible: _isOpen,
+                child: _buildTop(topBarHeight, usePrism),
+              ),
             ),
           ),
           AnimatedPositioned(
@@ -359,7 +379,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
                       MediaQuery.of(context).padding.bottom),
             left: 0,
             right: 0,
-            child: _menuRegion(visible: _isOpen, child: buildBottom()),
+            child: _menuRegion(visible: _isOpen, child: _bindBottom(usePrism)),
           ),
           AnimatedPositioned(
             duration: menuDuration,
@@ -370,7 +390,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
                 : -context.height,
             child: _menuRegion(
               visible: brightnessPanelVisible,
-              child: buildBrightnessPanel(),
+              child: _buildBrightnessPanel(usePrism),
             ),
           ),
           if (_isMenuLocked)
@@ -378,30 +398,48 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
               child: SafeArea(
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: Material(
-                    color: context.colorScheme.surface.withValues(alpha: 0.9),
-                    borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(24),
-                    ),
-                    elevation: 2,
-                    child: IconButton(
-                      key: const ValueKey('reader-menu-unlock'),
-                      constraints: const BoxConstraints.tightFor(
-                        width: 48,
-                        height: 48,
-                      ),
-                      iconSize: 22,
-                      icon: Semantics(
-                        label: 'Unlock reader menu'.tl,
-                        child: Tooltip(
-                          message: 'Unlock reader menu'.tl,
-                          excludeFromSemantics: true,
-                          child: const Icon(Icons.lock_outline),
+                  child: usePrism
+                      ? SizedBox.square(
+                          dimension: 48,
+                          child: Align(
+                            child: prism.TonalButtonGroup(
+                              children: [
+                                MobileToolbarButton(
+                                  key: const ValueKey('reader-menu-unlock'),
+                                  label: 'Unlock reader menu'.tl,
+                                  icon: const Icon(Icons.lock_outline),
+                                  onPressed: unlockMenu,
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : Material(
+                          color: context.colorScheme.surface.withValues(
+                            alpha: 0.9,
+                          ),
+                          borderRadius: const BorderRadius.horizontal(
+                            left: Radius.circular(24),
+                          ),
+                          elevation: 2,
+                          child: IconButton(
+                            key: const ValueKey('reader-menu-unlock'),
+                            constraints: const BoxConstraints.tightFor(
+                              width: 48,
+                              height: 48,
+                            ),
+                            iconSize: 22,
+                            icon: Semantics(
+                              label: 'Unlock reader menu'.tl,
+                              child: Tooltip(
+                                message: 'Unlock reader menu'.tl,
+                                excludeFromSemantics: true,
+                                child: const Icon(Icons.lock_outline),
+                              ),
+                            ),
+                            onPressed: unlockMenu,
+                          ),
                         ),
-                      ),
-                      onPressed: unlockMenu,
-                    ),
-                  ),
                 ),
               ),
             ),
@@ -425,18 +463,22 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         ),
       );
 
-  Widget buildTop() {
+  Widget _buildTop(double toolbarHeight, bool usePrism) {
     final showComments = shouldShowChapterComments();
     final inputs = (
       widget.data.title,
       widget.data.chapterTitle,
       showComments,
+      usePrism,
+      toolbarHeight,
       widget.imageWork,
       widget.onDiagnostics != null,
     );
     if (_topBar != null && _topBarInputs == inputs) return _topBar!;
     _topBarInputs = inputs;
     return _topBar = ReaderTopBar(
+      usePrism: usePrism,
+      toolbarHeight: toolbarHeight,
       title: widget.data.title,
       chapterTitle: widget.data.chapterTitle,
       onBack: () => unawaited(widget.onExit()),
@@ -445,45 +487,41 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
             widget.imageWork.diagnostics != null)
           ListenableBuilder(
             listenable: widget.imageWork.diagnostics!,
-            builder: (context, _) => Tooltip(
-              message: widget.imageWork.diagnostics!.isRecording
+            builder: (context, _) => ReaderChromeAction(
+              usePrism: usePrism,
+              label: widget.imageWork.diagnostics!.isRecording
                   ? 'Stop and review'.tl
                   : 'Reading diagnostics'.tl,
-              child: IconButton(
-                icon: Icon(
-                  widget.imageWork.diagnostics!.isRecording
-                      ? Icons.stop_circle_outlined
-                      : Icons.speed,
-                ),
-                onPressed: () {
-                  if (_isOpen) openOrClose();
-                  widget.onDiagnostics!();
-                },
+              icon: Icon(
+                widget.imageWork.diagnostics!.isRecording
+                    ? Icons.stop_circle_outlined
+                    : Icons.speed,
               ),
+              onPressed: () {
+                if (_isOpen) openOrClose();
+                widget.onDiagnostics!();
+              },
             ),
           ),
         if (showComments)
-          Tooltip(
-            message: "Chapter Comments".tl,
-            child: IconButton(
-              icon: const Icon(Icons.comment),
-              onPressed: openChapterComments,
-            ),
+          ReaderChromeAction(
+            usePrism: usePrism,
+            label: "Chapter Comments".tl,
+            icon: const Icon(Icons.comment),
+            onPressed: openChapterComments,
           ),
-        Tooltip(
-          message: 'Lock reader menu'.tl,
-          child: IconButton(
-            key: const ValueKey('reader-menu-lock'),
-            icon: const Icon(Icons.lock_outline),
-            onPressed: lockMenu,
-          ),
+        ReaderChromeAction(
+          key: const ValueKey('reader-menu-lock'),
+          usePrism: usePrism,
+          label: 'Lock reader menu'.tl,
+          icon: const Icon(Icons.lock_outline),
+          onPressed: lockMenu,
         ),
-        Tooltip(
-          message: "Settings".tl,
-          child: IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: openSetting,
-          ),
+        ReaderChromeAction(
+          usePrism: usePrism,
+          label: "Settings".tl,
+          icon: const Icon(Icons.settings),
+          onPressed: openSetting,
         ),
       ],
     );
@@ -540,12 +578,12 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         : null;
   }
 
-  Widget buildBottom() {
+  Widget _bindBottom(bool usePrism) {
     _favorites.bind(widget.createFavoriteQuery());
-    return _buildBottom();
+    return _buildBottom(usePrism);
   }
 
-  Widget _buildBottom() {
+  Widget _buildBottom(bool usePrism) {
     // Use maxPage for display (excluding chapter comments page)
     final progress = widget.progress;
     final toggleAutomaticReading = widget.onToggleAutomaticReading;
@@ -569,6 +607,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         _brightnessPreview.enabled ??
         _brightnessSettings.read(ReaderPreferences.readerBrightnessEnabled);
     final actionInputs = (
+      usePrism,
       widget.imageWork,
       Theme.of(context).colorScheme,
       Localizations.localeOf(context),
@@ -587,6 +626,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
       _bottomActionInputs = actionInputs;
       _bottomActions = buildReaderBottomActions(
         context,
+        usePrism: usePrism,
         imageFavoriteStatus: _favorites.status,
         imageCollecting: _favorites.collecting,
         onCollect: _favorites.canCollect ? addImageFavorite : null,
@@ -620,6 +660,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     }
 
     return ReaderBottomBar(
+      usePrism: usePrism,
       label: text,
       actions: _bottomActions!,
       page: progress.page,
@@ -635,16 +676,23 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     );
   }
 
-  Widget buildBrightnessPanel() => _brightnessPanel ??= SettingsSaveScope(
-    work: widget.imageWork,
-    child: ReaderBrightnessSetting(
-      comicId: widget.data.comicId,
-      sourceKey: widget.data.sourceKey,
-      preview: _brightnessPreview,
-      panel: true,
-      onChanged: _onSettingChanged,
-    ),
-  );
+  Widget _buildBrightnessPanel(bool usePrism) {
+    if (_brightnessPanelUsesPrism != usePrism) {
+      _brightnessPanelUsesPrism = usePrism;
+      _brightnessPanel = null;
+    }
+    return _brightnessPanel ??= SettingsSaveScope(
+      work: widget.imageWork,
+      child: ReaderBrightnessSetting(
+        comicId: widget.data.comicId,
+        sourceKey: widget.data.sourceKey,
+        preview: _brightnessPreview,
+        panel: true,
+        usePrism: usePrism,
+        onChanged: _onSettingChanged,
+      ),
+    );
+  }
 
   Widget _buildInformation() {
     final preferences = widget.data.preferences;
@@ -693,6 +741,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
       context,
       ReaderChaptersView(
         data: request.data,
+        usePrism: _usesMobileChrome,
         onSelect: (chapter) {
           if (handle?.isCurrent != true) return;
           request.select(chapter);
@@ -800,6 +849,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
       context,
       ChapterCommentsPage(
         request: request,
+        usePrism: _usesMobileChrome,
         work: widget.imageWork,
         onRetired: () => handle?.close(),
       ),

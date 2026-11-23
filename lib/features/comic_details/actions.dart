@@ -1,10 +1,15 @@
 import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/card.dart' as prism;
+import 'package:prism_ui/checkbox.dart' as prism;
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/list_row.dart' as prism;
 import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:venera_next/components/appbar.dart';
@@ -135,9 +140,8 @@ abstract mixin class ComicPageActions {
 
   Future<void> quickFavorite() async {
     if (_addingQuickFavorite != null) return;
-    var folder = GlobalPreferenceStore(
-      appdata.settings,
-    ).read(FavoritePreferences.quickFavorite);
+    var folder = GlobalPreferenceStore(appdata.settings)
+        .read(FavoritePreferences.quickFavorite);
     if (folder == null) {
       return;
     }
@@ -175,9 +179,8 @@ abstract mixin class ComicPageActions {
   Widget buildReadLaterAction() => ReadLaterButton(
     comic: _toFavoriteItem(),
     onChanged: () {
-      isAddToLocalFav = FavoritesScope.read(
-        context,
-      ).isExist(comic.id, comic.comicType);
+      isAddToLocalFav = FavoritesScope.read(context)
+          .isExist(comic.id, comic.comicType);
       update();
     },
   );
@@ -568,6 +571,36 @@ class _SelectDownloadChapterState extends State<_SelectDownloadChapter> {
     final active = _canSelect(generation);
     final eps = widget.eps;
     final downloaded = widget.downloadedEps;
+    final usePrism = MobileUi.enabledOf(context);
+
+    final VoidCallback? downloadAll = !active
+        ? null
+        : () => _submit(generation, [
+            for (var i = 0; i < eps.length; i++)
+              if (!downloaded.contains(i)) i,
+          ]);
+    final VoidCallback? downloadSelected = !active || selected.isEmpty
+        ? null
+        : () {
+            if (selected.isNotEmpty) _submit(generation, selected);
+          };
+
+    Widget action(
+      String label,
+      VoidCallback? onPressed, {
+      bool primary = false,
+    }) {
+      final text = Text(label, textAlign: TextAlign.center);
+      if (usePrism) {
+        return primary
+            ? prism.FilledButton(onPressed: onPressed, child: text)
+            : prism.TextButton(onPressed: onPressed, child: text);
+      }
+      return primary
+          ? FilledButton(onPressed: onPressed, child: text)
+          : TextButton(onPressed: onPressed, child: text);
+    }
+
     return Scaffold(
       appBar: Appbar(
         title: Text("Download".tl),
@@ -581,27 +614,53 @@ class _SelectDownloadChapterState extends State<_SelectDownloadChapter> {
               padding: EdgeInsets.zero,
               itemCount: eps.length,
               itemBuilder: (context, i) {
+                final exists = downloaded.contains(i);
+                final checked = selected.contains(i) || exists;
+                final VoidCallback? toggle = !active || exists
+                    ? null
+                    : () {
+                        if (!_canSelect(generation)) return;
+                        setState(() {
+                          if (!selected.remove(i)) selected.add(i);
+                        });
+                      };
+                if (usePrism) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 3, 12, 3),
+                    child: Semantics(
+                      label: eps[i],
+                      enabled: toggle != null,
+                      checked: checked,
+                      onTap: toggle,
+                      excludeSemantics: true,
+                      child: prism.Card(
+                        onPressed: toggle,
+                        child: prism.ListRow(
+                          title: Text(eps[i]),
+                          trailing: IgnorePointer(
+                            child: prism.Checkbox(
+                              value: checked,
+                              onChanged: toggle == null
+                                  ? null
+                                  : (_) => toggle(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
                 return CheckboxListTile(
                   title: Text(eps[i]),
-                  value: selected.contains(i) || downloaded.contains(i),
-                  onChanged: !active || downloaded.contains(i)
-                      ? null
-                      : (v) {
-                          if (!_canSelect(generation)) return;
-                          setState(() {
-                            if (selected.contains(i)) {
-                              selected.remove(i);
-                            } else {
-                              selected.add(i);
-                            }
-                          });
-                        },
+                  value: checked,
+                  onChanged: toggle == null ? null : (_) => toggle(),
                 );
               },
             ),
           ),
           Container(
-            height: 50,
+            constraints: const BoxConstraints(minHeight: 50),
+            height: usePrism ? null : 50,
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: context.colorScheme.outlineVariant),
@@ -610,30 +669,13 @@ class _SelectDownloadChapterState extends State<_SelectDownloadChapter> {
             child: Row(
               children: [
                 const SizedBox(width: 16),
-                Expanded(
-                  child: TextButton(
-                    onPressed: !active
-                        ? null
-                        : () {
-                            final res = <int>[];
-                            for (int i = 0; i < eps.length; i++) {
-                              if (!downloaded.contains(i)) res.add(i);
-                            }
-                            _submit(generation, res);
-                          },
-                    child: Text("Download All".tl),
-                  ),
-                ),
+                Expanded(child: action("Download All".tl, downloadAll)),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: FilledButton(
-                    onPressed: !active || selected.isEmpty
-                        ? null
-                        : () {
-                            if (selected.isEmpty) return;
-                            _submit(generation, selected);
-                          },
-                    child: Text("Download Selected".tl),
+                  child: action(
+                    "Download Selected".tl,
+                    downloadSelected,
+                    primary: true,
                   ),
                 ),
                 const SizedBox(width: 16),

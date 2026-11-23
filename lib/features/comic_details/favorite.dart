@@ -2,13 +2,16 @@ import 'package:venera_next/features/favorites/favorite_folder_browser.dart';
 import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/common_button.dart' as prism;
 import 'package:venera_next/foundation/app_data_operations.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:venera_next/components/appbar.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/comic_source/comic_source_api.dart';
 import 'package:venera_next/features/favorites/favorites.dart';
 import 'package:venera_next/foundation/res.dart';
@@ -117,9 +120,8 @@ class _FavoriteList extends StatefulWidget {
 class _FavoriteListState extends State<_FavoriteList> {
   @override
   Widget build(BuildContext context) {
-    final localFavoritesFirst = GlobalPreferenceStore(
-      appdata.settings,
-    ).read(FavoritePreferences.localFavoritesFirst);
+    final localFavoritesFirst = GlobalPreferenceStore(appdata.settings)
+        .read(FavoritePreferences.localFavoritesFirst);
 
     final networkSection = widget.hasNetwork
         ? NetworkFavoriteSection(
@@ -273,9 +275,8 @@ class _NetworkSectionState extends State<NetworkFavoriteSection> {
     context.showMessage(
       message: multi ? "Success".tl : (wasAdded ? "Removed".tl : "Added".tl),
     );
-    if (GlobalPreferenceStore(
-      appdata.settings,
-    ).read(FavoritePreferences.autoCloseFavoritePanel)) {
+    if (GlobalPreferenceStore(appdata.settings)
+        .read(FavoritePreferences.autoCloseFavoritePanel)) {
       context.pop();
     }
   }
@@ -543,9 +544,8 @@ class _LocalSectionState extends State<_LocalSection> {
       target.onFavorite(localAdded.isNotEmpty);
       if (owner.mounted &&
           route?.isCurrent != false &&
-          (GlobalPreferenceStore(
-            appdata.settings,
-          ).read(FavoritePreferences.autoCloseFavoritePanel))) {
+          (GlobalPreferenceStore(appdata.settings)
+              .read(FavoritePreferences.autoCloseFavoritePanel))) {
         owner.pop();
       }
     } catch (error, stack) {
@@ -570,31 +570,42 @@ class _LocalSectionState extends State<_LocalSection> {
 
   @override
   Widget build(BuildContext context) {
+    const createKey = ValueKey('comic-favorite-new-folder');
+    const createIcon = Icon(Icons.create_new_folder_outlined);
+    final VoidCallback? createFolder = saving || !_current
+        ? null
+        : () {
+            final target = widget;
+            newFolder(
+              context,
+              onChanged: (folders) {
+                if (!mounted ||
+                    widget.cid != target.cid ||
+                    widget.type != target.type) {
+                  return;
+                }
+                _refreshFolders();
+              },
+            );
+          };
     return Scaffold(
       appBar: Appbar(
         title: Text('Favorite'.tl),
         actions: [
-          IconButton(
-            key: const ValueKey('comic-favorite-new-folder'),
-            tooltip: 'New Folder'.tl,
-            icon: const Icon(Icons.create_new_folder_outlined),
-            onPressed: saving || !_current
-                ? null
-                : () {
-                    final target = widget;
-                    newFolder(
-                      context,
-                      onChanged: (folders) {
-                        if (!mounted ||
-                            widget.cid != target.cid ||
-                            widget.type != target.type) {
-                          return;
-                        }
-                        _refreshFolders();
-                      },
-                    );
-                  },
-          ),
+          if (MobileUi.enabledOf(context))
+            MobileToolbarButton(
+              key: createKey,
+              label: 'New Folder'.tl,
+              icon: createIcon,
+              onPressed: createFolder,
+            )
+          else
+            IconButton(
+              key: createKey,
+              tooltip: 'New Folder'.tl,
+              icon: createIcon,
+              onPressed: createFolder,
+            ),
         ],
       ),
       body: FavoriteFolderBrowser(
@@ -651,6 +662,18 @@ class _HoverButtonState extends State<_HoverButton> {
     final removeHoverColor = Color.lerp(removeColor, Colors.black, 0.2)!;
     final addColor = context.colorScheme.primary;
     final addHoverColor = Color.lerp(addColor, Colors.black, 0.2)!;
+
+    if (MobileUi.enabledOf(context)) {
+      final label = Text(widget.isFavorite ? 'Remove'.tl : 'Add'.tl);
+      final onPressed = widget.enabled ? widget.onTap : null;
+      return widget.isFavorite
+          ? prism.OutlinedButton(
+              style: prism.ButtonStyle.from(foregroundColor: removeColor),
+              onPressed: onPressed,
+              child: label,
+            )
+          : prism.FilledButton(onPressed: onPressed, child: label);
+    }
 
     return MouseRegion(
       onEnter: widget.enabled ? (_) => setState(() => isHovered = true) : null,

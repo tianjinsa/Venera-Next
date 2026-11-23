@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/card.dart' as prism;
+import 'package:prism_ui/list_row.dart' as prism;
+import 'package:prism_ui/switch.dart' as prism;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/translations.dart';
 
 import 'brightness_policy.dart';
@@ -85,6 +89,7 @@ class ReaderBrightnessControl extends StatelessWidget {
     required this.onBrightnessChanged,
     this.onBrightnessChangeEnd,
     this.compact = false,
+    this.usePrism,
   });
 
   final bool enabled;
@@ -93,19 +98,34 @@ class ReaderBrightnessControl extends StatelessWidget {
   final ValueChanged<int> onBrightnessChanged;
   final ValueChanged<int>? onBrightnessChangeEnd;
   final bool compact;
+  final bool? usePrism;
 
   @override
   Widget build(BuildContext context) {
+    final usePrism = this.usePrism ?? MobileUi.enabledOf(context);
     final normalizedBrightness = normalizeReaderBrightness(brightness);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SwitchListTile(
-          contentPadding: compact ? EdgeInsets.zero : null,
-          title: Text('Night dimming'.tl),
-          value: enabled,
-          onChanged: onEnabledChanged,
-        ),
+        if (usePrism)
+          prism.ListRow(
+            padding: compact
+                ? EdgeInsets.zero
+                : const EdgeInsets.symmetric(horizontal: 16),
+            title: ExcludeSemantics(child: Text('Night dimming'.tl)),
+            trailing: prism.Switch(
+              semanticLabel: 'Night dimming'.tl,
+              value: enabled,
+              onChanged: onEnabledChanged,
+            ),
+          )
+        else
+          SwitchListTile(
+            contentPadding: compact ? EdgeInsets.zero : null,
+            title: Text('Night dimming'.tl),
+            value: enabled,
+            onChanged: onEnabledChanged,
+          ),
         AnimatedSize(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
@@ -154,6 +174,7 @@ class ReaderBrightnessPanel extends StatelessWidget {
     this.onBrightnessChangeEnd,
     this.status,
     this.additionalSettings,
+    this.usePrism,
   });
   final bool enabled;
   final Object? brightness;
@@ -162,52 +183,58 @@ class ReaderBrightnessPanel extends StatelessWidget {
   final ValueChanged<int>? onBrightnessChangeEnd;
   final Widget? status;
   final Widget? additionalSettings;
+  final bool? usePrism;
   @override
   Widget build(BuildContext context) {
+    final usePrism = this.usePrism ?? MobileUi.enabledOf(context);
     final panelWidth =
         (MediaQuery.sizeOf(context).width -
                 MediaQuery.paddingOf(context).left -
                 MediaQuery.paddingOf(context).right -
                 32)
             .clamp(0.0, 360.0);
-    return Material(
-      elevation: 8,
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(8),
-      clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: panelWidth,
-          maxHeight:
-              (MediaQuery.sizeOf(context).height -
-                      MediaQuery.paddingOf(context).vertical -
-                      160)
-                  .clamp(100.0, double.infinity),
-        ),
-        child: SingleChildScrollView(
-          child: SizedBox(
-            width: panelWidth,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ReaderBrightnessControl(
-                    compact: true,
-                    enabled: enabled,
-                    brightness: brightness,
-                    onEnabledChanged: onEnabledChanged,
-                    onBrightnessChanged: onBrightnessChanged,
-                    onBrightnessChangeEnd: onBrightnessChangeEnd,
-                  ),
-                  ?additionalSettings,
-                  ?status,
-                ],
-              ),
+    final content = ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: panelWidth,
+        maxHeight:
+            (MediaQuery.sizeOf(context).height -
+                    MediaQuery.paddingOf(context).vertical -
+                    160)
+                .clamp(100.0, double.infinity),
+      ),
+      child: SingleChildScrollView(
+        child: SizedBox(
+          width: panelWidth,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ReaderBrightnessControl(
+                  compact: true,
+                  usePrism: usePrism,
+                  enabled: enabled,
+                  brightness: brightness,
+                  onEnabledChanged: onEnabledChanged,
+                  onBrightnessChanged: onBrightnessChanged,
+                  onBrightnessChangeEnd: onBrightnessChangeEnd,
+                ),
+                ?additionalSettings,
+                ?status,
+              ],
             ),
           ),
         ),
       ),
     );
+    return usePrism
+        ? prism.Card(inert: true, radius: 20, child: content)
+        : Material(
+            elevation: 8,
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            clipBehavior: Clip.antiAlias,
+            child: content,
+          );
   }
 }
