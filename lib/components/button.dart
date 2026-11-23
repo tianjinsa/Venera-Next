@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/theme_data.dart'
+    as prism
+    show TapTargetSize, VisualDensity;
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 
 import 'menu.dart';
+import 'mobile_ui.dart';
 import 'tv_navigation.dart';
 
 class HoverBox extends StatefulWidget {
@@ -172,6 +177,84 @@ class _ButtonState extends State<Button> {
     }
   }
 
+  void _activateMobile() {
+    if (isLoading) return;
+    final onPressed = widget.onPressed;
+    final onPressedAt = widget.onPressedAt;
+    final box = onPressedAt == null
+        ? null
+        : context.findRenderObject() as RenderBox?;
+    // Record the original anchor before a synchronous callback opens or
+    // replaces a route. Prism owns gesture/keyboard activation exactly once.
+    final offset = box?.hasSize == true
+        ? box!.localToGlobal(Offset.zero)
+        : null;
+    onPressed();
+    if (offset != null) onPressedAt!(offset);
+  }
+
+  Widget _buildMobile(BuildContext context) {
+    final colors = context.colorScheme;
+    final type = widget.type;
+    final foreground = textColor;
+    final background = switch (type) {
+      ButtonType.filled => widget.color ?? colors.primary,
+      ButtonType.normal => widget.color ?? colors.surfaceContainer,
+      _ => Colors.transparent,
+    };
+    final style = prism.ButtonStyle(
+      foregroundColor: WidgetStatePropertyAll(foreground),
+      backgroundColor: WidgetStatePropertyAll(background),
+      side: type == ButtonType.outlined
+          ? WidgetStatePropertyAll(
+              BorderSide(
+                color: widget.color ?? colors.outlineVariant,
+                width: 0.6,
+              ),
+            )
+          : null,
+      padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 16),
+      textStyle: const TextStyle(fontSize: 14),
+      minimumSize: const Size(76, 32),
+      fixedSize: Size(
+        widget.width ?? double.infinity,
+        widget.height ?? double.infinity,
+      ),
+      visualDensity: prism.VisualDensity.standard,
+      tapTargetSize: prism.TapTargetSize.shrinkWrap,
+    );
+    final content = isLoading
+        ? SizedBox.square(
+            dimension: 16,
+            child: CircularProgressIndicator(
+              semanticsLabel: 'Loading'.tl,
+              color: type == ButtonType.filled
+                  ? colors.inversePrimary
+                  : colors.primary,
+              strokeWidth: 1.8,
+            ),
+          )
+        : widget.child;
+    final VoidCallback? onPressed = isLoading ? null : _activateMobile;
+    return switch (type) {
+      ButtonType.filled || ButtonType.normal => prism.FilledButton(
+        style: style,
+        onPressed: onPressed,
+        child: content,
+      ),
+      ButtonType.outlined => prism.OutlinedButton(
+        style: style,
+        onPressed: onPressed,
+        child: content,
+      ),
+      ButtonType.text => prism.TextButton(
+        style: style,
+        onPressed: onPressed,
+        child: content,
+      ),
+    };
+  }
+
   @override
   void didUpdateWidget(covariant Button oldWidget) {
     if (oldWidget.isLoading != widget.isLoading) {
@@ -182,6 +265,7 @@ class _ButtonState extends State<Button> {
 
   @override
   Widget build(BuildContext context) {
+    if (MobileUi.enabledOf(context)) return _buildMobile(context);
     var padding = widget.padding ?? const EdgeInsets.symmetric(horizontal: 16);
     var width = widget.width;
     if (width != null) {
@@ -330,6 +414,38 @@ class _IconButtonState extends State<_IconButton> {
 
   @override
   Widget build(BuildContext context) {
+    // The pinned Prism button does not expose custom hit-test behavior.
+    if (MobileUi.enabledOf(context) &&
+        widget.behavior == HitTestBehavior.deferToChild) {
+      final iconSize = widget.size ?? 24;
+      final size = Size.square(iconSize + 12);
+      return prism.IconButton(
+        onPressed: widget.isLoading ? null : widget.onPressed,
+        iconSize: iconSize,
+        padding: const EdgeInsets.all(6),
+        tooltip: widget.tooltip,
+        style: prism.ButtonStyle(
+          foregroundColor: WidgetStatePropertyAll(
+            widget.color ?? context.colorScheme.primary,
+          ),
+          minimumSize: size,
+          fixedSize: size,
+          tapTargetSize: prism.TapTargetSize.shrinkWrap,
+        ),
+        icon: widget.isLoading
+            ? SizedBox.square(
+                dimension: iconSize,
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: CircularProgressIndicator(
+                    semanticsLabel: 'Loading'.tl,
+                    strokeWidth: 1.5,
+                  ),
+                ),
+              )
+            : widget.icon,
+      );
+    }
     var iconSize = widget.size ?? 24;
     Widget icon = IconTheme(
       data: IconThemeData(
@@ -339,9 +455,10 @@ class _IconButtonState extends State<_IconButton> {
       child: widget.icon,
     );
     if (widget.isLoading) {
-      icon = const CircularProgressIndicator(
-        strokeWidth: 1.5,
-      ).paddingAll(2).fixWidth(iconSize).fixHeight(iconSize);
+      icon = const CircularProgressIndicator(strokeWidth: 1.5)
+          .paddingAll(2)
+          .fixWidth(iconSize)
+          .fixHeight(iconSize);
     }
     return TvFocusable(
       onPressed: widget.isLoading ? null : widget.onPressed,
@@ -361,9 +478,8 @@ class _IconButtonState extends State<_IconButton> {
             child: Container(
               decoration: BoxDecoration(
                 color: isHover
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.outlineVariant.toOpacity(0.4)
+                    ? Theme.of(context).colorScheme.outlineVariant
+                          .toOpacity(0.4)
                     : null,
                 borderRadius: BorderRadius.circular((iconSize + 12) / 2),
               ),

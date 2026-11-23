@@ -1,8 +1,14 @@
 import 'package:venera_next/foundation/operation_failure.dart';
+
 import 'dart:async';
+
 import 'source_failure.dart';
+
 import 'package:venera_next/components/settings_save_state.dart';
+import 'package:venera_next/components/adaptive_action_menu.dart';
+
 import 'source_failure_presentation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart' show Dio;
 import 'package:venera_next/components/pop_up_widget.dart';
@@ -13,7 +19,9 @@ import 'source.dart';
 import 'source_repositories.dart';
 import 'source_installations_scope.dart';
 import 'source_inspection_task.dart';
+
 import 'package:venera_next/foundation/log.dart';
+
 import 'source_installation_widgets.dart';
 
 class SourceRepositoriesPanel extends StatelessWidget {
@@ -44,9 +52,8 @@ class SourceRepositoriesPanel extends StatelessWidget {
             SourceManagementEmptyState(
               icon: Icons.inventory_2_outlined,
               title: 'No repositories yet'.tl,
-              description:
-                  'Add a repository using its source list URL. Installed sources are managed in the Installed tab.'
-                      .tl,
+              description: 'Add a repository using its source list URL. Installed sources are managed in the Installed tab.'
+                  .tl,
             ),
           for (final repository in store.all)
             Card.outlined(
@@ -66,26 +73,31 @@ class SourceRepositoriesPanel extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        PopupMenuButton<String>(
-                          tooltip: 'Repository actions'.tl,
+                        AdaptiveActionMenu<String>(
+                          key: ValueKey((
+                            repository.id,
+                            repository.url,
+                            repository.name,
+                          )),
+                          label: 'Repository actions'.tl,
+                          options: {
+                            'edit': 'Edit repository'.tl,
+                            'remove': 'Remove repository'.tl,
+                          },
+                          destructive: const {'remove'},
                           onSelected: (action) {
+                            final current = store.find(repository.id);
+                            if (!context.mounted ||
+                                current == null ||
+                                current.url != repository.url ||
+                                current.name != repository.name)
+                              return;
                             if (action == 'edit') {
-                              _editRepository(context, repository);
-                            }
-                            if (action == 'remove') {
-                              _removeRepository(context, repository);
+                              _editRepository(context, current);
+                            } else if (action == 'remove') {
+                              _removeRepository(context, current);
                             }
                           },
-                          itemBuilder: (_) => [
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Edit repository'.tl),
-                            ),
-                            PopupMenuItem(
-                              value: 'remove',
-                              child: Text('Remove repository'.tl),
-                            ),
-                          ],
                         ),
                       ],
                     ),
@@ -154,12 +166,11 @@ class SourceRepositoriesPanel extends StatelessWidget {
       barrierDismissible: false,
       builder: (_) => _RepositoryActionDialog(
         title: 'Remove repository'.tl,
-        content:
-            'Remove "@name"? Its @count linked sources, their settings and your reading data will be kept. These sources will no longer be included in repository update checks.'
-                .tlParams({
-                  'name': repository.name,
-                  'count': _linkedCount(repository).toString(),
-                }),
+        content: 'Remove "@name"? Its @count linked sources, their settings and your reading data will be kept. These sources will no longer be included in repository update checks.'
+            .tlParams({
+              'name': repository.name,
+              'count': _linkedCount(repository).toString(),
+            }),
         perform: () => SourceRepositories.instance.remove(repository),
       ),
     );
@@ -488,12 +499,8 @@ class _SourceRepositoryCatalogPageState
         barrierDismissible: false,
         builder: (_) => _RepositoryActionDialog(
           title: 'Link repository'.tl,
-          content:
-              'Use "@repository" for future updates of "@source"? The installed script and its settings will be kept until you update it.'
-                  .tlParams({
-                    'repository': repository.name,
-                    'source': source.name,
-                  }),
+          content: 'Use "@repository" for future updates of "@source"? The installed script and its settings will be kept until you update it.'
+              .tlParams({'repository': repository.name, 'source': source.name}),
           perform: () =>
               SourceRepositories.instance.link(source.key, repository, entry),
         ),
@@ -510,9 +517,8 @@ class _SourceRepositoryCatalogPageState
           'Repository changed. Refresh the list and try again.'.tl,
         );
       }
-      SourceInstallationsScope.of(
-        context,
-      ).enqueueRepository(widget.repository, entry);
+      SourceInstallationsScope.of(context)
+          .enqueueRepository(widget.repository, entry);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -632,9 +638,8 @@ class _SourceRepositoryCatalogPageState
   Widget _entry(BuildContext context, SourceCatalogEntry entry) {
     final installed =
         SourceInstallationsScope.of(context).manager.find(entry.key) != null;
-    final matchingTask = SourceInstallationsScope.of(
-      context,
-    ).taskFor(sourceKey: entry.key, url: entry.url);
+    final matchingTask = SourceInstallationsScope.of(context)
+        .taskFor(sourceKey: entry.key, url: entry.url);
     // Share active work across repositories. A past failure belongs only to
     // its original entry, so another repository can start a fresh attempt.
     final task =

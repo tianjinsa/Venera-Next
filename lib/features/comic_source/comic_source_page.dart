@@ -19,6 +19,7 @@ import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/button.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/adaptive_action_menu.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/foundation/app.dart';
@@ -669,7 +670,8 @@ class _SliverComicSourceState extends SettingsSaveState<_SliverComicSource> {
         : widget.manager.availableUpdates[source.key];
     final hasUpdate =
         newVersion != null && compareSemVer(newVersion, source.version);
-    final canManageScript = source.filePath.isNotEmpty;
+    final targetSource = source;
+    final canManageScript = targetSource.filePath.isNotEmpty;
     return SliverMainAxisGroup(
       slivers: [
         SliverToBoxAdapter(
@@ -713,38 +715,31 @@ class _SliverComicSourceState extends SettingsSaveState<_SliverComicSource> {
                       ),
                     ),
                     if (canManageScript)
-                      PopupMenuButton<String>(
-                        tooltip: 'Source actions'.tl,
+                      AdaptiveActionMenu<String>(
+                        key: ObjectKey(targetSource),
+                        label: 'Source actions'.tl,
+                        options: {
+                          'origin': 'Manage source origin'.tl,
+                          'update': 'Update'.tl,
+                          'edit': 'Edit script'.tl,
+                          'delete': 'Uninstall source'.tl,
+                        },
+                        destructive: const {'delete'},
                         onSelected: (action) {
+                          if (!_current(targetSource) ||
+                              !NavigationAdmission.allows(context))
+                            return;
                           switch (action) {
                             case 'origin':
-                              showSourceOriginPicker(context, source);
+                              showSourceOriginPicker(context, targetSource);
                             case 'edit':
-                              widget.edit(source);
+                              widget.edit(targetSource);
                             case 'update':
-                              widget.update(source);
+                              widget.update(targetSource);
                             case 'delete':
-                              widget.delete(source);
+                              widget.delete(targetSource);
                           }
                         },
-                        itemBuilder: (_) => [
-                          PopupMenuItem(
-                            value: 'origin',
-                            child: Text('Manage source origin'.tl),
-                          ),
-                          PopupMenuItem(
-                            value: 'update',
-                            child: Text('Update'.tl),
-                          ),
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Edit script'.tl),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Uninstall source'.tl),
-                          ),
-                        ],
                       ),
                   ],
                 ),
