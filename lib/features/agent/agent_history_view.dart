@@ -190,7 +190,7 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
                         ? _selected.contains(conversation.id)
                         : conversation.id == widget.currentId;
                     // Marked like the selected folder in the favorites page.
-                    return DecoratedBox(
+                    return Ink(
                       decoration: BoxDecoration(
                         color: selected
                             ? scheme.primaryContainer.withValues(alpha: .36)

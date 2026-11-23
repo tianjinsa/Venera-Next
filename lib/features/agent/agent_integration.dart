@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/navigation_bar.dart';
 import 'agent_notice.dart';
 export 'agent_page.dart';
@@ -9,8 +10,13 @@ final agentPaneItem = PaneItemEntry(
   label: 'Agent',
   icon: Icons.auto_awesome_outlined,
   activeIcon: Icons.auto_awesome,
+  mobileGlyph: MobileNavGlyphs.agent,
   keepBottomBarWithKeyboard: true,
   iconBuilder: (_, icon) => AgentTabBadge(child: icon),
+);
+
+const agentMobileDockBadge = AgentTabBadge(
+  child: SizedBox.square(dimension: 22),
 );
 
 /// Stored values still belong to the upstream four-tab settings interface.

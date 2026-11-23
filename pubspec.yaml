@@ -6,7 +6,7 @@ version: 1.18.4-rc.1+250
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
-  flutter: 3.41.4
+  flutter: 3.47.9
 
 dependencies:
   flutter:
@@ -26,6 +26,10 @@ dependencies:
   pointycastle: ^4.0.0
   url_launcher: ^6.3.3
   path: ^1.9.0
+  prism_ui:
+    git:
+      url: https://github.com/chen08209/prism_ui.git
+      ref: 8f5fc22ca1a6bccb064589494ca69cedb38edb50
   photo_view:
     path: packages/photo_view
   mime: ^2.1.0

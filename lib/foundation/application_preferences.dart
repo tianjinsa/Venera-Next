@@ -97,7 +97,12 @@ abstract final class AppearancePreferences {
     'yellow',
     'cyan',
   ]);
-  static const all = <Preference<Object>>[themeMode, color];
+  static const mobileGlass = ChoicePreference('mobileGlass', 'standard', [
+    'off',
+    'standard',
+    'ultra',
+  ]);
+  static const all = <Preference<Object>>[themeMode, color, mobileGlass];
 }
 
 abstract final class DiscoveryPreferences {

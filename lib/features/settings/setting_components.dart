@@ -230,6 +230,7 @@ class SelectSetting extends StatelessWidget {
     this.comicSource,
     this.useDeviceSettings = false,
     this.selectorBuilder,
+    this.stacked = false,
   });
 
   factory SelectSetting.preference({
@@ -239,6 +240,7 @@ class SelectSetting extends StatelessWidget {
     VoidCallback? onChanged,
     required Map<String, String> optionTranslation,
     String? help,
+    bool stacked = false,
     Widget Function(BuildContext, String?, ValueChanged<String?>?)?
     selectorBuilder,
   }) => SelectSetting(
@@ -250,6 +252,7 @@ class SelectSetting extends StatelessWidget {
     optionTranslation: optionTranslation,
     help: help,
     selectorBuilder: selectorBuilder,
+    stacked: stacked,
   );
 
   factory SelectSetting.reader({
@@ -295,6 +298,7 @@ class SelectSetting extends StatelessWidget {
   final String? comicSource;
 
   final bool useDeviceSettings;
+  final bool stacked;
 
   final Widget Function(BuildContext, String?, ValueChanged<String?>?)?
   selectorBuilder;
@@ -305,7 +309,7 @@ class SelectSetting extends StatelessWidget {
       width: double.infinity,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth < 450) {
+          if (stacked || constraints.maxWidth < 450) {
             return _DoubleLineSelectSettings(
               title: title,
               preference: preference,

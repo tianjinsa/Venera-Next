@@ -141,6 +141,7 @@ class _ImageFavoritesGalleryPageState extends State<ImageFavoritesGalleryPage> {
         initialEp: image.ep,
         initialPage: image.page,
       ),
+      mobileTransition: false,
     );
   }
 

@@ -1,6 +1,9 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PredictiveBackEvent;
+import 'package:prism_ui/page_transition.dart' as prism show CardRouteMixin;
+import 'package:prism_ui/view_scope.dart' as prism show ViewScope;
 import 'package:venera_next/foundation/edge_back_gesture.dart';
 import 'package:venera_next/foundation/app.dart';
 
@@ -9,9 +12,40 @@ const int _kMaxDroppedSwipePageForwardAnimationTime = 800;
 const int _kMaxPageBackAnimationTime = 300;
 const double _kMinFlingVelocity = 1.0;
 
-class AppPageRoute<T> extends PageRoute<T> with _AppRouteTransitionMixin {
-  /// Construct a MaterialPageRoute whose contents are defined by [builder].
-  AppPageRoute({
+class AppPageRoute<T> extends PageRoute<T> with _AppRouteTransitionMixin<T> {
+  factory AppPageRoute({
+    required WidgetBuilder builder,
+    RouteSettings? settings,
+    bool maintainState = true,
+    bool fullscreenDialog = false,
+    bool allowSnapshotting = true,
+    bool barrierDismissible = false,
+    bool enableIOSGesture = true,
+    bool preventRebuild = true,
+    bool mobile = false,
+  }) {
+    if (mobile && maintainState && !fullscreenDialog && !barrierDismissible) {
+      return _MobilePageRoute<T>(
+        builder: builder,
+        settings: settings,
+        allowSnapshotting: allowSnapshotting,
+        enableIOSGesture: enableIOSGesture,
+        preventRebuild: preventRebuild,
+      );
+    }
+    return AppPageRoute._(
+      builder: builder,
+      settings: settings,
+      maintainState: maintainState,
+      fullscreenDialog: fullscreenDialog,
+      allowSnapshotting: allowSnapshotting,
+      barrierDismissible: barrierDismissible,
+      enableIOSGesture: enableIOSGesture,
+      preventRebuild: preventRebuild,
+    );
+  }
+
+  AppPageRoute._({
     required this.builder,
     super.settings,
     this.maintainState = true,
@@ -23,6 +57,10 @@ class AppPageRoute<T> extends PageRoute<T> with _AppRouteTransitionMixin {
   }) {
     assert(opaque);
   }
+
+  static bool mobileOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<prism.ViewScope>()?.isMobile ??
+      false;
 
   /// Builds the primary contents of the route.
   final WidgetBuilder builder;
@@ -50,6 +88,69 @@ class AppPageRoute<T> extends PageRoute<T> with _AppRouteTransitionMixin {
 
   @override
   final bool preventRebuild;
+}
+
+class _MobilePageRoute<T> extends AppPageRoute<T> with prism.CardRouteMixin<T> {
+  _MobilePageRoute({
+    required super.builder,
+    super.settings,
+    super.allowSnapshotting,
+    super.enableIOSGesture,
+    super.preventRebuild,
+  }) : super._();
+
+  late final _predictiveBack = _MobilePredictiveBack(this);
+
+  @override
+  void install() {
+    super.install();
+    if (App.isAndroid) WidgetsBinding.instance.addObserver(_predictiveBack);
+  }
+
+  @override
+  void dispose() {
+    if (App.isAndroid) WidgetsBinding.instance.removeObserver(_predictiveBack);
+    super.dispose();
+  }
+
+  @override
+  Color settledFillOf(Color surface) => Colors.transparent;
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => _withIOSBackGesture(
+    super.buildTransitions(context, animation, secondaryAnimation, child),
+  );
+}
+
+/// Feeds Android's system gesture into the Prism route's animation controller.
+class _MobilePredictiveBack with WidgetsBindingObserver {
+  _MobilePredictiveBack(this.route);
+
+  final PageRoute<dynamic> route;
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent event) {
+    if (event.isButtonEvent || !route.isCurrent || !route.popGestureEnabled) {
+      return false;
+    }
+    route.handleStartBackGesture(progress: 1 - event.progress);
+    return true;
+  }
+
+  @override
+  void handleUpdateBackGestureProgress(PredictiveBackEvent event) =>
+      route.handleUpdateBackGestureProgress(progress: 1 - event.progress);
+
+  @override
+  void handleCancelBackGesture() => route.handleCancelBackGesture();
+
+  @override
+  void handleCommitBackGesture() => route.handleCommitBackGesture();
 }
 
 mixin _AppRouteTransitionMixin<T> on PageRoute<T> {
@@ -133,16 +234,18 @@ mixin _AppRouteTransitionMixin<T> on PageRoute<T> {
       context,
       animation,
       secondaryAnimation,
-      enableIOSGesture && App.isIOS
-          ? IOSBackGestureDetector(
-              gestureWidth: _kBackGestureWidth,
-              enabledCallback: () => _isPopGestureEnabled<T>(this),
-              onStartPopGesture: () => _startPopGesture(this),
-              child: child,
-            )
-          : child,
+      _withIOSBackGesture(child),
     );
   }
+
+  Widget _withIOSBackGesture(Widget child) => enableIOSGesture && App.isIOS
+      ? IOSBackGestureDetector(
+          gestureWidth: _kBackGestureWidth,
+          enabledCallback: () => _isPopGestureEnabled<T>(this),
+          onStartPopGesture: () => _startPopGesture(this),
+          child: child,
+        )
+      : child;
 
   IOSBackGestureController _startPopGesture(PageRoute<T> route) {
     return IOSBackGestureController(

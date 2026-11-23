@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/card.dart' as prism show Card;
+import 'package:prism_ui/icons/icons.dart' as prism;
+import 'package:prism_ui/list_row.dart' as prism show ListRow;
+import 'package:prism_ui/shape.dart' as prism show AppCorner;
 import 'package:venera_next/components/gesture.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/translations.dart';
@@ -12,6 +17,23 @@ class SearchEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void openSearch() => context.to(() => const SearchPage());
+    if (MobileUi.enabledOf(context)) {
+      return SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        sliver: SliverToBoxAdapter(
+          child: prism.Card(
+            radius: prism.AppCorner.full,
+            onPressed: openSearch,
+            child: prism.ListRow(
+              leading: const prism.GlyphIcon(prism.Glyphs.search, size: 20),
+              title: Text('Search'.tl),
+              minHeight: 50,
+            ),
+          ),
+        ),
+      );
+    }
     return SliverToBoxAdapter(
       child: Container(
         height: App.isMobile ? 52 : 46,
@@ -22,9 +44,7 @@ class SearchEntry extends StatelessWidget {
           borderRadius: BorderRadius.circular(32),
           child: ClickInkWell(
             borderRadius: BorderRadius.circular(32),
-            onTap: () {
-              context.to(() => const SearchPage());
-            },
+            onTap: openSearch,
             child: Row(
               children: [
                 const SizedBox(width: 16),

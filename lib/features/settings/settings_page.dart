@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/card.dart' as prism show Card;
+import 'package:prism_ui/icons/icons.dart' as prism;
+import 'package:prism_ui/list_row.dart' as prism show ListRow;
+import 'package:prism_ui/shape.dart' as prism show AppCorner;
 import 'package:venera_next/components/gesture.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
@@ -121,6 +126,38 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget buildLeft() {
+    if (!enableTwoViews && MobileUi.enabledOf(context)) {
+      return Column(
+        children: [
+          MobileToolbar(title: Text('Settings'.tl), showBack: true),
+          Expanded(
+            child: ListView.separated(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                context.padding.bottom + 16,
+              ),
+              itemCount: categories.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 6),
+              itemBuilder: (context, index) => prism.Card(
+                radius: prism.AppCorner.md,
+                onPressed: () =>
+                    context.to(() => _SettingsDetailPage(pageIndex: index)),
+                child: prism.ListRow(
+                  leading: Icon(icons[index], size: 22),
+                  title: Text(categories[index].tl),
+                  trailing: const prism.GlyphIcon(
+                    prism.Glyphs.chevronForward,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return Material(
       child: Column(
         children: [

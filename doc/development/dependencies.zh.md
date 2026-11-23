@@ -26,9 +26,15 @@ English version: [dependencies.en.md](dependencies.en.md)
 
 新增传递依赖为 SDK 的 `flutter_driver`／`fuchsia_remote_debug_protocol`，以及锁定的 pub.dev 官方 `process 5.0.5`、`sync_http 0.3.1`、`webdriver 3.1.0`（BSD-3-Clause，来源和归档 SHA-256 见锁文件）。现有依赖版本／来源不变。替代是普通 Widget 测试（能验证构建与生命周期，不能执行手机上的实际交互）或自行维护 VM 驱动；采用 Flutter 自带工具减少定制。回滚时同时移除设备脚本、driver、dev 声明及这六项锁记录，普通阅读器回归不依赖此设备脚本。
 
+## 手机界面
+
+Prism UI 使用 GPL-3.0，固定在 2026-11-23 核对的 Git 主分支提交。该提交在 0.1.3 发布后改进了按压可访问性和页面返回动效。上游维护浮动导航、玻璃按压、锚定菜单和拖动面板，应用负责路由、主题及持久化设置。[官方 Git 提交 `8f5fc22`](https://github.com/chen08209/prism_ui/commit/8f5fc22ca1a6bccb064589494ca69cedb38edb50)
+
+应用在 Flutter 3.47.9 下直接导入所用组件的公开模块。Prism 的汇总入口还会载入依赖 Flutter 3.50 `ScrollCacheExtent` 的列表组件。Flutter 3.47.9 同期更新了 SDK 锁定项，PDF 引擎跟进 pub.dev 的 0.4.6 修复空安全编译错误。回退时将界面接入、依赖声明、锁文件、依赖清单和 SDK 版本作为一组回退。[PDF 引擎变更记录](https://pub.dev/packages/pdfrx_engine/changelog#046)
+
 ## 当前 Git 依赖
 
-2026-09-28：五个依赖曾改用 `CyrilPeng` 下的现有 fork，固定 commit 不变。2026-10-05 起，PhotoView 改为本地包；2026-11-06，滚动列表、WebDAV 和桌面 WebView 也曾收纳为本地包，PNG／7z 和 SAF 包装层由自编模块替代。2026-11-07，滚动列表回归官方 pub.dev 0.3.8，InAppWebView 六包改为同一官方完整 commit，Windows 单包保留实例所有权补丁。当前为 2 个独立 Git 来源、7 个 Git 包、8 个本地包；个人 Git 来源只剩必要的 QuickJS。回滚时同步恢复声明、锁文件和对应清单记录。
+2026-09-28，五个依赖曾改用 `CyrilPeng` 下的现有 fork，并保留固定提交。2026-10-05 起，PhotoView 改为本地包。2026-11-06，滚动列表、WebDAV 和桌面 WebView 也曾收纳为本地包，PNG／7z 和 SAF 包装层由自编模块替代。2026-11-07，滚动列表回归官方 pub.dev 0.3.8，InAppWebView 六包改为同一官方提交，Windows 单包保留实例所有权补丁。加入 Prism UI 后共有 3 个独立 Git 来源、8 个 Git 包和 8 个本地包。回退时同步恢复声明、锁文件和对应清单记录。
 
 必要的 fork／本地补丁选择、上游审查和验证由 VeneraNext 维护者负责；官方 Git 包也核对真实检出 HEAD、子目录及源码状态。保留原作者版权和许可证；来源归属不代替安全验证。
 

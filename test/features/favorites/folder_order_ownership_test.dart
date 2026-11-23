@@ -146,7 +146,7 @@ class _Host {
 
 ReorderCallback _reorder(WidgetTester tester) => tester
     .widget<ReorderableListView>(find.byType(ReorderableListView))
-    .onReorder;
+    .onReorderItem!;
 
 VoidCallback _help(WidgetTester tester) => tester
     .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.help_outline))
@@ -243,7 +243,7 @@ void main() {
         host.navigator.pop();
       }
       await pumpSidebar(tester);
-      retained(0, 3);
+      retained(0, 2);
       await pumpSidebar(tester);
       if (reason == 'covered') {
         host.navigator.pop();
@@ -285,7 +285,7 @@ void main() {
     await host.mount(tester);
     final result = host.open();
     await pumpSidebar(tester);
-    _reorder(tester)(0, 3);
+    _reorder(tester)(0, 2);
     await tester.pump();
     expect(host.manager.writes, isEmpty);
     _back(tester)();
@@ -310,7 +310,7 @@ void main() {
       var ended = false;
       final result = host.open().then<void>((_) => ended = true);
       await pumpSidebar(tester);
-      _reorder(tester)(0, 3);
+      _reorder(tester)(0, 2);
       var closed = false;
       final closing = host.registry.closeAndWait().then<void>(
         (_) => closed = true,
@@ -346,7 +346,7 @@ void main() {
     });
     final result = host.open();
     await pumpSidebar(tester);
-    _reorder(tester)(0, 3);
+    _reorder(tester)(0, 2);
     host.navigator.pop();
     await pumpSidebar(tester);
     expect(host.manager.writes, [
@@ -376,7 +376,7 @@ void main() {
     });
     await pumpSidebar(tester);
     final original = host.route(tester);
-    _reorder(tester)(0, 3);
+    _reorder(tester)(0, 2);
     host.navigator.fails = true;
     Object? failure;
     await settleSidebarWork(
@@ -409,7 +409,7 @@ void main() {
     await host.mount(tester);
     final result = host.open();
     await pumpSidebar(tester);
-    _reorder(tester)(0, 3);
+    _reorder(tester)(0, 2);
     final replacement = _Manager();
     await _replaceFavorites(tester, replacement);
     host.navigator.pop();
@@ -436,7 +436,7 @@ void main() {
           reported = error;
         });
         await pumpSidebar(tester);
-        _reorder(tester)(0, 3);
+        _reorder(tester)(0, 2);
         host.navigator.pop();
         await settleSidebarWork(tester, () => result);
         expect(reported, same(failure));
@@ -536,7 +536,7 @@ void main() {
           });
           await pumpSidebar(tester);
           final original = host.route(tester);
-          _reorder(tester)(0, 3);
+          _reorder(tester)(0, 2);
           host.navigator.fails = removalFails;
           Object? closeFailure;
           Future<void>? closing;
@@ -604,7 +604,7 @@ void main() {
         await host.mount(tester);
         final result = host.open();
         await pumpSidebar(tester);
-        _reorder(tester)(0, 3);
+        _reorder(tester)(0, 2);
         final previousPath = App.dataPath;
         final replacement = _Manager();
         final release = Completer<void>();
@@ -645,7 +645,7 @@ void main() {
     final reorder = _reorder(tester);
     final help = _help(tester);
     await _replaceFavorites(tester, _Manager());
-    reorder(0, 3);
+    reorder(0, 2);
     help();
     await pumpSidebar(tester);
     expect(_labels(tester), ['A', 'B', 'C']);
@@ -677,11 +677,11 @@ void main() {
     addTearDown(visible.dispose);
     final result = sortFolders(caller);
     await pumpSidebar(tester);
-    _reorder(tester)(0, 3);
+    _reorder(tester)(0, 2);
     visible.value = false;
     await pumpSidebar(tester);
     expect(caller.mounted, isFalse);
-    _reorder(tester)(0, 3);
+    _reorder(tester)(0, 2);
     expect(_labels(tester), ['B', 'C', 'A']);
     final original = host.route(tester);
     _back(tester)();
@@ -745,7 +745,7 @@ void main() {
           expect(find.byType(ReorderableListView), findsNothing);
           expect(host.manager.writes, isEmpty);
         } else {
-          _reorder(tester)(0, 3);
+          _reorder(tester)(0, 2);
           _back(tester)();
         }
         await settleSidebarWork(tester, () => result);
@@ -823,7 +823,7 @@ void main() {
       addTearDown(() => database.removeListener(changed));
       final result = host.open();
       await pumpSidebar(tester);
-      _reorder(tester)(0, original.length);
+      _reorder(tester)(0, original.length - 1);
       await tester.pump();
       expect(database.folderNames, original);
       expect(notifications, 0);

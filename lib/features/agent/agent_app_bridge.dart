@@ -344,7 +344,7 @@ class AgentAppBridge {
   void openFullScreen(Widget Function() builder) {
     final context = appNavigation.rootNavigatorKey.currentContext;
     if (context == null) throw StateError('No navigator');
-    unawaited(context.to(builder));
+    unawaited(context.to(builder, mobileTransition: false));
   }
 
   void openComic(String sourceKey, String id, {String? title, String? cover}) =>

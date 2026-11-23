@@ -27,5 +27,6 @@ void openLocalComic(LocalComic comic) {
       author: comic.subtitle,
       tags: comic.tags,
     ),
+    mobileTransition: false,
   );
 }

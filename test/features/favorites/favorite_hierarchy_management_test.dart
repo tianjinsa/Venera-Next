@@ -394,7 +394,7 @@ void main() {
     final rootList = tester.widget<ReorderableListView>(
       find.byType(ReorderableListView),
     );
-    rootList.onReorder(0, roots.length);
+    rootList.onReorderItem!(0, roots.length - 1);
     await tester.pump();
     tester
         .widget<FavoriteFolderSelect>(find.byType(FavoriteFolderSelect))

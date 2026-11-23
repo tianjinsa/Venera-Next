@@ -10,6 +10,7 @@ import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/translations.dart';
 
 import '../components/navigation_bar.dart';
+import '../components/mobile_ui.dart';
 import 'package:venera_next/routing/app_navigation.dart';
 import '../foundation/context.dart';
 import 'home_page.dart';
@@ -74,6 +75,7 @@ class _MainPageState extends State<MainPage> {
       mobileTitleAccessory: index == agentTabIndex
           ? AgentModelHeader(bridge: _agentModelHeader)
           : null,
+      mobileDockBadge: agentMobileDockBadge,
       observer: _observer,
       navigatorKey: _navigatorKey!,
       paneItems: [
@@ -81,22 +83,26 @@ class _MainPageState extends State<MainPage> {
           label: 'Home'.tl,
           icon: Icons.home_outlined,
           activeIcon: Icons.home,
+          mobileGlyph: MobileNavGlyphs.home,
         ),
         PaneItemEntry(
           label: 'Favorites'.tl,
           icon: Icons.local_activity_outlined,
           activeIcon: Icons.local_activity,
+          mobileGlyph: MobileNavGlyphs.favorites,
         ),
         agentPaneItem,
         PaneItemEntry(
           label: 'Explore'.tl,
           icon: Icons.explore_outlined,
           activeIcon: Icons.explore,
+          mobileGlyph: MobileNavGlyphs.explore,
         ),
         PaneItemEntry(
           label: 'Categories'.tl,
           icon: Icons.category_outlined,
           activeIcon: Icons.category,
+          mobileGlyph: MobileNavGlyphs.categories,
         ),
       ],
       onPageChanged: (i) {
@@ -116,6 +122,7 @@ class _MainPageState extends State<MainPage> {
         PaneActionEntry(
           icon: Icons.settings,
           label: "Settings".tl,
+          inMobileMenu: true,
           onTap: () {
             to(() => const SettingsPage(), preventDuplicate: true);
           },

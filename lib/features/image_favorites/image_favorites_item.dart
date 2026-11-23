@@ -60,6 +60,7 @@ class _ImageFavoritesItemState extends State<ImageFavoritesItem>
         initialEp: ep,
         initialPage: page,
       ),
+      mobileTransition: false,
     );
   }
 

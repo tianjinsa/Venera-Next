@@ -1053,6 +1053,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                             id: c.id,
                             sourceKey: c.sourceKey,
                           ),
+                          mobileTransition: false,
                         );
                       },
                     ),
@@ -1251,6 +1252,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                       context.to(
                         () =>
                             ReaderWithLoading(id: c.id, sourceKey: c.sourceKey),
+                        mobileTransition: false,
                       );
                     },
                   ),
@@ -1283,6 +1285,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
               } else {
                 context.to(
                   () => ReaderWithLoading(id: c.id, sourceKey: c.sourceKey),
+                  mobileTransition: false,
                 );
               }
             },

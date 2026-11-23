@@ -3,6 +3,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/icons/icons.dart' as prism;
+import 'package:prism_ui/navigation_dock.dart' as prism;
+import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/foundation/app_page_route.dart';
@@ -13,6 +16,7 @@ import 'package:venera_next/foundation/widget_utils.dart';
 
 import 'consts.dart';
 import 'gesture.dart';
+import 'mobile_ui.dart';
 import 'tv_navigation.dart';
 
 class PaneItemEntry {
@@ -21,6 +25,7 @@ class PaneItemEntry {
   IconData icon;
 
   IconData activeIcon;
+  final prism.Glyph? mobileGlyph;
   final bool keepBottomBarWithKeyboard;
   final Widget Function(BuildContext context, Widget icon)? iconBuilder;
   Widget buildIcon(BuildContext context, bool enabled) {
@@ -32,6 +37,7 @@ class PaneItemEntry {
     required this.label,
     required this.icon,
     required this.activeIcon,
+    this.mobileGlyph,
     this.keepBottomBarWithKeyboard = false,
     this.iconBuilder,
   });
@@ -43,11 +49,13 @@ class PaneActionEntry {
   IconData icon;
 
   VoidCallback onTap;
+  final bool inMobileMenu;
 
   PaneActionEntry({
     required this.label,
     required this.icon,
     required this.onTap,
+    this.inMobileMenu = false,
   });
 }
 
@@ -59,6 +67,7 @@ class NaviPane extends StatefulWidget {
     this.initialPage = 0,
     this.onPageChanged,
     this.mobileTitleAccessory,
+    this.mobileDockBadge,
     required this.observer,
     required this.navigatorKey,
     super.key,
@@ -74,6 +83,7 @@ class NaviPane extends StatefulWidget {
 
   final int initialPage;
   final Widget? mobileTitleAccessory;
+  final Widget? mobileDockBadge;
 
   final NaviObserver observer;
 
@@ -287,6 +297,7 @@ class NaviPaneState extends State<NaviPane>
             key: widget.navigatorKey,
             onGenerateRoute: (settings) => AppPageRoute(
               preventRebuild: false,
+              mobile: AppPageRoute.mobileOf(context),
               builder: (context) {
                 return _NaviMainView(state: this);
               },
@@ -302,6 +313,42 @@ class NaviPaneState extends State<NaviPane>
   }
 
   Widget buildTop() {
+    if (MobileUi.enabledOf(context)) {
+      final label = widget.paneItems[currentPage].label;
+      final accessory = widget.mobileTitleAccessory;
+      final menu = widget.paneActions.where((action) => action.inMobileMenu);
+      return MobileToolbar(
+        title: accessory == null
+            ? Text(label)
+            : Row(
+                spacing: 8,
+                children: [
+                  Text(label),
+                  Expanded(child: accessory),
+                ],
+              ),
+        shortcuts: [
+          for (final action in widget.paneActions)
+            if (!action.inMobileMenu)
+              MobileToolbarButton(
+                label: action.label,
+                icon: Icon(action.icon),
+                onPressed: action.onTap,
+              ),
+        ],
+        more: menu.isEmpty
+            ? null
+            : MobileMenuButton(
+                items: [
+                  for (final action in menu)
+                    prism.PopupMenuItem(
+                      label: action.label,
+                      onPressed: action.onTap,
+                    ),
+                ],
+              ),
+      );
+    }
     return Material(
       child: Container(
         padding: const EdgeInsets.only(left: 16, right: 16),
@@ -362,6 +409,35 @@ class NaviPaneState extends State<NaviPane>
           }),
         ),
       ),
+    );
+  }
+
+  Widget buildMobileDock(BuildContext context) {
+    final badge = widget.mobileDockBadge;
+    return Stack(
+      children: [
+        prism.NavigationDock(
+          destinations: [
+            for (final entry in widget.paneItems)
+              prism.NavigationDockDestination(
+                glyph: entry.mobileGlyph!,
+                label: entry.label,
+              ),
+          ],
+          selectedIndex: currentPage,
+          onSelected: updatePage,
+        ),
+        // The Agent destination is the middle of the five equal-width slots.
+        // The public dock API takes only glyphs. Let the badge paint over its
+        // slot while the dock itself still owns the entire touch sequence.
+        if (badge != null)
+          PositionedDirectional(
+            start: 0,
+            end: 0,
+            bottom: prism.NavigationDock.insetOf(context) - 26,
+            child: IgnorePointer(child: Center(child: badge)),
+          ),
+      ],
     );
   }
 
@@ -808,6 +884,10 @@ class _NaviMainViewState extends State<_NaviMainView> {
   @override
   Widget build(BuildContext context) {
     var shouldShowAppBar = state.controller.value < 2;
+    final mobile = MobileUi.enabledOf(context);
+    final useMobileDock =
+        mobile &&
+        state.widget.paneItems.every((item) => item.mobileGlyph != null);
     final keepBottomBar =
         state.widget.paneItems[state.currentPage].keepBottomBarWithKeyboard;
     final content = AnimatedSwitcher(
@@ -816,7 +896,10 @@ class _NaviMainViewState extends State<_NaviMainView> {
     );
     return Column(
       children: [
-        if (shouldShowAppBar) state.buildTop().paddingTop(context.padding.top),
+        if (shouldShowAppBar)
+          mobile
+              ? state.buildTop()
+              : state.buildTop().paddingTop(context.padding.top),
         Expanded(
           child: Builder(
             builder: (context) => MediaQuery.removePadding(
@@ -833,6 +916,17 @@ class _NaviMainViewState extends State<_NaviMainView> {
               if (!keepBottomBar &&
                   MediaQuery.viewInsetsOf(context).bottom > 0) {
                 return const SizedBox.shrink();
+              }
+              if (useMobileDock) {
+                final media = MediaQuery.of(context);
+                final padding = keepBottomBar
+                    ? media.padding.copyWith(bottom: media.viewPadding.bottom)
+                    : media.padding;
+                return MediaQuery(
+                  key: const ValueKey('navi-bottom-bar'),
+                  data: media.copyWith(padding: padding),
+                  child: Builder(builder: state.buildMobileDock),
+                );
               }
               return Padding(
                 key: const ValueKey('navi-bottom-bar'),

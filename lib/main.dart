@@ -41,6 +41,7 @@ import 'components/gesture.dart';
 import 'components/tv_navigation.dart';
 import 'components/js_ui.dart';
 import 'components/message.dart';
+import 'components/mobile_ui.dart';
 import 'components/window_frame.dart';
 import 'components/window_selection_task.dart';
 import 'foundation/app.dart';
@@ -462,6 +463,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           localizationsDelegates: [
             GlobalMaterialLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
+            MobileUiLocalizations.delegate,
           ],
           locale: appLocale,
           supportedLocales: const [
@@ -575,9 +577,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               return TvNavigation(
                 onBack: () => unawaited(_tvBack()),
                 child: _SystemUiProvider(
-                  Material(
-                    color: App.isLinux ? Colors.transparent : null,
-                    child: widget,
+                  MobileUi(
+                    child: Material(
+                      color: App.isLinux ? Colors.transparent : null,
+                      child: widget,
+                    ),
                   ),
                 ),
               );

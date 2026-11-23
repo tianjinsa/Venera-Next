@@ -564,6 +564,7 @@
     "components/loading.dart",
     "components/menu.dart",
     "components/message.dart",
+    "components/mobile_ui.dart",
     "components/navigation_bar.dart",
     "components/pop_up_widget.dart",
     "components/rich_comment_content.dart",

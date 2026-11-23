@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/snap_sheet.dart' show SnapSheetRoute;
 import 'package:venera_next/features/agent/agent_controller.dart';
 import 'package:venera_next/features/agent/agent_integration.dart';
 import 'package:venera_next/features/agent/agent_models.dart';
 import 'package:venera_next/features/agent/agent_store.dart';
 import 'package:venera_next/components/navigation_bar.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'agent_test_support.dart';
 
 class _HeaderHost extends StatefulWidget {
@@ -36,6 +38,7 @@ class _HeaderHostState extends State<_HeaderHost> {
         label: '首页',
         icon: Icons.home_outlined,
         activeIcon: Icons.home,
+        mobileGlyph: MobileNavGlyphs.home,
       ),
       agentPaneItem,
     ],
@@ -130,7 +133,11 @@ void main() {
     await directory.delete(recursive: true);
   });
 
-  Future<void> pumpHost(WidgetTester tester, {double width = 400}) async {
+  Future<void> pumpHost(
+    WidgetTester tester, {
+    double width = 400,
+    bool mobile = false,
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, 900);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -138,11 +145,37 @@ void main() {
     addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: const [MobileUiLocalizations.delegate],
+        builder: mobile
+            ? (_, child) => MobileUiTheme(glass: 'standard', child: child!)
+            : null,
         home: _HeaderHost(bridge: bridge, controllers: controllers),
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'the phone model picker preserves selection and can be dragged down',
+    (tester) async {
+      await pumpHost(tester, width: 320, mobile: true);
+      await tester.tap(header);
+      await tester.pumpAndSettle();
+      expect(ModalRoute.of(tester.element(panel)), isA<SnapSheetRoute<bool>>());
+      await tapAgentSetting(tester, 'agent-picker-model-second');
+      await tester.pumpAndSettle();
+      expect(controllers.first.model?.id, 'second');
+      await tester.flingFrom(
+        tester.getTopLeft(panel) + const Offset(160, 16),
+        const Offset(0, 500),
+        2000,
+      );
+      await tester.pumpAndSettle();
+      expect(panel, findsNothing);
+      expect(header, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final width in [320.0, 400.0]) {
     testWidgets('compact header fits long model names at width $width', (

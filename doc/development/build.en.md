@@ -6,8 +6,7 @@ This guide is for developers building, testing, or maintaining VeneraNext from s
 
 ## Prerequisites
 
-- Flutter `3.41.4`
-- Dart `>=3.8.0 <4.0.0`
+- Flutter `3.47.9`, which includes Dart `3.13.7`
 - JDK `17` for Android builds
 - A Rust toolchain; Android builds require the corresponding Android targets
 - Native tooling for the target platform, such as Android SDK / NDK, Xcode, Visual Studio, or Linux GTK/WebKit dependencies

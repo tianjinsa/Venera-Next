@@ -183,9 +183,8 @@ Future<void> _sortFolders(
                 ),
               ],
               body: ReorderableListView.builder(
-                onReorder: (oldIndex, newIndex) {
+                onReorderItem: (oldIndex, newIndex) {
                   if (!canEdit(view)) return;
-                  if (oldIndex < newIndex) newIndex--;
                   setState(() {
                     final item = folders.removeAt(oldIndex);
                     folders.insert(newIndex, item);

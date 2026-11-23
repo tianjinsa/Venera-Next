@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/sheet.dart' as prism show SheetProps, showSheet;
+import 'package:prism_ui/sheet_header.dart' as prism show SheetDragHandle;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/consts.dart';
 import 'agent_controller.dart';
 import 'agent_models.dart';
@@ -151,14 +154,23 @@ Future<void> _showModelSelection(
   BuildContext context,
   AgentModelHeaderBridge bridge,
 ) async {
-  final manage = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    constraints: const BoxConstraints(maxWidth: 640),
-    builder: (_) => _ModelSelectionPanel(bridge: bridge),
-  );
+  final manage = MobileUi.enabledOf(context)
+      ? await prism.showSheet<bool>(
+          context: context,
+          props: const prism.SheetProps(detents: [0.9]),
+          builder: (_) => Material(
+            type: MaterialType.transparency,
+            child: _ModelSelectionPanel(bridge: bridge, mobile: true),
+          ),
+        )
+      : await showModalBottomSheet<bool>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          showDragHandle: true,
+          constraints: const BoxConstraints(maxWidth: 640),
+          builder: (_) => _ModelSelectionPanel(bridge: bridge),
+        );
   if (manage != true || !context.mounted) return;
   final controller = bridge.controller;
   if (controller == null || controller.busy) return;
@@ -233,7 +245,8 @@ class _AgentModelPickerButtonState extends State<AgentModelPickerButton> {
 
 class _ModelSelectionPanel extends StatefulWidget {
   final AgentModelHeaderBridge bridge;
-  const _ModelSelectionPanel({required this.bridge});
+  final bool mobile;
+  const _ModelSelectionPanel({required this.bridge, this.mobile = false});
   @override
   State<_ModelSelectionPanel> createState() => _ModelSelectionPanelState();
 }
@@ -273,7 +286,7 @@ class _ModelSelectionPanelState extends State<_ModelSelectionPanel> {
           const <AgentModel>[];
       return Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
+          bottom: widget.mobile ? 0 : MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: SafeArea(
           top: false,
@@ -283,9 +296,17 @@ class _ModelSelectionPanelState extends State<_ModelSelectionPanel> {
             ),
             child: CustomScrollView(
               key: const ValueKey('agent-model-selection-panel'),
+              primary: widget.mobile ? true : null,
               shrinkWrap: true,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               slivers: [
+                if (widget.mobile)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 4, bottom: 12),
+                      child: Center(child: prism.SheetDragHandle()),
+                    ),
+                  ),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                   sliver: SliverToBoxAdapter(

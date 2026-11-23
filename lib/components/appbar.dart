@@ -8,6 +8,7 @@ import 'package:venera_next/foundation/widget_utils.dart';
 
 import 'effects.dart';
 import 'gesture.dart';
+import 'mobile_ui.dart';
 import 'scroll.dart';
 
 class Appbar extends StatefulWidget implements PreferredSizeWidget {
@@ -87,6 +88,16 @@ class _AppbarState extends State<Appbar> {
 
   @override
   Widget build(BuildContext context) {
+    if (MobileUi.enabledOf(context)) {
+      return MobileToolbar(
+        title: widget.title,
+        leading: widget.leading,
+        showBack: true,
+        shortcuts: widget.actions ?? const [],
+        backgroundColor: widget.backgroundColor,
+        height: _kAppBarHeight,
+      );
+    }
     var content = Container(
       decoration: BoxDecoration(
         color:
@@ -139,6 +150,7 @@ class SliverAppbar extends StatelessWidget {
     required this.title,
     this.leading,
     this.actions,
+    this.mobileMore,
     this.radius = 0,
     this.style = AppbarStyle.blur,
   });
@@ -148,6 +160,7 @@ class SliverAppbar extends StatelessWidget {
   final Widget title;
 
   final List<Widget>? actions;
+  final Widget? mobileMore;
 
   final double radius;
 
@@ -161,6 +174,7 @@ class SliverAppbar extends StatelessWidget {
         leading: leading,
         title: title,
         actions: actions,
+        mobileMore: mobileMore,
         topPadding: MediaQuery.of(context).padding.top,
         radius: radius,
         style: style,
@@ -177,6 +191,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   final Widget title;
 
   final List<Widget>? actions;
+  final Widget? mobileMore;
 
   final double topPadding;
 
@@ -188,6 +203,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     this.leading,
     required this.title,
     this.actions,
+    this.mobileMore,
     required this.topPadding,
     this.radius = 0,
     this.style = AppbarStyle.blur,
@@ -199,6 +215,16 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    if (MobileUi.enabledOf(context)) {
+      return MobileToolbar(
+        title: title,
+        leading: leading,
+        showBack: Navigator.of(context).canPop(),
+        shortcuts: actions ?? const [],
+        more: mobileMore,
+        height: _kAppBarHeight,
+      );
+    }
     var body = Row(
       children: [
         const SizedBox(width: 8),
@@ -262,6 +288,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
         leading != oldDelegate.leading ||
         title != oldDelegate.title ||
         actions != oldDelegate.actions ||
+        mobileMore != oldDelegate.mobileMore ||
         topPadding != oldDelegate.topPadding ||
         radius != oldDelegate.radius ||
         style != oldDelegate.style;

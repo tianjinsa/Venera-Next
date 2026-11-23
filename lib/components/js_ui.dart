@@ -330,11 +330,11 @@ class JsUiApi implements JsUiMessageHandler {
           },
         ),
       );
-      return presentation.future;
     } catch (_) {
       callbacks.dispose();
       rethrow;
     }
+    return presentation.future;
   }
 
   Future<int?> _showSelectDialog(

@@ -20,7 +20,7 @@
 
 | 编号 | 必须保留的行为 | 实现与回归入口 |
 | --- | --- | --- |
-| A01 | 手机/宽屏独立 Agent 入口；旧启动索引 0/1/2/3 映射为 0/1/3/4，Agent 惰性初始化 | `lib/app_shell/main_page.dart`、`lib/features/agent/agent_integration.dart`；`test/agent/agent_page_test.dart` |
+| A01 | 手机/宽屏独立 Agent 入口，旧启动索引 0/1/2/3 映射为 0/1/3/4，Agent 惰性初始化。Android/iOS 窄屏浮动底栏松手提交选页，取消保留当前页，Agent 状态仍显示在中央标签 | `lib/app_shell/main_page.dart`、`lib/components/navigation_bar.dart`、`lib/features/agent/agent_integration.dart`，`test/agent/agent_page_test.dart`、`test/components/mobile_ui_test.dart` |
 | A02 | 切换页面后继续运行；运行、待确认、未读提示；应用最终退出先停止任务并等待持久化 | `lib/features/agent/agent_session.dart`、`lib/main.dart`；`test/agent/agent_session_test.dart`、`test/app_runtime/application_host_test.dart` |
 | A03 | Chat Completions、Responses、Messages；流式/非流式、思考、工具续接、取消 | `lib/features/agent/agent_protocol.dart`、`agent_http_adapter.dart`；`test/agent/agent_protocol_test.dart`、`agent_protocols_test.dart`、`agent_http_adapter_test.dart` |
 | A04 | 模型编辑/复制、服务商模型发现、分页搜索、图片能力、请求补丁 | `lib/features/agent/agent_model_settings.dart`、`agent_model_discovery.dart`；`test/agent/agent_model_editor_test.dart`、`agent_model_discovery_test.dart`、`agent_model_picker_test.dart` |
@@ -127,6 +127,11 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 新增条目记录：稳定编号、用户可见行为/数据约束、来源与提交、实现位置、回归入口、冲突注意点、实际验证范围。删除功能需明确记录产品决定和替代行为；不能仅因上游没有该功能而删除。
 
 ## 最近验证与维护记录
+
+### 2026-11-23 Android/iOS 窄屏界面
+
+- A01、A02、A14。共用顶栏的快捷动作组成可回弹的胶囊，更多菜单独立锚定，漫画详情复制菜单逐层返回。Agent 模型面板支持滑动收起，现有输入避让和会话动作沿用原入口。
+- 「设置 → 外观」保存关闭、标准、极致三档。三个档位保留按压、底栏拖动和菜单动画。渲染器缺少 shader 支持时启用 Prism 的磨砂回退。手势、持久化、依赖版本及验证环境见[迁移记录](migration.md#androidios-窄屏界面2026-11-23)。
 
 ### 2026-11-18 分页动画与双页收藏回归
 

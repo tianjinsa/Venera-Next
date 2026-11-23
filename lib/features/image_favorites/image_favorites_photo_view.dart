@@ -320,6 +320,7 @@ class _ImageFavoritesPhotoViewState extends State<ImageFavoritesPhotoView>
                 initialEp: ep,
                 initialPage: page,
               ),
+              mobileTransition: false,
             );
           },
         ),

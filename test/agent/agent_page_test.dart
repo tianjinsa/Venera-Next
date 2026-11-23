@@ -1,9 +1,12 @@
-import 'package:venera_next/routing/app_navigation.dart';
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:prism_ui/navigation_dock.dart' show NavigationDock;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/agent/agent_client.dart';
 import 'package:venera_next/features/agent/agent_controller.dart';
 import 'package:venera_next/features/agent/agent_integration.dart';
@@ -17,6 +20,7 @@ import 'package:venera_next/features/local_comics/local.dart';
 import 'package:venera_next/features/discovery/categories_page.dart';
 import 'package:venera_next/features/discovery/explore_page.dart';
 import 'package:venera_next/app_shell/main_page.dart';
+import 'package:venera_next/routing/app_navigation.dart';
 import 'agent_test_support.dart';
 
 void main() {
@@ -85,7 +89,7 @@ void main() {
   }
 
   testWidgets(
-    'actual MainPage inserts Agent at the center and maps existing defaults',
+    'actual MainPage restores tabs and opens the persisted glass setting',
     (tester) async {
       await AppTranslation.init();
       final root = (await tester.runAsync(
@@ -93,6 +97,7 @@ void main() {
       ))!;
       configureAgentTestPaths(root.path);
       final old = appdata.settings['initialPage'];
+      final oldGlass = appdata.settings['mobileGlass'];
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(400, 900);
       try {
@@ -101,6 +106,8 @@ void main() {
           await tester.pumpWidget(
             MaterialApp(
               navigatorKey: appNavigation.rootNavigatorKey,
+              localizationsDelegates: const [MobileUiLocalizations.delegate],
+              builder: (_, child) => MobileUiTheme(glass: 'off', child: child!),
               home: MainPage(key: ValueKey(initial)),
             ),
           );
@@ -108,6 +115,14 @@ void main() {
           final pane = tester.widget<NaviPane>(find.byType(NaviPane));
           expect(pane.paneItems.length, 5);
           expect(pane.paneItems[2].label, 'Agent');
+          final dock = tester.widget<NavigationDock>(
+            find.byType(NavigationDock),
+          );
+          expect(
+            dock.destinations.map((entry) => entry.label),
+            pane.paneItems.map((entry) => entry.label),
+          );
+          expect(dock.selectedIndex, pane.initialPage);
           expect(pane.pageBuilder(2), isA<AgentPage>());
           expect(pane.initialPage, initial == '2' ? 3 : 4);
           expect(
@@ -117,9 +132,37 @@ void main() {
           expect(appdata.settings['initialPage'], initial);
           expect(tester.takeException(), null);
         }
+        await tester.tap(find.byType(MobileMenuButton));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Settings'.tl).hitTestable().last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Appearance'.tl).hitTestable());
+        await tester.pumpAndSettle();
+        expect(find.text('Glass effect'.tl), findsOneWidget);
+        await tester.tap(find.text('Ultra glass'.tl).hitTestable());
+        var saveFinished = false;
+        unawaited(
+          appdata.runPersistenceMaintenance((_) async {
+            saveFinished = true;
+          }),
+        );
+        for (var attempt = 0; attempt < 100 && !saveFinished; attempt++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump();
+        }
+        expect(saveFinished, isTrue);
+        await tester.pumpAndSettle();
+        final saved = jsonDecode(
+          File('${root.path}/appdata.json').readAsStringSync(),
+        );
+        expect(saved['settings']['mobileGlass'], 'ultra');
+        expect(tester.takeException(), isNull);
       } finally {
         await tester.pumpWidget(const SizedBox.shrink());
         appdata.settings['initialPage'] = old;
+        appdata.settings['mobileGlass'] = oldGlass;
         appNavigation.mainNavigatorKey = null;
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();

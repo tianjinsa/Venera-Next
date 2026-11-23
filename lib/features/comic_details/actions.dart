@@ -5,9 +5,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/menu.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/side_bar.dart';
 import 'package:venera_next/components/window_frame.dart';
 import 'package:venera_next/components/window_selection_task.dart';
@@ -263,6 +265,7 @@ abstract mixin class ComicPageActions {
             author: comic.findAuthor() ?? '',
             tags: comic.plainTags,
           ),
+          mobileTransition: false,
         )
         .then((_) {
           onReadEnd();
@@ -420,47 +423,63 @@ abstract mixin class ComicPageActions {
     );
   }
 
+  Widget buildMobileMoreActions() {
+    final target = comic;
+    prism.PopupMenuItem toMenuItem(MenuEntry entry) => prism.PopupMenuItem(
+      label: entry.text,
+      onPressed: () {
+        if (isComicActive(target) && NavigationAdmission.allows(context)) {
+          entry.onClick();
+        }
+      },
+    );
+    final browser = _openInBrowser(target);
+    return MobileMenuButton(
+      items: [
+        prism.PopupMenuItem(
+          label: 'Copy'.tl,
+          subItems: _copyActions(target).map(toMenuItem).toList(),
+        ),
+        if (browser != null) toMenuItem(browser),
+      ],
+    );
+  }
+
   void showMoreActions() {
     final target = comic;
+    final browser = _openInBrowser(target);
     contextMenus.show(
       context,
       Offset(context.width - 16, context.padding.top),
-      [
-        MenuEntry(
-          icon: Icons.copy,
-          text: "Copy Title".tl,
-          onClick: () {
-            Clipboard.setData(ClipboardData(text: target.title));
-            context.showMessage(message: "Copied".tl);
-          },
-        ),
-        MenuEntry(
-          icon: Icons.copy_rounded,
-          text: "Copy ID".tl,
-          onClick: () {
-            Clipboard.setData(ClipboardData(text: target.id));
-            context.showMessage(message: "Copied".tl);
-          },
-        ),
-        if (target.url != null)
-          MenuEntry(
-            icon: Icons.link,
-            text: "Copy URL".tl,
-            onClick: () {
-              Clipboard.setData(ClipboardData(text: target.url!));
-              context.showMessage(message: "Copied".tl);
-            },
-          ),
-        if (target.url != null)
-          MenuEntry(
-            icon: Icons.open_in_browser,
-            text: "Open in Browser".tl,
-            onClick: () {
-              launchUrlString(target.url!);
-            },
-          ),
-      ],
+      [..._copyActions(target), ?browser],
       isValid: () => isComicActive(target),
+    );
+  }
+
+  List<MenuEntry> _copyActions(ComicDetails target) {
+    MenuEntry copy(String label, IconData icon, String value) => MenuEntry(
+      icon: icon,
+      text: label,
+      onClick: () {
+        Clipboard.setData(ClipboardData(text: value));
+        context.showMessage(message: 'Copied'.tl);
+      },
+    );
+    return [
+      copy('Copy Title'.tl, Icons.copy, target.title),
+      copy('Copy ID'.tl, Icons.copy_rounded, target.id),
+      if (target.url case final String url)
+        copy('Copy URL'.tl, Icons.link, url),
+    ];
+  }
+
+  MenuEntry? _openInBrowser(ComicDetails target) {
+    final url = target.url;
+    if (url == null) return null;
+    return MenuEntry(
+      icon: Icons.open_in_browser,
+      text: 'Open in Browser'.tl,
+      onClick: () => launchUrlString(url),
     );
   }
 

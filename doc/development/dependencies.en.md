@@ -20,9 +20,15 @@ See the [dependency audit](dependency_audit.en.md) for ownership and replacement
 - Review upstream changes, security advisories, licenses, platform builds, and relevant tests when upgrading.
 - Publishing a fork to pub.dev does not replace security maintenance; a diff audit and upstream synchronization plan are still required.
 
+## Mobile UI
+
+Prism UI is licensed under GPL-3.0 and pinned to the upstream main branch commit checked on November 23, 2026. It includes accessibility and back-transition fixes made after the 0.1.3 release. Upstream maintains the dock, glass press effects, anchored menus, and draggable sheets. The app provides navigation, theme, and persisted settings. [Official Git commit `8f5fc22`](https://github.com/chen08209/prism_ui/commit/8f5fc22ca1a6bccb064589494ca69cedb38edb50)
+
+The app imports the selected public modules directly on Flutter 3.47.9. The aggregate entry point also loads list components that use Flutter 3.50's `ScrollCacheExtent`. SDK-pinned versions were resolved for Flutter 3.47.9, and PDF engine 0.4.6 fixes a nullability compilation error. Roll back the integration, declaration, lockfile, dependency inventory, and SDK pin together. [PDF engine changelog](https://pub.dev/packages/pdfrx_engine/changelog#046)
+
 ## Current Git Dependencies
 
-Five dependencies moved to existing forks under `CyrilPeng` on 2026-09-28 without changing pins. PhotoView became local on 2026-10-05; scrolling, WebDAV and desktop WebView became local on 2026-11-06, alongside project-authored native/SAF modules. On 2026-11-07 scrolling returns to official pub.dev 0.3.8 and six InAppWebView packages use one official commit; Windows instance ownership alone remains local. There are now two independent Git sources, seven Git packages and eight local packages. QuickJS is the only remaining personal Git source. Roll back declarations, lockfile and inventory together.
+Five dependencies moved to existing forks under `CyrilPeng` on 2026-09-28 at the same pinned commits. PhotoView became local on 2026-10-05. Scrolling, WebDAV, and desktop WebView became local on 2026-11-06, alongside project-authored native and SAF modules. On 2026-11-07 scrolling returned to official pub.dev 0.3.8, and six InAppWebView packages moved to one official commit while Windows instance ownership stayed local. With Prism UI, there are three independent Git sources, eight Git packages, and eight local packages. Roll back declarations, lockfile, and inventory together.
 
 VeneraNext maintainers own necessary fork/local patches, upstream review and validation. Official Git sources also require checking the actual checkout HEAD, package directory and clean source. Preserve original copyrights and licenses; source ownership does not replace safety validation.
 

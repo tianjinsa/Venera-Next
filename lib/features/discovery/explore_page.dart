@@ -57,7 +57,7 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   void onNaviItemTapped(int index) {
-    if (index == 2) {
+    if (index == naviPane?.currentPage && pages.isNotEmpty) {
       int page = controller.index;
       String currentPageId = pages[page];
       GlobalState.find<_SingleExplorePageState>(currentPageId).toTop();

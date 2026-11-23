@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
+import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
 import 'agent_attachment_view.dart';
 import 'agent_controller.dart';
@@ -568,67 +570,94 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
     }
     return Column(
       children: [
-        // Laid out like the app's Appbar, so the tab matches other pages.
-        SizedBox(
-          height: 56,
-          child: Row(
-            children: [
-              const SizedBox(width: 8),
-              if (widget.standalone) ...[
+        if (MobileUi.enabledOf(context))
+          MobileToolbar(
+            height: 56,
+            title: Text(controller.conversation.title),
+            showBack: widget.standalone,
+            shortcuts: [
+              MobileToolbarButton(
+                label: '历史对话',
+                icon: const Icon(Icons.history),
+                onPressed: _history,
+              ),
+              MobileToolbarButton(
+                label: '新对话',
+                icon: const Icon(Icons.add_comment_outlined),
+                onPressed: () => _act(controller.newConversation),
+              ),
+              _showcaseBadge(
+                MobileToolbarButton(
+                  label: '展示漫画',
+                  icon: const Icon(Icons.view_sidebar_outlined),
+                  onPressed: _showcase,
+                ),
+              ),
+            ],
+            more: MobileMenuButton(
+              items: [
+                prism.PopupMenuItem(
+                  label: 'Agent 设置',
+                  onPressed: () => _act(_settings),
+                ),
+              ],
+            ),
+          )
+        else
+          SizedBox(
+            height: 56,
+            child: Row(
+              children: [
+                const SizedBox(width: 8),
+                if (widget.standalone) ...[
+                  IconButton(
+                    key: const ValueKey('agent-back'),
+                    tooltip: '返回',
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (_width < 1024) ...[
+                  IconButton(
+                    tooltip: '历史对话',
+                    onPressed: _history,
+                    icon: const Icon(Icons.history),
+                  ),
+                  const SizedBox(width: 8),
+                ] else
+                  const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    controller.conversation.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                ),
                 IconButton(
-                  key: const ValueKey('agent-back'),
-                  tooltip: '返回',
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.arrow_back),
+                  tooltip: '新对话',
+                  onPressed: () => _act(controller.newConversation),
+                  icon: const Icon(Icons.add_comment_outlined),
+                ),
+                if (_width < 720)
+                  _showcaseBadge(
+                    IconButton(
+                      tooltip: '展示漫画',
+                      onPressed: () => _showcase(),
+                      icon: const Icon(Icons.view_sidebar_outlined),
+                    ),
+                  ),
+                IconButton(
+                  key: const ValueKey('agent-settings'),
+                  tooltip: 'Agent 设置',
+                  onPressed: () => _act(_settings),
+                  icon: const Icon(Icons.tune),
                 ),
                 const SizedBox(width: 8),
               ],
-              if (_width < 1024) ...[
-                IconButton(
-                  tooltip: '历史对话',
-                  onPressed: _history,
-                  icon: const Icon(Icons.history),
-                ),
-                const SizedBox(width: 8),
-              ] else
-                const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  controller.conversation.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 20),
-                ),
-              ),
-              IconButton(
-                tooltip: '新对话',
-                onPressed: () => _act(controller.newConversation),
-                icon: const Icon(Icons.add_comment_outlined),
-              ),
-              if (_width < 720)
-                Badge(
-                  isLabelVisible: controller.showcases.isNotEmpty,
-                  label: Text(
-                    controller.showcases
-                        .fold<int>(0, (n, g) => n + g.comics.length)
-                        .toString(),
-                  ),
-                  child: IconButton(
-                    tooltip: '展示漫画',
-                    onPressed: () => _showcase(),
-                    icon: const Icon(Icons.view_sidebar_outlined),
-                  ),
-                ),
-              IconButton(
-                key: const ValueKey('agent-settings'),
-                tooltip: 'Agent 设置',
-                onPressed: () => _act(_settings),
-                icon: const Icon(Icons.tune),
-              ),
-              const SizedBox(width: 8),
-            ],
+            ),
           ),
-        ),
         if (model != null &&
             !(widget.modelHeaderBridge != null &&
                 agentUsesMobileModelHeader(context)))
@@ -822,6 +851,17 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _showcaseBadge(Widget button) {
+    final groups = _controller!.showcases;
+    return Badge(
+      isLabelVisible: groups.isNotEmpty,
+      label: Text(
+        groups.fold<int>(0, (n, g) => n + g.comics.length).toString(),
+      ),
+      child: button,
     );
   }
 

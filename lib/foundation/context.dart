@@ -41,18 +41,24 @@ extension Navigation on BuildContext {
     return Navigator.of(this).canPop();
   }
 
-  Future<T?> to<T>(Widget Function() builder) {
+  Future<T?> to<T>(Widget Function() builder, {bool mobileTransition = true}) {
     if (!NavigationAdmission.allows(this)) return Future.value();
-    return Navigator.of(
-      this,
-    ).push<T>(AppPageRoute(builder: (context) => builder()));
+    return Navigator.of(this).push<T>(
+      AppPageRoute(
+        builder: (context) => builder(),
+        mobile: mobileTransition && AppPageRoute.mobileOf(this),
+      ),
+    );
   }
 
   Future<void> toReplacement<T>(Widget Function() builder) {
     if (!NavigationAdmission.allows(this)) return Future.value();
-    return Navigator.of(
-      this,
-    ).pushReplacement(AppPageRoute(builder: (context) => builder()));
+    return Navigator.of(this).pushReplacement(
+      AppPageRoute(
+        builder: (context) => builder(),
+        mobile: AppPageRoute.mobileOf(this),
+      ),
+    );
   }
 
   double get width => MediaQuery.sizeOf(this).width;

@@ -16,6 +16,7 @@ import 'package:venera_next/components/image.dart';
 import 'package:venera_next/components/layout.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/menu.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/features/comic_details/action_button.dart';
@@ -328,6 +329,7 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
   }
 
   Iterable<Widget> buildTitle() sync* {
+    final mobile = MobileUi.enabledOf(context);
     yield SliverAppbar(
       title: AnimatedOpacity(
         opacity: showAppbarTitle ? 1.0 : 0.0,
@@ -335,11 +337,13 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
         child: Text(comic.title),
       ),
       actions: [
-        IconButton(
-          onPressed: showMoreActions,
-          icon: const Icon(Icons.more_horiz),
-        ),
+        if (!mobile)
+          IconButton(
+            onPressed: showMoreActions,
+            icon: const Icon(Icons.more_horiz),
+          ),
       ],
+      mobileMore: mobile ? buildMobileMoreActions() : null,
     );
 
     yield const SliverPadding(padding: EdgeInsets.only(top: 8));

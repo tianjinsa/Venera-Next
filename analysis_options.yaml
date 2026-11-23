@@ -16,6 +16,9 @@ analyzer:
   exclude:
     # Plugin build runners and local build probes are generated artifacts.
     - build/**
+    # The dependency audit checks these reviewed copies of upstream plugin code.
+    - packages/flutter_inappwebview_windows/lib/**
+    - packages/share_plus/lib/src/share_plus_web.dart
 
 linter:
   # The lint rules applied to this project can be customized in the
