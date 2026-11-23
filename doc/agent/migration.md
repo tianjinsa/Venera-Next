@@ -408,3 +408,9 @@
 - 基线 `e0e241fb84efd7bee786827c35a9378707663099` 的 `assembleMobileRelease` 在 `super_native_extensions` 的 `checkReleaseAarMetadata` 任务失败。这个模块和 `irondash_engine_context` 都固定为 API 31，Flutter embedding 引入的 AndroidX AAR 最高要求 API 34。[失败日志](https://github.com/tianjinsa/Venera-Next/actions/runs/45152844841/job/137619061654) · [上游问题](https://github.com/superlistapp/super_native_extensions/issues/578)
 - Android 根工程通过 AGP 的 `finalizeDsl` 为这两个插件取其原始编译 SDK 和应用编译 SDK 中的较大值。Flutter 3.47.9 下两者都采用 API 36。
 - Windows 隔离工程使用 Gradle 8.14、AGP 8.13.2、锁定的两个插件和 Flutter 3.47.9 Release embedding，复现基线的两个 API 31 错误，修改后两个 Release AAR 元数据任务都通过。Android、SAF 和工作流脚本定向检查 47 项通过、5 项按条件跳过。结构、架构依赖和版本同步检查通过。本次验证范围为 AAR 元数据和脚本检查。
+
+## Android 插件编译 SDK（2026-11-23）
+
+- 基线 `8e98d9fce8272add2213f397dea4162c50a73f6a` 的 AAR 检查在 `zip_flutter` 失败。锁定的 23 个 Android 插件中，`zip_flutter` 和 `rhttp` 声明 API 33，`super_native_extensions` 和 `irondash_engine_context` 声明 API 31。Flutter embedding 引入的 AndroidX AAR 要求至少 API 34。[失败日志](https://github.com/tianjinsa/Venera-Next/actions/runs/45157079573/job/137633504757)
+- Android 根工程在 AGP 的 `finalizeDsl` 阶段为 `com.android.library` 子模块应用 `:app` 的编译 SDK 下限，当前为 API 36。插件声明更高 API 时继续使用自己的值。
+- Windows 使用 Flutter 3.47.9、Gradle 8.14 和 AGP 8.13.2 配置真实 Android 依赖图，确认应用与 23 个插件的实际编译 SDK 均为 API 36。23 个插件与手机／TV 两个变体的 25 项 Release AAR 元数据任务全部通过。Android、SAF 和工作流脚本定向检查 47 项通过、5 项按条件跳过，结构、架构和版本同步检查通过。验证范围为 AAR 和脚本检查。

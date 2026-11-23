@@ -9,13 +9,13 @@ rootProject.buildDir = "../build"
 subprojects { subproject ->
     subproject.buildDir = "${rootProject.buildDir}/${subproject.name}"
 
-    // These native clipboard plugins still declare compileSdk 31.
-    // Their AndroidX dependencies require at least API 34.
-    if (subproject.name in ["super_native_extensions", "irondash_engine_context"]) {
-        subproject.pluginManager.withPlugin("com.android.library") {
-            subproject.androidComponents.finalizeDsl { library ->
-                def appCompileSdk = rootProject.project(":app").android.compileSdk
-                library.compileSdk = Math.max(library.compileSdk, appCompileSdk)
+    // Flutter adds its Android embedding and AndroidX dependencies to plugin libraries.
+    // Use the app's compile SDK as their floor before AGP creates variant tasks.
+    subproject.pluginManager.withPlugin("com.android.library") {
+        subproject.androidComponents.finalizeDsl { library ->
+            def appCompileSdk = rootProject.project(":app").android.compileSdk
+            if (library.compileSdk != null && library.compileSdk < appCompileSdk) {
+                library.compileSdk = appCompileSdk
             }
         }
     }

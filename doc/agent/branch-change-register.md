@@ -128,6 +128,10 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 
 ## 最近验证与维护记录
 
+### 2026-11-23 Android 插件编译 SDK
+
+- C03。手机和 TV 共用的 Android 根工程把应用编译 SDK 作为插件库的下限。AGP 创建任务前对齐编译 SDK，各插件和手机／TV 变体继续执行 Release AAR 元数据检查。[迁移与验证记录](migration.md#android-插件编译-sdk2026-11-23)
+
 ### 2026-11-23 原生剪贴板编译 SDK
 
 - C03。Android 根工程在 AGP 完成 DSL 配置时为两个原生剪贴板模块对齐应用的编译 SDK，覆盖手机和 TV Release 共用的 AAR 元数据检查。[迁移与验证记录](migration.md#原生剪贴板编译-sdk2026-11-23)
