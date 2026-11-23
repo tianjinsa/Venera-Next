@@ -27,7 +27,6 @@ class AgentQueueStatus extends StatelessWidget {
     if (MobileUi.enabledOf(context)) {
       showAgentMobileSheet<void>(
         context: context,
-        detent: .65,
         builder: (_) => _AgentQueuePanel(
           controller: controller,
           onResume: onResume,

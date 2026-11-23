@@ -2,9 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:prism_ui/color.dart' as prism show ColorSchemeExtension;
-import 'package:prism_ui/snap_sheet.dart' as prism;
-import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
@@ -14,6 +11,7 @@ import 'package:venera_next/foundation/navigation_admission.dart';
 import 'package:venera_next/foundation/translations.dart';
 
 import 'mobile_choice.dart';
+import 'mobile_large_sheet.dart';
 import 'mobile_ui.dart';
 import 'window_selection_task.dart';
 import 'message.dart';
@@ -79,19 +77,15 @@ class Select extends StatelessWidget {
         if (MobileUi.enabledOf(context)) {
           // Keep explicit route ownership: removing the owner window must
           // remove this picker and must never apply a late destination.
-          route = _OwnedChoiceSheetRoute(
-            sheetBarrierColor: prism.Theme.of(context).colorScheme.modalScrim,
-            barrierLabel: 'Close'.tl,
+          route = mobileLargeSheetRoute<String>(
+            context: context,
             onDispose: onDispose,
-            builder: (context, _) => Material(
-              type: MaterialType.transparency,
-              child: MobileChoiceSheetFrame(
-                title: label ?? 'Select'.tl,
-                onClose: () {
-                  if (route.isCurrent) navigator.pop();
-                },
-                child: Builder(builder: menu),
-              ),
+            builder: (context) => MobileChoiceSheetFrame(
+              title: label ?? 'Select'.tl,
+              onClose: () {
+                if (route.isCurrent) navigator.pop();
+              },
+              child: Builder(builder: menu),
             ),
           );
         } else {
@@ -260,26 +254,6 @@ class Select extends StatelessWidget {
         ).padding(const EdgeInsets.symmetric(horizontal: 12, vertical: 4)),
       ),
     );
-  }
-}
-
-class _OwnedChoiceSheetRoute extends prism.SnapSheetRoute<String> {
-  _OwnedChoiceSheetRoute({
-    required super.builder,
-    required super.sheetBarrierColor,
-    required super.barrierLabel,
-    required this.onDispose,
-  }) : super(detents: const [0.85], fitsContent: true);
-
-  final VoidCallback onDispose;
-
-  @override
-  void dispose() {
-    try {
-      onDispose();
-    } finally {
-      super.dispose();
-    }
   }
 }
 

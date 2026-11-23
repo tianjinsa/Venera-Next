@@ -137,35 +137,28 @@ class _ReaderModeSettingsState extends SettingsSaveState<ReaderModeSettings> {
     if (MobileUi.enabledOf(context)) {
       final target = (widget.comicId, widget.sourceKey);
       return SettingRow(
-        title: Text(title),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: MobileChoice<String>(
-                key: ValueKey((target, title)),
-                label: title,
-                value: value,
-                placeholder: value,
-                options: [
-                  for (final option in options.entries)
-                    MobileChoiceOption(option.key, option.value),
-                ],
-                onChanged: !acceptsSettingsChanges
-                    ? null
-                    : (selected) {
-                        if (mounted &&
-                            target == (widget.comicId, widget.sourceKey) &&
-                            acceptsSettingsChanges) {
-                          unawaited(onSelected(selected));
-                        }
-                      },
-              ),
-            ),
-            if (description != null) Text(description),
-          ],
+        title: MobileChoiceRow(
+          title: Text(title),
+          description: description == null ? null : Text(description),
+          choice: MobileChoice<String>(
+            key: ValueKey((target, title)),
+            label: title,
+            value: value,
+            placeholder: value,
+            options: [
+              for (final option in options.entries)
+                MobileChoiceOption(option.key, option.value),
+            ],
+            onChanged: !acceptsSettingsChanges
+                ? null
+                : (selected) {
+                    if (mounted &&
+                        target == (widget.comicId, widget.sourceKey) &&
+                        acceptsSettingsChanges) {
+                      unawaited(onSelected(selected));
+                    }
+                  },
+          ),
         ),
       );
     }

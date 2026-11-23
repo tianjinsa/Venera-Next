@@ -109,15 +109,13 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
                         style: theme.textTheme.titleLarge,
                       ),
                     ),
-                    MobileToolbarButton(
-                      key: const ValueKey('agent-history-manage'),
-                      label: _selecting ? '退出多选' : '管理对话',
-                      icon: Icon(
-                        _selecting ? Icons.close : Icons.checklist_rounded,
-                        size: 20,
+                    if (_selecting)
+                      MobileToolbarButton(
+                        key: const ValueKey('agent-history-manage'),
+                        label: '退出多选',
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: _deleting ? null : _toggleMode,
                       ),
-                      onPressed: _deleting ? null : _toggleMode,
-                    ),
                     if (!_selecting)
                       MobileToolbarButton(
                         label: widget.close == null ? '新对话' : '关闭',
@@ -125,6 +123,16 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
                           widget.close == null ? Icons.add : Icons.close,
                         ),
                         onPressed: widget.close ?? widget.onNew,
+                      ),
+                    if (!_selecting)
+                      MobileMenuButton(
+                        key: const ValueKey('agent-history-more'),
+                        items: [
+                          prism.PopupMenuItem(
+                            label: '管理对话',
+                            onPressed: canSelectAll ? _toggleMode : null,
+                          ),
+                        ],
                       ),
                   ],
                 ),

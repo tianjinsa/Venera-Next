@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:prism_ui/common_button.dart' as prism show TextButton;
 import 'package:prism_ui/list_row.dart' as prism show ListRow;
-import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
@@ -206,14 +205,10 @@ class AgentShowcasePanel extends StatelessWidget {
       );
 
   Widget _menu(BuildContext context, AgentShowcase group) => mobile
-      ? MobileMenuButton(
-          label: '展示分组选项',
-          items: [
-            prism.PopupMenuItem(
-              label: '移除此组',
-              onPressed: () => hideGroup(group.id),
-            ),
-          ],
+      ? MobileToolbarButton(
+          label: '移除此组',
+          icon: const Icon(Icons.visibility_off_outlined),
+          onPressed: () => hideGroup(group.id),
         )
       : PopupMenuButton<String>(
           tooltip: '展示分组选项',

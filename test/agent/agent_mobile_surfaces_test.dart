@@ -68,7 +68,10 @@ void main() {
         findsNothing,
       );
 
-      await tester.tap(find.byKey(const ValueKey('agent-history-manage')));
+      expect(find.byKey(const ValueKey('agent-history-manage')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('agent-history-more')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('管理对话'));
       await tester.pumpAndSettle();
       final delete = find.byKey(
         const ValueKey('agent-history-delete-selected'),
@@ -102,7 +105,10 @@ void main() {
       expect(history, findsNothing);
       expect(controller.conversation.id, earlier.id);
 
-      await tester.tap(_toolbarButton('展示漫画'));
+      expect(_toolbarButton('展示漫画'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('agent-chat-more')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('展示漫画').hitTestable());
       await tester.pumpAndSettle();
       final showcase = find.byType(AgentShowcasePanel);
       expect(

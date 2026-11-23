@@ -633,24 +633,25 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
                 onPressed: _history,
               ),
               MobileToolbarButton(
-                label: '新对话',
-                icon: const Icon(Icons.add_comment_outlined),
-                onPressed: () => _act(controller.newConversation),
-              ),
-              _showcaseBadge(
-                MobileToolbarButton(
-                  label: '展示漫画',
-                  icon: const Icon(Icons.view_sidebar_outlined),
-                  onPressed: _showcase,
-                ),
-              ),
-              MobileToolbarButton(
                 key: const ValueKey('agent-settings'),
                 label: 'Agent 设置',
                 icon: const Icon(Icons.tune),
                 onPressed: () => _act(_settings),
               ),
             ],
+            more: _showcaseBadge(
+              MobileMenuButton(
+                key: const ValueKey('agent-chat-more'),
+                label: '更多',
+                items: [
+                  prism.PopupMenuItem(
+                    label: '新对话',
+                    onPressed: () => _act(controller.newConversation),
+                  ),
+                  prism.PopupMenuItem(label: '展示漫画', onPressed: _showcase),
+                ],
+              ),
+            ),
           )
         else
           SizedBox(

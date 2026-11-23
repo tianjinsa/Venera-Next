@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:prism_ui/sheet.dart' as prism show SheetProps, showSheet;
-import 'package:prism_ui/sheet_header.dart' as prism show SheetDragHandle;
+import 'package:prism_ui/search_field.dart' as prism show SearchField;
+import 'package:venera_next/components/mobile_large_sheet.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/consts.dart';
+
 import 'agent_controller.dart';
 import 'agent_models.dart';
 import 'agent_settings_page.dart';
@@ -155,13 +156,9 @@ Future<void> _showModelSelection(
   AgentModelHeaderBridge bridge,
 ) async {
   final manage = MobileUi.enabledOf(context)
-      ? await prism.showSheet<bool>(
+      ? await showMobileLargeSheet<bool>(
           context: context,
-          props: const prism.SheetProps(detents: [0.9]),
-          builder: (_) => Material(
-            type: MaterialType.transparency,
-            child: _ModelSelectionPanel(bridge: bridge, mobile: true),
-          ),
+          builder: (_) => _ModelSelectionPanel(bridge: bridge, mobile: true),
         )
       : await showModalBottomSheet<bool>(
           context: context,
@@ -292,21 +289,16 @@ class _ModelSelectionPanelState extends State<_ModelSelectionPanel> {
           top: false,
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+              maxHeight: widget.mobile
+                  ? double.infinity
+                  : MediaQuery.sizeOf(context).height * 0.82,
             ),
             child: CustomScrollView(
               key: const ValueKey('agent-model-selection-panel'),
               primary: widget.mobile ? true : null,
-              shrinkWrap: true,
+              shrinkWrap: !widget.mobile,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               slivers: [
-                if (widget.mobile)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 4, bottom: 12),
-                      child: Center(child: prism.SheetDragHandle()),
-                    ),
-                  ),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                   sliver: SliverToBoxAdapter(
@@ -390,27 +382,36 @@ class _ModelSelectionPanelState extends State<_ModelSelectionPanel> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          TextField(
-                            key: const ValueKey('agent-model-search'),
-                            controller: _search,
-                            onChanged: (_) => setState(() {}),
-                            decoration: InputDecoration(
+                          if (widget.mobile)
+                            prism.SearchField(
+                              key: const ValueKey('agent-model-search'),
+                              controller: _search,
+                              onChanged: (_) => setState(() {}),
                               hintText: '搜索模型名称或 ID',
-                              prefixIcon: const Icon(Icons.search_rounded),
-                              suffixIcon: query.isEmpty
-                                  ? null
-                                  : IconButton(
-                                      tooltip: '清空搜索',
-                                      onPressed: () => setState(_search.clear),
-                                      icon: const Icon(Icons.close_rounded),
-                                    ),
-                              filled: true,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: BorderSide.none,
+                            )
+                          else
+                            TextField(
+                              key: const ValueKey('agent-model-search'),
+                              controller: _search,
+                              onChanged: (_) => setState(() {}),
+                              decoration: InputDecoration(
+                                hintText: '搜索模型名称或 ID',
+                                prefixIcon: const Icon(Icons.search_rounded),
+                                suffixIcon: query.isEmpty
+                                    ? null
+                                    : IconButton(
+                                        tooltip: '清空搜索',
+                                        onPressed: () =>
+                                            setState(_search.clear),
+                                        icon: const Icon(Icons.close_rounded),
+                                      ),
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide.none,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ],
                     ),

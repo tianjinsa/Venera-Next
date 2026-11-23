@@ -324,7 +324,12 @@ class SelectSetting extends StatelessWidget {
       width: double.infinity,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (stacked || constraints.maxWidth < 450) {
+          final mobile = MobileUi.enabledOf(context);
+          // Only a custom full-width control (the three-way glass selector)
+          // opts into stacking on a phone. Ordinary dropdowns always trail.
+          if (mobile
+              ? stacked && selectorBuilder != null
+              : stacked || constraints.maxWidth < 450) {
             return _DoubleLineSelectSettings(
               title: title,
               preference: preference,
@@ -414,8 +419,6 @@ class _DoubleLineSelectSettingsState
   Widget build(BuildContext context) {
     final target = field;
     final value = currentValue;
-    final mobile = MobileUi.enabledOf(context);
-    final mobileChoice = mobile && widget.selectorBuilder == null;
     return withSaveStatus(
       SettingRow(
         title: Row(
@@ -457,47 +460,11 @@ class _DoubleLineSelectSettingsState
                 unawaited(change(selected));
               }
             }) ??
-            (mobileChoice
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: pendingControl(
-                        MobileChoice<String>(
-                          key: ValueKey((
-                            target.key,
-                            target.comicId,
-                            target.sourceKey,
-                            target.scope,
-                            target.preference,
-                          )),
-                          label: widget.title,
-                          value: value,
-                          options: [
-                            for (final entry
-                                in widget.optionTranslation.entries)
-                              MobileChoiceOption(entry.key, entry.value),
-                          ],
-                          onChanged: !acceptsSettingsChanges
-                              ? null
-                              : (selected) {
-                                  if (mounted &&
-                                      target.matches(field) &&
-                                      widget.optionTranslation.containsKey(
-                                        selected,
-                                      )) {
-                                    unawaited(change(selected));
-                                  }
-                                },
-                        ),
-                      ),
-                    ),
-                  )
-                : Text(widget.optionTranslation[value] ?? "None")),
-        trailing: widget.selectorBuilder == null && !mobileChoice
+            Text(widget.optionTranslation[value] ?? "None"),
+        trailing: widget.selectorBuilder == null
             ? pendingControl(const Icon(Icons.arrow_drop_down))
             : null,
-        onTap: widget.selectorBuilder != null || mobileChoice
+        onTap: widget.selectorBuilder != null
             ? null
             : () {
                 var renderBox = context.findRenderObject() as RenderBox;
@@ -605,81 +572,80 @@ class _EndSelectorSelectSettingState
       }
     }
 
-    return withSaveStatus(
-      SettingRow(
-        title: Row(
-          children: [
-            Expanded(child: Text(widget.title)),
-            const SizedBox(width: 4),
-            if (widget.help != null)
-              Button.icon(
-                size: 18,
-                icon: const Icon(Icons.help_outline),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return ContentDialog(
-                        title: "Help".tl,
-                        content: Text(widget.help!)
-                            .paddingHorizontal(16)
-                            .fixWidth(double.infinity),
-                        actions: [
-                          Button.filled(
-                            onPressed: context.pop,
-                            child: Text("OK".tl),
-                          ),
-                        ],
-                      );
-                    },
+    final mobile = MobileUi.enabledOf(context);
+    final title = Row(
+      children: [
+        Expanded(child: Text(widget.title)),
+        const SizedBox(width: 4),
+        if (widget.help != null)
+          Button.icon(
+            size: 18,
+            icon: const Icon(Icons.help_outline),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return ContentDialog(
+                    title: "Help".tl,
+                    content: Text(widget.help!)
+                        .paddingHorizontal(16)
+                        .fixWidth(double.infinity),
+                    actions: [
+                      Button.filled(
+                        onPressed: context.pop,
+                        child: Text("OK".tl),
+                      ),
+                    ],
                   );
                 },
-              ),
-          ],
-        ),
-        trailing: pendingControl(
-          widget.selectorBuilder?.call(context, value, (selected) {
-                if (mounted &&
-                    target.matches(field) &&
-                    (selected == null ||
-                        widget.optionTranslation.containsKey(selected))) {
-                  unawaited(change(selected));
-                }
-              }) ??
-              (MobileUi.enabledOf(context)
-                  ? ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.sizeOf(context).width * 0.45,
-                      ),
-                      child: MobileChoice<String>(
-                        key: ValueKey((
-                          target.key,
-                          target.comicId,
-                          target.sourceKey,
-                          target.scope,
-                          target.preference,
-                        )),
-                        label: widget.title,
-                        value: value,
-                        options: [
-                          for (final entry in options.entries)
-                            MobileChoiceOption(entry.key, entry.value),
-                        ],
-                        onChanged: acceptsSettingsChanges ? select : null,
-                      ),
-                    )
-                  : Select(
-                      current: options[value],
-                      values: options.values.toList(),
-                      minWidth: 64,
-                      onTap: (index) {
-                        if (index >= 0 && index < options.length) {
-                          select(options.keys.elementAt(index));
-                        }
-                      },
-                    )),
-        ),
-      ),
+              );
+            },
+          ),
+      ],
+    );
+    final choice = pendingControl(
+      widget.selectorBuilder?.call(context, value, (selected) {
+            if (mounted &&
+                target.matches(field) &&
+                (selected == null ||
+                    widget.optionTranslation.containsKey(selected))) {
+              unawaited(change(selected));
+            }
+          }) ??
+          (mobile
+              ? MobileChoice<String>(
+                  key: ValueKey((
+                    target.key,
+                    target.comicId,
+                    target.sourceKey,
+                    target.scope,
+                    target.preference,
+                  )),
+                  label: widget.title,
+                  value: value,
+                  options: [
+                    for (final entry in options.entries)
+                      MobileChoiceOption(entry.key, entry.value),
+                  ],
+                  onChanged: acceptsSettingsChanges ? select : null,
+                )
+              : Select(
+                  current: options[value],
+                  values: options.values.toList(),
+                  minWidth: 64,
+                  onTap: (index) {
+                    if (index >= 0 && index < options.length) {
+                      select(options.keys.elementAt(index));
+                    }
+                  },
+                )),
+    );
+    return withSaveStatus(
+      mobile
+          ? SettingRow(
+              title: MobileChoiceRow(title: title, choice: choice),
+            )
+          : SettingRow(title: title, trailing: choice),
     );
   }
 }
