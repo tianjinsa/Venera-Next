@@ -83,7 +83,15 @@ void main() {
       final label = tester.getRect(find.text('Home').last);
       expect(tester.getRect(find.text('row 39')).bottom, lessThan(label.top));
       expect(find.byType(MobileMenuButton), findsNothing);
-      await tester.tap(find.byIcon(Icons.settings));
+      await tester.tap(
+        find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is MobileToolbarButton &&
+                  widget.label == 'Settings target',
+            )
+            .hitTestable(),
+      );
       await tester.pump();
       expect(settings, 1);
     },

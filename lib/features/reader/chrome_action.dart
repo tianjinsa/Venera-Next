@@ -30,6 +30,7 @@ class ReaderChromeAction extends StatelessWidget {
         tooltip: label,
         icon: icon,
         isSelected: selected,
+        onPressed: onPressed,
         style: selected || constraints != null
             ? prism.ButtonStyle.from(
                 foregroundColor: selected

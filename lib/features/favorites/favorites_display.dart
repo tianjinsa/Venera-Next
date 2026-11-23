@@ -129,14 +129,7 @@ class _FavoriteDisplayButtonState
                       if (gallery)
                         prism.PopupMenuItem(
                           label:
-                              'Gallery'.tl +
-                              ' · ' +
-                              (_columns ==
-                                      FavoritePreferences
-                                          .galleryColumns
-                                          .defaultValue
-                                  ? 'Auto'.tl
-                                  : '@c columns'.tlParams({'c': _columns})),
+                              "${'Gallery'.tl} · ${_columns == FavoritePreferences.galleryColumns.defaultValue ? 'Auto'.tl : '@c columns'.tlParams({'c': _columns})}",
                           subItems: [
                             collectionOption(
                               label: 'Auto'.tl,

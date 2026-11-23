@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/color.dart' as prism show ColorSchemeExtension;
 import 'package:prism_ui/common_button.dart' as prism;
 import 'package:prism_ui/dialog.dart' as prism;
 import 'package:prism_ui/theme_data.dart' as prism;
@@ -46,16 +47,6 @@ Future<int?> showSelectDialog({
           builder: (_) => StatefulBuilder(
             builder: (context, setState) => prism.AlertDialog(
               title: title,
-              child: MobileChoice<int>(
-                value: current,
-                options: [
-                  for (final (index, option) in options.indexed)
-                    MobileChoiceOption(index, option),
-                ],
-                onChanged: (index) {
-                  if (canAct()) setState(() => current = index);
-                },
-              ),
               actions: [
                 prism.TextButton(
                   onPressed: () {
@@ -74,6 +65,16 @@ Future<int?> showSelectDialog({
                   child: Text('Confirm'.tl),
                 ),
               ],
+              child: MobileChoice<int>(
+                value: current,
+                options: [
+                  for (final (index, option) in options.indexed)
+                    MobileChoiceOption(index, option),
+                ],
+                onChanged: (index) {
+                  if (canAct()) setState(() => current = index);
+                },
+              ),
             ),
           ),
         );

@@ -188,4 +188,41 @@ void main() {
     expect(find.byType(prism.SearchField), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('a presented sheet never calls a replacement field handler', (
+    tester,
+  ) async {
+    _phone(tester);
+    final owner = ValueNotifier('old target');
+    addTearDown(owner.dispose);
+    final writes = <(String, int)>[];
+
+    await tester.pumpWidget(
+      _app(
+        ValueListenableBuilder(
+          valueListenable: owner,
+          builder: (context, target, _) => MobileChoice<int>(
+            value: 1,
+            options: _short,
+            searchable: true,
+            onChanged: (chosen) {
+              if (target == owner.value) writes.add((target, chosen));
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(MobileChoiceButton));
+    await tester.pumpAndSettle();
+    owner.value = 'new target';
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Automatic').hitTestable());
+    await tester.pumpAndSettle();
+    expect(writes, isEmpty);
+
+    await tester.tap(find.byType(MobileChoiceButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Automatic').hitTestable());
+    await tester.pumpAndSettle();
+    expect(writes, [('new target', 2)]);
+  });
 }

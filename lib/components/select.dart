@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/color.dart' as prism show ColorSchemeExtension;
 import 'package:prism_ui/snap_sheet.dart' as prism;
 import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:venera_next/foundation/app.dart';

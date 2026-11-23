@@ -464,6 +464,13 @@ class _DoubleLineSelectSettingsState
                       alignment: AlignmentDirectional.centerStart,
                       child: pendingControl(
                         MobileChoice<String>(
+                          key: ValueKey((
+                            target.key,
+                            target.comicId,
+                            target.sourceKey,
+                            target.scope,
+                            target.preference,
+                          )),
                           label: widget.title,
                           value: value,
                           options: [
@@ -645,6 +652,13 @@ class _EndSelectorSelectSettingState
                         maxWidth: MediaQuery.sizeOf(context).width * 0.45,
                       ),
                       child: MobileChoice<String>(
+                        key: ValueKey((
+                          target.key,
+                          target.comicId,
+                          target.sourceKey,
+                          target.scope,
+                          target.preference,
+                        )),
                         label: widget.title,
                         value: value,
                         options: [

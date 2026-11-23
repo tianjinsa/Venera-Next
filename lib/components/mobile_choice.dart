@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
-import 'package:prism_ui/button.dart' as prism;
 import 'package:prism_ui/card.dart' as prism;
 import 'package:prism_ui/common_button.dart' as prism;
 import 'package:prism_ui/icons/icons.dart' as prism;
@@ -62,17 +61,28 @@ class MobileChoice<T extends Object> extends StatefulWidget {
 class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
   bool _sheetOpen = false;
 
-  void _select(T choice) {
-    if (!mounted || !NavigationAdmission.allows(context)) return;
+  void _select(T choice, ValueChanged<T> changed) {
+    if (!mounted ||
+        widget.onChanged == null ||
+        !NavigationAdmission.allows(context)) {
+      return;
+    }
     if (widget.options.any(
       (option) => option.enabled && option.value == choice,
     )) {
-      widget.onChanged?.call(choice);
+      changed(choice);
     }
   }
 
   Future<void> _showSheet() async {
     if (_sheetOpen || !NavigationAdmission.allows(context)) return;
+    final changed = widget.onChanged;
+    if (changed == null) return;
+    final options = widget.options;
+    final value = widget.value;
+    final label = widget.label ?? 'Select'.tl;
+    final searchable =
+        widget.searchable || options.length >= prism.sheetSearchMinItemCount;
     _sheetOpen = true;
     try {
       FocusManager.instance.primaryFocus?.unfocus();
@@ -80,15 +90,13 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
         context: context,
         props: const prism.SheetProps(detents: [0.85]),
         builder: (_) => _ChoiceSheet<T>(
-          label: widget.label ?? 'Select'.tl,
-          options: widget.options,
-          value: widget.value,
-          searchable:
-              widget.searchable ||
-              widget.options.length >= prism.sheetSearchMinItemCount,
+          label: label,
+          options: options,
+          value: value,
+          searchable: searchable,
         ),
       );
-      if (selected != null) _select(selected);
+      if (selected != null) _select(selected, changed);
     } finally {
       _sheetOpen = false;
     }
@@ -100,10 +108,7 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
         .where((option) => option.value == widget.value)
         .firstOrNull;
     final text = value?.label ?? widget.placeholder ?? 'Select'.tl;
-    final enabled =
-        widget.onChanged != null &&
-        widget.options.any((option) => option.enabled);
-
+    final changed = widget.onChanged;
     Widget target(VoidCallback? onPressed) => Semantics(
       label: widget.label,
       child: MobileChoiceButton(
@@ -113,7 +118,9 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
       ),
     );
 
-    if (!enabled) return target(null);
+    if (changed == null || !widget.options.any((option) => option.enabled)) {
+      return target(null);
+    }
     if (widget.searchable || widget.options.length > MobileChoice.menuLimit) {
       return target(() => unawaited(_showSheet()));
     }
@@ -125,7 +132,11 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
             label: option.label,
             subtitle: option.subtitle,
             checked: option.value == widget.value,
-            onPressed: option.enabled ? () => _select(option.value) : null,
+            // Keep the handler that offered this item, not a newer callback
+            // that may belong to a different settings target.
+            onPressed: option.enabled
+                ? () => _select(option.value, changed)
+                : null,
           ),
       ],
     );
