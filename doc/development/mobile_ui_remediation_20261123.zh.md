@@ -1,5 +1,7 @@
 # Android/iOS 手机 UI 整改与验收
 
+> 本文记录第一轮。半屏菜单、阅读器悬浮控件、搜索和卡片的后续变化以[手机交互第二轮](mobile_ui_round2_20261123.zh.md)为准。
+
 **基线** `d75a8d88b07d4972aa7086f4ee2a9e2e072c7bbc`，**产品代码** `7d813c1dc3e998af351d48751a7905e5ee1d7036`，分支 `codex/agent-center-tab`。沿用仓库定义的手机 UI：Android/iOS、非 TV、宽度不超过 600 个逻辑像素。不靠屏幕宽度把 Windows 或 TV 当成手机。平板双栏、桌面和 TV 保留原分支，阅读器墨水屏保留其低动效路径。
 
 版本不变：Flutter **3.47.9**、Dart 3.13.7，Prism UI **0.1.3** 固定 Git 提交 `8f5fc22ca1a6bccb064589494ca69cedb38edb50`。没有改 pubspec、锁文件、依赖源码、数据格式、服务端能力、工作流或发版设置。
