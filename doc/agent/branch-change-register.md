@@ -128,6 +128,10 @@ Agent 数据边界也属于功能契约：配置、密钥、会话、附件和�
 
 ## 最近验证与维护记录
 
+### 2026-11-23 Prism 翻译与分页测试
+
+- Prism 的九个控件文案加入简繁字典，继续由 `translations_test.dart` 检查字典覆盖。R12 的 `gallery_precache_test.dart` 在下一页仍加载的情况下验证 PhotoView 与控制器的复用，并分别等待翻页和解码完成。[迁移与验证记录](migration.md#prism-翻译与分页测试2026-11-23)
+
 ### 2026-11-23 Android 与 SAF 构建兼容
 
 - C01、C03。Flutter 3.47.9 的 Android 构建使用 Kotlin 2.3.21、AGP 8.13.2 和 Gradle 8.14。隔离 SAF 探针沿用应用的 Gradle 和插件版本，应用、SAF 插件与探针统一通过 `compilerOptions` 设定 JVM 17。手机／TV 的签名、ABI 拆包和 SAF 混淆产物校验继续使用原入口。[迁移与验证记录](migration.md#android-与-saf-构建兼容2026-11-23)

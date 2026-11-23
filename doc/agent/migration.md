@@ -396,3 +396,9 @@
 - 基线 `d5f913b9f5cc1db288537139f2d8d308d19e5ebb`。手机 Release 在 Gradle 配置阶段被 Flutter 3.47.9 拒绝，现有 Kotlin 2.1.0 低于 2.2.20 门槛。[Android 构建记录](https://github.com/tianjinsa/Venera-Next/actions/runs/45145679502)
 - SAF 回归由 Flutter 新工程模板生成 AGP 9.1 配置，探针随后写入旧 Kotlin 插件与 `android.kotlinOptions`，导致 Release 脚本编译失败。探针的消费者和测试 Provider 现使用应用的插件版本和 Gradle wrapper。应用与自管 SAF 插件使用 Kotlin 2.3.21、AGP 8.13.2 及 JVM 17 编译选项。AGP 8.13.2 自带的 R8 支持 Kotlin 2.3 元数据，应用和探针保留 Release 压缩校验。[SAF 回归记录](https://github.com/tianjinsa/Venera-Next/actions/runs/45145697932) · [AGP 8.13.2](https://developer.android.com/build/releases/agp-8-13-0-release-notes#8-13-2)
 - Windows 本地针对 Android 签名、构建计划、SAF 产物及工作流运行 52 项检查，47 项通过，5 项按条件跳过。Flutter 3.47.9 生成及复用探针目录时，消费者和 Provider 的插件版本、wrapper 和 JVM 17 设置一致，旧模板配置被替换。依赖审计和版本同步检查通过。
+
+## Prism 翻译与分页测试（2026-11-23）
+
+- 基线 `4fc04302f5e3ab631e3c651de6523fc430622491`。翻译覆盖测试在 Windows Flutter 3.47.9 上复现九个 Prism 文案缺失，已补入简体及繁体字典。
+- CI 的分页保留用例在 `pumpAndSettle` 超时。本地让下一页继续加载时，在同一行复现超时。用例现在保留选页时的 PhotoView 和控制器同一对象断言，推进分页动画后检查滚动已停止，再提供下一页数据并等待真实解码。
+- 7 个定向测试文件共 89 项通过，覆盖左向、右向和纵向分页、图片预缓存、翻译字典与 Prism 控件。变更文件的严格静态分析、格式、架构边界和版本检查通过。

@@ -258,7 +258,7 @@ void main() {
         final fixture = _Fixture(cache, direction);
         try {
           await fixture.mount(tester);
-          fixture.completeAll();
+          fixture.read(1).complete();
           await fixture.flush(tester, () => fixture.gallery.autoReadingReady);
           final turning = fixture.gallery.animateToPage(2);
           await tester.pump();
@@ -269,8 +269,16 @@ void main() {
           expect(fixture.navigation.state.page, 2);
           expect(tester.widget<PhotoView>(fixture.photo(1)), same(photo));
           expect(fixture.gallery.photoViewControllers[1], same(controller));
-          await tester.pumpAndSettle();
+          // The animation can finish while the incoming image still loads.
+          await tester.pump(const Duration(milliseconds: 200));
+          expect(
+            fixture.gallery.controller.position.isScrollingNotifier.value,
+            isFalse,
+          );
           await turning;
+          expect(fixture.gallery.autoReadingReady, isFalse);
+          fixture.read(2).complete();
+          await fixture.flush(tester, () => fixture.gallery.autoReadingReady);
         } finally {
           await fixture.dispose(tester);
         }
