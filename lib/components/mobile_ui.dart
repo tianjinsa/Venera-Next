@@ -133,7 +133,11 @@ class MobileToolbar extends StatelessWidget {
 
   final Widget title;
   final Widget? leading;
+
+  /// Feature owners put optional commands in [more]. Preserve any extra
+  /// required contextual control (e.g. a dirty-save status) as its own slot.
   final List<Widget> shortcuts;
+  static const maxGroupedActions = 2;
   final Widget? more;
   final bool showBack;
   final Color? backgroundColor;
@@ -171,9 +175,15 @@ class MobileToolbar extends StatelessWidget {
                       overlayColor: WidgetStatePropertyAll(Colors.transparent),
                     ),
                   ),
-                  child: prism.TonalButtonGroup(children: shortcuts),
+                  child: prism.TonalButtonGroup(
+                    children: shortcuts.take(maxGroupedActions).toList(),
+                  ),
                 ),
               ),
+            for (final control in shortcuts.skip(maxGroupedActions)) ...[
+              const SizedBox(width: 6),
+              prism.BarItemPresence(child: control),
+            ],
             if (shortcuts.isNotEmpty && more != null) const SizedBox(width: 8),
             if (more != null) prism.BarItemPresence(child: more!),
             if (shortcuts.isNotEmpty || more != null) const SizedBox(width: 16),

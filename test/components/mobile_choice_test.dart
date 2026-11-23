@@ -71,6 +71,48 @@ void main() {
     expect(find.byType(prism.PopupMenu), findsNothing);
   });
 
+  for (final width in [244.0, 350.0]) {
+    for (final scale in [1.0, 2.5]) {
+      testWidgets('trailing choice at width $width and text scale $scale', (
+        tester,
+      ) async {
+        _phone(tester);
+        const label = '阅读器图片方向与双页布局选项';
+        const selected = '跟随当前漫画设置并自动切换方向';
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: const [MobileUiLocalizations.delegate],
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: MobileUiTheme(glass: 'off', child: child!),
+            ),
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: width,
+                  child: MobileChoiceFormField<int>(
+                    label: label,
+                    initialValue: 1,
+                    options: const [MobileChoiceOption(1, selected)],
+                    onChanged: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        final title = tester.getRect(find.text(label));
+        final value = tester.getRect(find.byType(MobileChoiceButton));
+        expect(title.right, lessThanOrEqualTo(value.left));
+        expect(title.center.dy, closeTo(value.center.dy, 1));
+        expect(value.right, closeTo((390 + width) / 2, 1));
+        expect(value.height, greaterThanOrEqualTo(48));
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   testWidgets('choice form participates in validation, reset, and save', (
     tester,
   ) async {

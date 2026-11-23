@@ -45,6 +45,18 @@ class AppPageRoute<T> extends PageRoute<T> with _AppRouteTransitionMixin<T> {
     );
   }
 
+  /// An application-owned reveal that still uses our route identity, admission
+  /// at the call site, and iOS-only interactive back recognizer.
+  factory AppPageRoute.fromAnchor({
+    required WidgetBuilder builder,
+    required RouteTransitionsBuilder reveal,
+    required bool reduceMotion,
+  }) => _AnchorPageRoute<T>(
+    builder: builder,
+    reveal: reveal,
+    reduceMotion: reduceMotion,
+  );
+
   AppPageRoute._({
     required this.builder,
     super.settings,
@@ -88,6 +100,41 @@ class AppPageRoute<T> extends PageRoute<T> with _AppRouteTransitionMixin<T> {
 
   @override
   final bool preventRebuild;
+}
+
+class _AnchorPageRoute<T> extends AppPageRoute<T> {
+  _AnchorPageRoute({
+    required super.builder,
+    required this.reveal,
+    required this.reduceMotion,
+  }) : super._(allowSnapshotting: false);
+
+  final RouteTransitionsBuilder reveal;
+  final bool reduceMotion;
+
+  @override
+  Duration get transitionDuration =>
+      reduceMotion ? Duration.zero : const Duration(milliseconds: 450);
+
+  @override
+  Duration get reverseTransitionDuration =>
+      reduceMotion ? Duration.zero : const Duration(milliseconds: 340);
+
+  // The entry must not slide away underneath its expanding glass.
+  @override
+  bool canTransitionFrom(TransitionRoute<dynamic> previousRoute) => false;
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => _withIOSBackGesture(
+    reduceMotion
+        ? child
+        : reveal(context, animation, secondaryAnimation, child),
+  );
 }
 
 class _MobilePageRoute<T> extends AppPageRoute<T> with prism.CardRouteMixin<T> {

@@ -7,12 +7,11 @@ import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/list_row.dart' as prism;
 import 'package:prism_ui/popup.dart' as prism;
 import 'package:prism_ui/search_field.dart' as prism;
-import 'package:prism_ui/sheet.dart' as prism;
-import 'package:prism_ui/sheet_header.dart' as prism;
 import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:venera_next/foundation/navigation_admission.dart';
 import 'package:venera_next/foundation/translations.dart';
 
+import 'mobile_large_sheet.dart';
 import 'mobile_ui.dart';
 
 /// A stable value separate from its translated display label.
@@ -86,9 +85,8 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
     _sheetOpen = true;
     try {
       FocusManager.instance.primaryFocus?.unfocus();
-      final selected = await prism.showSheet<T>(
+      final selected = await showMobileLargeSheet<T>(
         context: context,
-        props: const prism.SheetProps(detents: [0.85]),
         builder: (_) => _ChoiceSheet<T>(
           label: label,
           options: options,
@@ -180,6 +178,40 @@ class MobileChoiceButton extends StatelessWidget {
   );
 }
 
+/// A choice stays at the reading end, even on small handsets. Both columns
+/// may shrink, but neither is allowed to displace the other onto a new row.
+/// Do not measure text speculatively: use the actual parent's width, direction
+/// and text scaler. In particular, dialogs can still request intrinsics.
+class MobileChoiceRow extends StatelessWidget {
+  const MobileChoiceRow({
+    super.key,
+    required this.title,
+    required this.choice,
+    this.description,
+  });
+
+  final Widget title, choice;
+  final Widget? description;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: title),
+          const SizedBox(width: 10),
+          Flexible(child: choice),
+        ],
+      ),
+      if (description != null)
+        Padding(padding: const EdgeInsets.only(top: 2), child: description!),
+    ],
+  );
+}
+
 /// A regular Flutter [FormField] contract on a Prism trigger. Presentation
 /// never writes settings: callers still own changing, saving and validation.
 class MobileChoiceFormField<T extends Object> extends FormField<T> {
@@ -199,47 +231,47 @@ class MobileChoiceFormField<T extends Object> extends FormField<T> {
   }) : super(
          enabled: enabled && onChanged != null,
          validator: enabled && onChanged != null ? validator : null,
-         builder: (field) => Column(
-           crossAxisAlignment: CrossAxisAlignment.stretch,
-           mainAxisSize: MainAxisSize.min,
-           children: [
-             if (label.isNotEmpty) ...[
-               ExcludeSemantics(
-                 child: Text(
-                   label,
-                   style: DefaultTextStyle.of(field.context).style,
+         builder: (field) {
+           final choice = MobileChoice<T>(
+             options: options,
+             value: field.value,
+             label: label.isEmpty ? null : label,
+             placeholder: placeholder,
+             searchable: searchable,
+             onChanged: !enabled || onChanged == null
+                 ? null
+                 : (value) {
+                     field.didChange(value);
+                     onChanged(value);
+                   },
+           );
+           return Column(
+             crossAxisAlignment: CrossAxisAlignment.stretch,
+             mainAxisSize: MainAxisSize.min,
+             children: [
+               if (label.isEmpty)
+                 choice
+               else
+                 MobileChoiceRow(
+                   title: ExcludeSemantics(child: Text(label)),
+                   choice: choice,
                  ),
-               ),
-               const SizedBox(height: 6),
-             ],
-             MobileChoice<T>(
-               options: options,
-               value: field.value,
-               label: label.isEmpty ? null : label,
-               placeholder: placeholder,
-               searchable: searchable,
-               onChanged: !enabled || onChanged == null
-                   ? null
-                   : (value) {
-                       field.didChange(value);
-                       onChanged(value);
-                     },
-             ),
-             if (field.errorText case final error?)
-               Padding(
-                 padding: const EdgeInsetsDirectional.fromSTEB(12, 6, 12, 0),
-                 child: Semantics(
-                   liveRegion: true,
-                   child: Text(
-                     error,
-                     style: TextStyle(
-                       color: prism.Theme.of(field.context).colorScheme.error,
+               if (field.errorText case final error?)
+                 Padding(
+                   padding: const EdgeInsetsDirectional.fromSTEB(12, 6, 12, 0),
+                   child: Semantics(
+                     liveRegion: true,
+                     child: Text(
+                       error,
+                       style: TextStyle(
+                         color: prism.Theme.of(field.context).colorScheme.error,
+                       ),
                      ),
                    ),
                  ),
-               ),
-           ],
-         ),
+             ],
+           );
+         },
        );
 
   @override
@@ -365,7 +397,6 @@ class MobileChoiceSheetFrame extends StatelessWidget {
     top: false,
     child: Column(
       children: [
-        const prism.SheetDragHandle(),
         Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 8, 6),
           child: Row(

@@ -87,6 +87,55 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('contextual overflow and More are outside the shortcut lens', (
+    tester,
+  ) async {
+    _phone(tester, width: 390);
+    final picked = <int>[];
+    await tester.pumpWidget(
+      _app(
+        MobileToolbar(
+          title: const Text('Library'),
+          shortcuts: [
+            for (var i = 0; i < 3; i++)
+              MobileToolbarButton(
+                key: ValueKey(i),
+                label: 'Action $i',
+                icon: const Icon(Icons.circle),
+                onPressed: () => picked.add(i),
+              ),
+          ],
+          more: MobileMenuButton(
+            key: const ValueKey('separate-more'),
+            items: [
+              prism.PopupMenuItem(label: 'More action', onPressed: () {}),
+            ],
+          ),
+        ),
+        glass: 'off',
+      ),
+    );
+    final capsule = find.byType(prism.TonalButtonGroup);
+    expect(capsule, findsOneWidget);
+    for (var i = 0; i < 3; i++) {
+      final item = find.byKey(ValueKey(i));
+      expect(
+        find.descendant(of: capsule, matching: item),
+        i < 2 ? findsOneWidget : findsNothing,
+      );
+      await tester.tap(item);
+      await tester.pumpAndSettle();
+    }
+    expect(picked, [0, 1, 2]);
+    expect(
+      find.descendant(
+        of: capsule,
+        matching: find.byKey(const ValueKey('separate-more')),
+      ),
+      findsNothing,
+    );
+  });
+
   for (final glass in ['off', 'standard', 'ultra']) {
     testWidgets('toolbar actions and menu hierarchy work in $glass mode', (
       tester,
