@@ -124,7 +124,6 @@ class _MainPageState extends State<MainPage> {
         PaneActionEntry(
           icon: Icons.settings,
           label: "Settings".tl,
-          inMobileMenu: true,
           onTap: () {
             to(() => const SettingsPage(), preventDuplicate: true);
           },

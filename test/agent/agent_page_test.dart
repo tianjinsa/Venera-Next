@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:prism_ui/button.dart' show TonalButtonGroup;
 import 'package:prism_ui/navigation_dock.dart' show NavigationDock;
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/agent/agent_client.dart';
@@ -102,6 +103,9 @@ void main() {
       final oldGlass = appdata.settings['mobileGlass'];
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(400, 900);
+      Finder action(String label) => find.byWidgetPredicate(
+        (widget) => widget is MobileToolbarButton && widget.label == label.tl,
+      );
       try {
         for (final initial in ['2', '3']) {
           appdata.settings['initialPage'] = initial;
@@ -131,15 +135,19 @@ void main() {
             pane.pageBuilder(pane.initialPage),
             initial == '2' ? isA<ExplorePage>() : isA<CategoriesPage>(),
           );
+          final headerLens = find.ancestor(
+            of: action('Settings').hitTestable(),
+            matching: find.byType(TonalButtonGroup),
+          );
+          expect(headerLens, findsOneWidget);
+          expect(
+            find.descendant(of: headerLens, matching: action('Search')),
+            findsOneWidget,
+          );
           expect(appdata.settings['initialPage'], initial);
           expect(tester.takeException(), null);
         }
-        await tester.tap(
-          find.byWidgetPredicate(
-            (widget) =>
-                widget is MobileToolbarButton && widget.label == 'Settings'.tl,
-          ),
-        );
+        await tester.tap(action('Settings').hitTestable());
         await tester.pumpAndSettle();
         await tester.tap(find.text('Appearance'.tl).hitTestable());
         await tester.pumpAndSettle();

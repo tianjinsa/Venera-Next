@@ -5,6 +5,7 @@ import 'package:prism_ui/liquid_glass.dart' as prism show LiquidGlassScope;
 import 'package:prism_ui/navigation_dock.dart' as prism;
 import 'package:prism_ui/page_transition.dart' as prism show CardRouteMixin;
 import 'package:prism_ui/popup.dart' as prism show PopupMenu, PopupMenuItem;
+import 'package:venera_next/components/mobile_search_route.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/navigation_bar.dart';
 import 'package:venera_next/foundation/context.dart';
@@ -87,54 +88,139 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('contextual overflow and More are outside the shortcut lens', (
-    tester,
-  ) async {
-    _phone(tester, width: 390);
-    final picked = <int>[];
-    await tester.pumpWidget(
-      _app(
-        MobileToolbar(
-          title: const Text('Library'),
-          shortcuts: [
-            for (var i = 0; i < 3; i++)
-              MobileToolbarButton(
-                key: ValueKey(i),
-                label: 'Action $i',
-                icon: const Icon(Icons.circle),
-                onPressed: () => picked.add(i),
-              ),
-          ],
-          more: MobileMenuButton(
-            key: const ValueKey('separate-more'),
-            items: [
-              prism.PopupMenuItem(label: 'More action', onPressed: () {}),
+  for (final count in [3, 4, 5]) {
+    testWidgets('$count shortcuts form independent pairs and keep More', (
+      tester,
+    ) async {
+      _phone(tester);
+      final picked = <int>[];
+      await tester.pumpWidget(
+        _app(
+          MobileToolbar(
+            title: const Text('Library'),
+            shortcuts: [
+              for (var i = 0; i < count; i++)
+                MobileToolbarButton(
+                  key: ValueKey(i),
+                  label: 'Action $i',
+                  icon: const Icon(Icons.circle),
+                  onPressed: () => picked.add(i),
+                ),
             ],
+            more: MobileMenuButton(
+              key: const ValueKey('separate-more'),
+              items: [
+                prism.PopupMenuItem(
+                  label: 'More action',
+                  onPressed: () => picked.add(count),
+                ),
+              ],
+            ),
           ),
+          glass: 'off',
         ),
-        glass: 'off',
-      ),
-    );
-    final capsule = find.byType(prism.TonalButtonGroup);
-    expect(capsule, findsOneWidget);
-    for (var i = 0; i < 3; i++) {
-      final item = find.byKey(ValueKey(i));
-      expect(
-        find.descendant(of: capsule, matching: item),
-        i < 2 ? findsOneWidget : findsNothing,
       );
-      await tester.tap(item);
+      final capsules = find.byType(prism.TonalButtonGroup);
+      expect(capsules, findsNWidgets(count ~/ 2));
+      for (var i = 0; i < count ~/ 2; i++) {
+        final capsule = capsules.at(i);
+        expect(
+          tester.widget<prism.TonalButtonGroup>(capsule).children,
+          hasLength(2),
+        );
+        for (final index in [2 * i, 2 * i + 1]) {
+          expect(
+            find.descendant(of: capsule, matching: find.byKey(ValueKey(index))),
+            findsOneWidget,
+          );
+        }
+        if (i > 0) {
+          expect(
+            tester.getRect(capsule).left,
+            tester.getRect(capsules.at(i - 1)).right + MobileToolbarActions.gap,
+          );
+        }
+      }
+      if (count.isOdd) {
+        expect(
+          find.descendant(
+            of: capsules,
+            matching: find.byKey(ValueKey(count - 1)),
+          ),
+          findsNothing,
+        );
+      }
+      for (var i = 0; i < count; i++) {
+        await tester.tap(find.byKey(ValueKey(i)).hitTestable());
+        await tester.pumpAndSettle();
+      }
+      final more = find.byKey(const ValueKey('separate-more'));
+      expect(find.descendant(of: capsules, matching: more), findsNothing);
+      expect(
+        tester.getRect(more).left,
+        tester.getRect(find.byKey(ValueKey(count - 1))).right +
+            MobileToolbarActions.gap,
+      );
+      await tester.tap(more);
       await tester.pumpAndSettle();
-    }
-    expect(picked, [0, 1, 2]);
-    expect(
-      find.descendant(
-        of: capsule,
-        matching: find.byKey(const ValueKey('separate-more')),
-      ),
-      findsNothing,
-    );
-  });
+      await tester.tap(find.text('More action').hitTestable());
+      await tester.pumpAndSettle();
+      expect(picked, List<int>.generate(count + 1, (index) => index));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'very narrow toolbar scrolls shortcuts without hiding Back or More',
+    (tester) async {
+      _phone(tester, width: 280);
+      final picks = <String>[];
+      await tester.pumpWidget(
+        _app(
+          MobileToolbar(
+            title: const Text('Library'),
+            leading: MobileToolbarButton(
+              label: 'Back',
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => picks.add('back'),
+            ),
+            shortcuts: [
+              for (var i = 0; i < 5; i++)
+                MobileToolbarButton(
+                  label: 'Shortcut $i',
+                  icon: const Icon(Icons.circle),
+                  onPressed: () => picks.add('$i'),
+                ),
+            ],
+            more: MobileToolbarButton(
+              label: 'More',
+              icon: const Icon(Icons.more_horiz),
+              onPressed: () => picks.add('more'),
+            ),
+          ),
+          glass: 'off',
+        ),
+      );
+      final scrollable = find.descendant(
+        of: find.byType(MobileToolbar),
+        matching: find.byType(SingleChildScrollView),
+      );
+      expect(find.byTooltip('Shortcut 4').hitTestable(), findsNothing);
+      final back = find.byTooltip('Back');
+      final more = find.byTooltip('More');
+      final backLocation = tester.getCenter(back);
+      final moreLocation = tester.getCenter(more);
+      await tester.drag(scrollable, const Offset(-140, 0));
+      await tester.pumpAndSettle();
+      expect(tester.getCenter(back), backLocation);
+      expect(tester.getCenter(more), moreLocation);
+      await tester.tap(find.byTooltip('Shortcut 4').hitTestable());
+      await tester.tap(back);
+      await tester.tap(more);
+      expect(picks, ['4', 'back', 'more']);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final glass in ['off', 'standard', 'ultra']) {
     testWidgets('toolbar actions and menu hierarchy work in $glass mode', (
@@ -215,6 +301,83 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets(
+    'grouped pane search morphs from the search button, not its lens',
+    (tester) async {
+      _phone(tester);
+      final navigator = GlobalKey<NavigatorState>();
+      final observer = NaviObserver();
+      var settingsTaps = 0;
+      await tester.pumpWidget(
+        _app(
+          NaviPane(
+            navigatorKey: navigator,
+            observer: observer,
+            paneItems: [
+              PaneItemEntry(
+                label: 'Favorites',
+                icon: Icons.favorite_outline,
+                activeIcon: Icons.favorite,
+                mobileGlyph: MobileNavGlyphs.favorites,
+              ),
+            ],
+            paneActions: [
+              PaneActionEntry(
+                label: 'Search',
+                icon: Icons.search,
+                onTap: () => fail('compact search must use its actual anchor'),
+                onMobileTapFrom: (origin) => pushSearchFrom(
+                  origin,
+                  () => const Scaffold(body: Text('Search destination')),
+                ),
+              ),
+              PaneActionEntry(
+                label: 'Settings',
+                icon: Icons.settings,
+                onTap: () => settingsTaps++,
+              ),
+            ],
+            pageBuilder: (_) => const SizedBox.expand(),
+          ),
+          glass: 'off',
+        ),
+      );
+      await tester.pumpAndSettle();
+      Finder action(String label) => find.byWidgetPredicate(
+        (w) => w is MobileToolbarButton && w.label == label,
+      );
+      final search = action('Search');
+      final settings = action('Settings');
+      final capsule = find.byType(prism.TonalButtonGroup);
+      expect(capsule, findsOneWidget);
+      expect(find.descendant(of: capsule, matching: search), findsOneWidget);
+      expect(find.descendant(of: capsule, matching: settings), findsOneWidget);
+      final source = tester.getRect(search);
+      final capsuleWidth = tester.getRect(capsule).width;
+      await tester.tap(search);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      final morph = tester.widget<SearchMorphSurface>(
+        find.byType(SearchMorphSurface),
+      );
+      final droplet = morph.frame.droplet!;
+      expect(droplet.center.dx, closeTo(source.center.dx, 3));
+      expect(droplet.center.dy, closeTo(source.center.dy, 3));
+      expect(droplet.width, closeTo(source.width, 3));
+      expect(droplet.width, lessThan(capsuleWidth));
+      await tester.pumpAndSettle();
+      expect(observer.pageCount, 2);
+      expect(find.text('Search destination'), findsOneWidget);
+      navigator.currentState!.pop();
+      await tester.pumpAndSettle();
+      expect(observer.pageCount, 1);
+      await tester.tap(settings.hitTestable());
+      expect(settingsTaps, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('compact navigation pushes and returns on the same navigator', (
     tester,

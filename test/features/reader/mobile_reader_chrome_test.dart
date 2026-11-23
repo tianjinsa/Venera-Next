@@ -1,9 +1,12 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prism_ui/button.dart' as prism;
 import 'package:prism_ui/common_button.dart' as prism;
 import 'package:prism_ui/press_surface.dart' as prism;
 import 'package:prism_ui/switch.dart' as prism;
+import 'package:prism_ui/slider.dart' as prism;
 import 'package:prism_ui/text_field.dart' as prism;
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/comic_details/action_button.dart';
@@ -36,45 +39,117 @@ void _narrowPhone(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('compact reader shares one Prism top action group', (
-    tester,
-  ) async {
-    _narrowPhone(tester);
-    var settings = 0, exits = 0;
-    const settingsKey = ValueKey('reader-settings-action');
-    await tester.pumpWidget(
-      _app(
-        Align(
-          alignment: Alignment.topCenter,
-          child: ReaderTopBar(
-            title: 'Comic name',
-            chapterTitle: 'Chapter title',
-            usePrism: true,
-            onBack: () => exits++,
-            actions: [
-              ReaderChromeAction(
-                key: settingsKey,
-                usePrism: true,
-                label: 'Settings',
-                icon: const Icon(Icons.settings),
-                onPressed: () => settings++,
+  for (final (size, direction) in [
+    (const Size(320, 720), TextDirection.ltr),
+    (const Size(568, 320), TextDirection.rtl),
+  ]) {
+    testWidgets('reader groups diagnostics with Back at $size $direction', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = size;
+      addTearDown(tester.view.reset);
+      final semantics = tester.ensureSemantics();
+      addTearDown(semantics.dispose);
+      final calls = <String>[];
+      Widget action(String label, IconData icon) => ReaderChromeAction(
+        usePrism: true,
+        label: label,
+        icon: Icon(icon),
+        onPressed: () => calls.add(label),
+      );
+      const title = 'Very long comic title that must yield to the controls';
+      const chapter = 'Very long chapter title';
+      const insets = EdgeInsets.fromLTRB(16, 24, 20, 0);
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => Directionality(
+              textDirection: direction,
+              child: MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(padding: insets, textScaler: TextScaler.linear(2.3)),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ReaderTopBar(
+                    title: title,
+                    chapterTitle: chapter,
+                    toolbarHeight: 130,
+                    usePrism: true,
+                    onBack: () => calls.add('Back'),
+                    leadingActions: [
+                      action('Reading diagnostics', Icons.speed),
+                    ],
+                    trailingAccessory: action(
+                      'Chapter Comments',
+                      Icons.comment,
+                    ),
+                    actions: [
+                      action('Lock reader menu', Icons.lock_outline),
+                      action('Settings', Icons.settings),
+                    ],
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
         ),
-      ),
-    );
-    expect(find.byType(prism.TonalButtonGroup), findsOneWidget);
-    expect(find.text('Chapter title'), findsOneWidget);
-    await tester.tap(find.byKey(settingsKey));
-    await tester.pump();
-    final back = find.byWidgetPredicate(
-      (widget) => widget is prism.IconButton && widget.tooltip == 'Back',
-    );
-    await tester.tap(back);
-    expect(settings, 1);
-    expect(exits, 1);
-  });
+      );
+      final capsules = find.byType(prism.TonalButtonGroup);
+      expect(capsules, findsNWidgets(2));
+      const labels = [
+        'Back',
+        'Reading diagnostics',
+        'Chapter Comments',
+        'Lock reader menu',
+        'Settings',
+      ];
+      for (final (index, label) in labels.indexed) {
+        final button = find.byTooltip(label).hitTestable();
+        expect(button, findsOneWidget);
+        if (index != 2) {
+          expect(
+            find.descendant(
+              of: index < 2 ? capsules.first : capsules.last,
+              matching: button,
+            ),
+            findsOneWidget,
+          );
+        } else {
+          expect(find.ancestor(of: button, matching: capsules), findsNothing);
+        }
+        final node = tester.getSemantics(button).getSemanticsData();
+        expect(node.tooltip, label);
+        expect(node.hasAction(SemanticsAction.tap), isTrue);
+        if (index > 0) {
+          final x = tester.getCenter(button).dx;
+          final previous = tester
+              .getCenter(find.byTooltip(labels[index - 1]))
+              .dx;
+          expect(
+            x,
+            direction == TextDirection.ltr
+                ? greaterThan(previous)
+                : lessThan(previous),
+          );
+        }
+        final rect = tester.getRect(button);
+        expect(rect.left, greaterThanOrEqualTo(insets.left));
+        expect(rect.right, lessThanOrEqualTo(size.width - insets.right));
+        expect(rect.top, greaterThanOrEqualTo(insets.top));
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+      }
+      expect(calls, labels);
+      expect(find.text(chapter), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text(title)).overflow,
+        TextOverflow.ellipsis,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets(
     'phone chrome floats over the image; only two quick image commands',
@@ -208,20 +283,26 @@ void main() {
     (tester) async {
       _narrowPhone(tester);
       final changes = <bool>[];
+      final edits = <int>[], releases = <int>[];
       await tester.pumpWidget(
         _app(
           ReaderBrightnessControl(
             enabled: true,
             brightness: 75,
             onEnabledChanged: changes.add,
-            onBrightnessChanged: (_) {},
+            onBrightnessChanged: edits.add,
+            onBrightnessChangeEnd: releases.add,
           ),
         ),
       );
       await tester.tap(find.byType(prism.Switch));
       await tester.pumpAndSettle();
       expect(changes, [false]);
-      expect(find.byType(Slider), findsOneWidget);
+      final slider = tester.widget<prism.Slider>(find.byType(prism.Slider));
+      slider.onChanged!(55);
+      slider.onChangeEnd!(60);
+      expect(edits, [55]);
+      expect(releases, [60]);
     },
   );
 

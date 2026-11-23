@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/button.dart' as prism;
-import 'package:prism_ui/bar_item_presence.dart' as prism;
-import 'package:prism_ui/scaffold.dart' as prism show AppBar;
+import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/liquid_glass.dart' as prism;
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/effects.dart';
@@ -16,7 +14,8 @@ class ReaderTopBar extends StatelessWidget {
     required this.title,
     this.chapterTitle,
     required this.actions,
-    this.more,
+    this.leadingActions = const [],
+    this.trailingAccessory,
     required this.onBack,
     this.usePrism = false,
     this.toolbarHeight = 56,
@@ -24,7 +23,12 @@ class ReaderTopBar extends StatelessWidget {
   final String title;
   final String? chapterTitle;
   final List<Widget> actions;
-  final Widget? more;
+
+  /// Compact controls that belong on the same edge as Back, e.g. diagnostics.
+  final List<Widget> leadingActions;
+
+  /// A separate compact control before the trailing shortcuts, if available.
+  final Widget? trailingAccessory;
   final VoidCallback onBack;
   final bool usePrism;
   final double toolbarHeight;
@@ -56,46 +60,57 @@ class ReaderTopBar extends StatelessWidget {
             ],
           );
     if (usePrism) {
-      assert(actions.length <= 2);
-      // A normal toolbar has a page surface. The comic is the surface here:
-      // only real button bounds intercept taps; the title remains readable
-      // without putting a solid or blurred bar across the artwork.
+      // Prism AppBar fixes the leading slot to one button. Let the reader's
+      // left cluster take its actual width and keep all hit surfaces local to
+      // their capsules, rather than laying a backdrop over the artwork.
       return prism.TonalButtonTheme(
         glass: prism.LiquidGlassScope.of(context),
-        child: prism.AppBar(
-          toolbarHeight: toolbarHeight,
-          titleSpacing: 0,
-          clipBehavior: Clip.none,
-          leading: Center(
-            child: prism.BarItemPresence(
-              child: MobileToolbarButton(
-                label: 'Back'.tl,
-                icon: const prism.GlyphIcon(prism.Glyphs.chevronBack),
-                onPressed: onBack,
-              ),
-            ),
-          ),
-          title: IgnorePointer(
-            child: DefaultTextStyle.merge(
-              style: const TextStyle(
-                color: Colors.white,
-                shadows: [
-                  Shadow(color: Colors.black, blurRadius: 3),
-                  Shadow(color: Colors.black, blurRadius: 1),
+        child: SafeArea(
+          bottom: false,
+          minimum: const EdgeInsets.symmetric(horizontal: 8),
+          child: SizedBox(
+            height: toolbarHeight,
+            child: Semantics(
+              container: true,
+              explicitChildNodes: true,
+              child: Row(
+                spacing: MobileToolbarActions.gap,
+                children: [
+                  MobileToolbarActions(
+                    shortcuts: [
+                      MobileToolbarButton(
+                        label: 'Back'.tl,
+                        icon: const prism.GlyphIcon(prism.Glyphs.chevronBack),
+                        onPressed: onBack,
+                      ),
+                      ...leadingActions,
+                    ],
+                  ),
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: IgnorePointer(
+                        child: DefaultTextStyle.merge(
+                          style: const TextStyle(
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(color: Colors.black, blurRadius: 3),
+                              Shadow(color: Colors.black, blurRadius: 1),
+                            ],
+                          ),
+                          child: heading,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (trailingAccessory case final accessory?)
+                    MobileToolbarActions(shortcuts: [accessory]),
+                  if (actions.isNotEmpty)
+                    MobileToolbarActions(shortcuts: actions),
                 ],
               ),
-              child: heading,
             ),
           ),
-          actions: [
-            if (actions.isNotEmpty)
-              prism.BarItemPresence(
-                child: prism.TonalButtonGroup(children: actions),
-              ),
-            if (actions.isNotEmpty && more != null) const SizedBox(width: 8),
-            if (more != null) prism.BarItemPresence(child: more!),
-            const SizedBox(width: 8),
-          ],
         ),
       );
     }

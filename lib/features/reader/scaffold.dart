@@ -12,7 +12,6 @@ import 'package:venera_next/features/reader/status_info.dart';
 import 'package:flutter/material.dart';
 import 'package:prism_ui/button.dart' as prism;
 import 'package:prism_ui/liquid_glass.dart' as prism;
-import 'package:prism_ui/popup.dart' as prism;
 import 'package:venera_next/features/reader/progress_bar.dart';
 import 'package:venera_next/features/reader/bottom_actions.dart';
 import 'package:venera_next/features/reader/top_bar.dart';
@@ -523,32 +522,8 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
       title: widget.data.title,
       chapterTitle: widget.data.chapterTitle,
       onBack: () => unawaited(widget.onExit()),
-      // One extra command is direct. Only two distinct commands need a menu.
-      more: !usePrism
-          ? null
-          : showComments && diagnostics != null
-          ? ListenableBuilder(
-              listenable: diagnostics,
-              builder: (_, _) => MobileMenuButton(
-                items: [
-                  prism.PopupMenuItem(
-                    label: 'Chapter Comments'.tl,
-                    onPressed: openChapterComments,
-                  ),
-                  prism.PopupMenuItem(
-                    label: diagnostics.isRecording
-                        ? 'Stop and review'.tl
-                        : 'Reading diagnostics'.tl,
-                    onPressed: openDiagnostics,
-                  ),
-                ],
-              ),
-            )
-          : showComments
-          ? commentAction()
-          : diagnostics != null
-          ? diagnosticAction()
-          : null,
+      leadingActions: [if (usePrism && diagnostics != null) diagnosticAction()],
+      trailingAccessory: usePrism && showComments ? commentAction() : null,
       actions: [
         if (!usePrism && diagnostics != null) diagnosticAction(),
         if (!usePrism && showComments) commentAction(),

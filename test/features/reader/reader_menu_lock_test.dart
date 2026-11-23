@@ -2,8 +2,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/button.dart' show TonalButtonGroup;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/tv_navigation.dart';
 import 'package:venera_next/features/reader/auto_reading.dart';
+import 'package:venera_next/features/reader/comments_controller.dart';
 import 'package:venera_next/features/reader/gesture.dart';
 import 'package:venera_next/features/reader/gesture_request.dart';
 import 'package:venera_next/features/reader/platform_effects_controller.dart';
@@ -13,7 +16,9 @@ import 'package:venera_next/features/reader/scaffold.dart';
 import 'package:venera_next/features/reader/shell_data.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/image_work.dart';
+import 'package:venera_next/foundation/reader_diagnostics.dart';
 import 'package:venera_next/foundation/reader_settings.dart';
+import 'package:venera_next/foundation/res.dart';
 
 import '../../support/ui_regression_capture.dart';
 
@@ -37,7 +42,8 @@ class _Viewport implements ReaderImageViewController {
 }
 
 class _Fixture {
-  final work = ImageWork();
+  final diagnostics = ReaderDiagnostics();
+  late final work = ImageWork(diagnostics: diagnostics);
   final favorites = ChangeNotifier();
   final changes = ValueNotifier(0);
   final shellKey = GlobalKey<ReaderScaffoldState>();
@@ -48,6 +54,7 @@ class _Fixture {
   final padding = const EdgeInsets.fromLTRB(16, 24, 12, 20);
   String comicId = 'book', sourceKey = 'local';
   bool gallery = true, doubleTap = false, tv = false;
+  bool mobile = false, showReaderDiagnostics = false, showComments = false;
   int chapter = 1, commentsRequests = 0;
   double scale = 1;
   Brightness brightness = Brightness.light;
@@ -91,6 +98,10 @@ class _Fixture {
   Future<void> mount(WidgetTester tester) => tester.pumpWidget(
     MaterialApp(
       theme: ThemeData(brightness: brightness, fontFamily: uiRegressionFont),
+      localizationsDelegates: const [MobileUiLocalizations.delegate],
+      builder: mobile
+          ? (_, child) => MobileUiTheme(glass: 'off', child: child!)
+          : null,
       home: Builder(
         builder: (context) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
@@ -154,9 +165,27 @@ class _Fixture {
                     },
                     createChapterComments: () {
                       commentsRequests++;
-                      return null;
+                      return showComments
+                          ? ReaderChapterCommentsRequest(
+                              identity: chapter,
+                              sourceKey: sourceKey,
+                              comicTitle: 'A quiet journey',
+                              chapterTitle: 'Chapter $chapter',
+                              isCurrent: () => true,
+                              load: (_, _) async {
+                                calls.add('load comments');
+                                return const Res([], subData: 1);
+                              },
+                            )
+                          : null;
                     },
                     chapterNavigation: null,
+                    onDiagnostics: showReaderDiagnostics
+                        ? () {
+                            diagnostics.stop(ReaderDiagnosticStop.review);
+                            calls.add('review diagnostics');
+                          }
+                        : null,
                     onRemoteKey: (event) =>
                         calls.add('remote ${event.logicalKey}'),
                     child: Builder(
@@ -214,6 +243,7 @@ class _Fixture {
   Future<void> dispose(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox());
     await work.dispose();
+    diagnostics.dispose();
     favorites.dispose();
     changes.dispose();
     scroll.dispose();
@@ -228,6 +258,61 @@ void main() {
     appdata.settings['language'] = 'en-US';
   });
   tearDown(() => appdata.settings['language'] = previousLanguage);
+
+  testWidgets(
+    'compact shell keeps its diagnostics, settings and comments commands',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 720);
+      addTearDown(tester.view.reset);
+      final fixture = _Fixture()
+        ..mobile = true
+        ..showReaderDiagnostics = true
+        ..showComments = true;
+      await fixture.mount(tester);
+      fixture.shell.openOrClose();
+      await tester.pumpAndSettle();
+      final diagnostics = find.byTooltip('Reading diagnostics').hitTestable();
+      final leftLens = find.ancestor(
+        of: diagnostics,
+        matching: find.byType(TonalButtonGroup),
+      );
+      final back = find.byTooltip('Back').hitTestable();
+      expect(find.descendant(of: leftLens, matching: back), findsOneWidget);
+      final settings = find.byTooltip('Settings').hitTestable();
+      expect(
+        tester.getRect(diagnostics).right,
+        lessThan(tester.getRect(settings).left),
+      );
+      final diagnosticLocation = tester.getCenter(diagnostics);
+      await tester.tap(settings);
+      expect(fixture.calls, contains('settings'));
+
+      fixture.diagnostics.start(
+        mode: ReaderDiagnosticMode.paged,
+        processingEnabled: false,
+        appVersion: 'test',
+        refreshRate: 120,
+      );
+      await tester.pump();
+      final review = find.byTooltip('Stop and review').hitTestable();
+      expect(tester.getCenter(review), diagnosticLocation);
+      await tester.tap(review);
+      await tester.pumpAndSettle();
+      expect(fixture.calls, contains('review diagnostics'));
+      expect(fixture.shell.isOpen, isFalse);
+      fixture.shell.openOrClose();
+      await tester.pumpAndSettle();
+      await tester.tap(back);
+      await tester.pumpAndSettle();
+      expect(fixture.calls, contains('exit'));
+      await tester.tap(find.byTooltip('Chapter Comments').hitTestable());
+      await tester.pumpAndSettle();
+      expect(fixture.calls, contains('load comments'));
+      expect(tester.takeException(), isNull);
+      await fixture.dispose(tester);
+    },
+  );
 
   testWidgets('lock closes all menu entry points until an explicit unlock', (
     tester,
