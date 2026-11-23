@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +22,7 @@ import 'package:venera_next/features/discovery/categories_page.dart';
 import 'package:venera_next/features/discovery/explore_page.dart';
 import 'package:venera_next/app_shell/main_page.dart';
 import 'package:venera_next/routing/app_navigation.dart';
+
 import 'agent_test_support.dart';
 
 void main() {
@@ -132,9 +134,12 @@ void main() {
           expect(appdata.settings['initialPage'], initial);
           expect(tester.takeException(), null);
         }
-        await tester.tap(find.byType(MobileMenuButton));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Settings'.tl).hitTestable().last);
+        await tester.tap(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is MobileToolbarButton && widget.label == 'Settings'.tl,
+          ),
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.text('Appearance'.tl).hitTestable());
         await tester.pumpAndSettle();

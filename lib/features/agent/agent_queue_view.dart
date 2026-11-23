@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/common_button.dart' as prism show TextButton;
+import 'package:venera_next/components/mobile_ui.dart';
 
 import 'agent_controller.dart';
 import 'agent_message_view.dart';
+import 'agent_mobile_sheet.dart';
 import 'agent_models.dart';
 
 /// A single-row entry point for future tasks, separate from chat history.
@@ -21,6 +24,19 @@ class AgentQueueStatus extends StatelessWidget {
 
   void _open(BuildContext context) {
     FocusManager.instance.primaryFocus?.unfocus();
+    if (MobileUi.enabledOf(context)) {
+      showAgentMobileSheet<void>(
+        context: context,
+        detent: .65,
+        builder: (_) => _AgentQueuePanel(
+          controller: controller,
+          onResume: onResume,
+          onCancel: onCancel,
+          mobile: true,
+        ),
+      );
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -46,22 +62,32 @@ class AgentQueueStatus extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: TextButton.icon(
-                key: const ValueKey('agent-queue-open'),
-                onPressed: () => _open(context),
-                style: TextButton.styleFrom(
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, 40),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                icon: const Icon(Icons.format_list_numbered, size: 18),
-                label: Text(
-                  '排队 ${pending.length} 条',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              child: MobileUi.enabledOf(context)
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: prism.TextButton.icon(
+                        key: const ValueKey('agent-queue-open'),
+                        onPressed: () => _open(context),
+                        icon: const Icon(Icons.format_list_numbered, size: 18),
+                        label: Text('排队 ${pending.length} 条'),
+                      ),
+                    )
+                  : TextButton.icon(
+                      key: const ValueKey('agent-queue-open'),
+                      onPressed: () => _open(context),
+                      style: TextButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        minimumSize: const Size(0, 40),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(Icons.format_list_numbered, size: 18),
+                      label: Text(
+                        '排队 ${pending.length} 条',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
             ),
             _QueueRunAction(
               controller: controller,
@@ -98,13 +124,15 @@ class _QueueRunAction extends StatelessWidget {
             ),
           ),
         )
+      : MobileUi.enabledOf(context)
+      ? prism.TextButton(
+          key: resumeKey,
+          onPressed: _resume,
+          child: const Text('继续'),
+        )
       : TextButton(
           key: resumeKey,
-          onPressed: () {
-            if (!controller.busy && controller.pendingMessages.isNotEmpty) {
-              onResume();
-            }
-          },
+          onPressed: _resume,
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             minimumSize: const Size(0, 40),
@@ -112,14 +140,22 @@ class _QueueRunAction extends StatelessWidget {
           ),
           child: const Text('继续'),
         );
+
+  void _resume() {
+    if (!controller.busy && controller.pendingMessages.isNotEmpty) {
+      onResume();
+    }
+  }
 }
 
 class _AgentQueuePanel extends StatefulWidget {
   final AgentController controller;
+  final bool mobile;
   final VoidCallback onResume;
   final ValueChanged<String> onCancel;
 
   const _AgentQueuePanel({
+    this.mobile = false,
     required this.controller,
     required this.onResume,
     required this.onCancel,
@@ -143,7 +179,9 @@ class _AgentQueuePanelState extends State<_AgentQueuePanel> {
     top: false,
     child: SizedBox(
       key: const ValueKey('agent-queue-panel'),
-      height: math.min(MediaQuery.sizeOf(context).height * .6, 560),
+      height: widget.mobile
+          ? null
+          : math.min(MediaQuery.sizeOf(context).height * .6, 560),
       child: ListenableBuilder(
         listenable: widget.controller,
         builder: (context, _) {
@@ -169,11 +207,18 @@ class _AgentQueuePanelState extends State<_AgentQueuePanel> {
                         onResume: widget.onResume,
                         resumeKey: const ValueKey('agent-queue-panel-resume'),
                       ),
-                    IconButton(
-                      tooltip: '关闭队列',
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
+                    if (widget.mobile)
+                      MobileToolbarButton(
+                        label: '关闭队列',
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      )
+                    else
+                      IconButton(
+                        tooltip: '关闭队列',
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
                   ],
                 ),
               ),
@@ -194,10 +239,11 @@ class _AgentQueuePanelState extends State<_AgentQueuePanel> {
                 child: pending.isEmpty
                     ? const Center(child: Text('暂无排队消息'))
                     : Scrollbar(
-                        controller: _scroll,
+                        controller: widget.mobile ? null : _scroll,
                         child: ListView.separated(
                           key: const ValueKey('agent-queue-list'),
-                          controller: _scroll,
+                          primary: widget.mobile ? true : null,
+                          controller: widget.mobile ? null : _scroll,
                           padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                           itemCount: pending.length,
                           separatorBuilder: (_, _) => const Divider(height: 12),

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/common_button.dart' as prism show TextButton;
+import 'package:prism_ui/list_row.dart' as prism show ListRow;
+import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/features/comic_details/comic_details.dart';
+
 import 'agent_disclosure.dart';
 import 'agent_models.dart';
 import 'agent_tools.dart';
@@ -14,6 +19,7 @@ class AgentShowcasePanel extends StatelessWidget {
   final int focusRevision;
   final ScrollController? scroll;
   final VoidCallback? close;
+  final bool mobile;
   final VoidCallback clear;
   final void Function(String) hideGroup;
   final void Function(String, AgentComic) hideComic;
@@ -25,6 +31,7 @@ class AgentShowcasePanel extends StatelessWidget {
     this.focusRevision = 0,
     this.scroll,
     this.close,
+    this.mobile = false,
     required this.clear,
     required this.hideGroup,
     required this.hideComic,
@@ -81,57 +88,84 @@ class AgentShowcasePanel extends StatelessWidget {
     }
     final scheme = Theme.of(context).colorScheme;
     final count = groups.fold<int>(0, (n, g) => n + g.comics.length);
+    final header = SizedBox(
+      height: 56,
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+          const Text('展示漫画', style: TextStyle(fontSize: 18)),
+          if (count > 0)
+            // The count badge of the home page modules.
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: scheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('$count', style: const TextStyle(fontSize: 12)),
+            ),
+          const Spacer(),
+          close == null
+              ? IconButton(
+                  tooltip: '清空展示面板',
+                  onPressed: groups.isEmpty ? null : clear,
+                  icon: const Icon(Icons.clear_all),
+                )
+              : mobile
+              ? MobileToolbarButton(
+                  label: '关闭',
+                  onPressed: close,
+                  icon: const Icon(Icons.close),
+                )
+              : IconButton(
+                  tooltip: '关闭',
+                  onPressed: close,
+                  icon: const Icon(Icons.close),
+                ),
+          const SizedBox(width: 8),
+        ],
+      ),
+    );
+    const empty = Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Text('Agent 展示或加入收藏、稍后再看的漫画会出现在这里', textAlign: TextAlign.center),
+      ),
+    );
+    if (mobile) {
+      return CustomScrollView(
+        key: ValueKey('agent-showcase-scroll-$conversationId'),
+        primary: true,
+        slivers: [
+          SliverToBoxAdapter(child: header),
+          if (groups.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Align(
+                alignment: Alignment.center,
+                child: prism.TextButton(
+                  onPressed: clear,
+                  child: const Text('清空展示面板'),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverMainAxisGroup(slivers: sections),
+            ),
+          ] else
+            const SliverFillRemaining(hasScrollBody: false, child: empty),
+        ],
+      );
+    }
     return Column(
       children: [
-        SizedBox(
-          height: 56,
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              const Text('展示漫画', style: TextStyle(fontSize: 18)),
-              if (count > 0)
-                // The count badge of the home page modules.
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: scheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text('$count', style: const TextStyle(fontSize: 12)),
-                ),
-              const Spacer(),
-              close == null
-                  ? IconButton(
-                      tooltip: '清空展示面板',
-                      onPressed: groups.isEmpty ? null : clear,
-                      icon: const Icon(Icons.clear_all),
-                    )
-                  : IconButton(
-                      tooltip: '关闭',
-                      onPressed: close,
-                      icon: const Icon(Icons.close),
-                    ),
-              const SizedBox(width: 8),
-            ],
-          ),
-        ),
+        header,
         if (close != null && groups.isNotEmpty)
           TextButton(onPressed: clear, child: const Text('清空展示面板')),
         Expanded(
           child: groups.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Agent 展示或加入收藏、稍后再看的漫画会出现在这里',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
+              ? empty
               : CustomScrollView(
                   key: ValueKey('agent-showcase-scroll-$conversationId'),
                   controller: scroll,
@@ -155,9 +189,8 @@ class AgentShowcasePanel extends StatelessWidget {
           // Outlined like the modules of the home page.
           decoration: BoxDecoration(
             color: id == focusedGroup
-                ? Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer.withValues(alpha: .36)
+                ? Theme.of(context).colorScheme.primaryContainer
+                      .withValues(alpha: .36)
                 : null,
             border: Border.all(
               color: Theme.of(context).colorScheme.outlineVariant,
@@ -172,21 +205,30 @@ class AgentShowcasePanel extends StatelessWidget {
         ),
       );
 
-  Widget _menu(BuildContext context, AgentShowcase group) =>
-      PopupMenuButton<String>(
-        tooltip: '展示分组选项',
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 120),
-        icon: Icon(
-          Icons.more_horiz,
-          size: 18,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-        onSelected: (_) => hideGroup(group.id),
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'remove', child: Text('移除此组')),
-        ],
-      );
+  Widget _menu(BuildContext context, AgentShowcase group) => mobile
+      ? MobileMenuButton(
+          label: '展示分组选项',
+          items: [
+            prism.PopupMenuItem(
+              label: '移除此组',
+              onPressed: () => hideGroup(group.id),
+            ),
+          ],
+        )
+      : PopupMenuButton<String>(
+          tooltip: '展示分组选项',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 120),
+          icon: Icon(
+            Icons.more_horiz,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          onSelected: (_) => hideGroup(group.id),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'remove', child: Text('移除此组')),
+          ],
+        );
 
   Widget _operation(BuildContext context, AgentShowcase group) =>
       AgentDisclosure(
@@ -201,7 +243,9 @@ class AgentShowcasePanel extends StatelessWidget {
         resetToken: group.id == focusedGroup ? '$focusRevision' : null,
         sliver: true,
         builder: (_) => _grid(context, group),
-        trailing: SizedBox(width: 30, height: 40, child: _menu(context, group)),
+        trailing: mobile
+            ? _menu(context, group)
+            : SizedBox(width: 30, height: 40, child: _menu(context, group)),
       );
 
   Widget _discovery(BuildContext context, AgentShowcase group) => _container(
@@ -210,17 +254,29 @@ class AgentShowcasePanel extends StatelessWidget {
     SliverMainAxisGroup(
       slivers: [
         SliverToBoxAdapter(
-          child: ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.only(left: 8),
-            title: Text(
-              group.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text('${group.comics.length} 本'),
-            trailing: _menu(context, group),
-          ),
+          child: mobile
+              ? prism.ListRow(
+                  padding: const EdgeInsets.only(left: 8),
+                  minVerticalPadding: 4,
+                  title: Text(
+                    group.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text('${group.comics.length} 本'),
+                  trailing: _menu(context, group),
+                )
+              : ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.only(left: 8),
+                  title: Text(
+                    group.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text('${group.comics.length} 本'),
+                  trailing: _menu(context, group),
+                ),
         ),
         if (group.note.isNotEmpty)
           SliverToBoxAdapter(
@@ -271,16 +327,27 @@ class AgentShowcasePanel extends StatelessWidget {
                 ),
               ),
             );
-            final remove = IconButton(
-              key: ValueKey('remove-${group.id}-${comic.identity}'),
-              tooltip: '从展示中移除',
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-              padding: const EdgeInsets.all(6),
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              onPressed: () => hideComic(group.id, comic),
-              icon: const Icon(Icons.close_rounded, size: 15),
-            );
+            final removeKey = ValueKey('remove-${group.id}-${comic.identity}');
+            final remove = mobile
+                ? MobileToolbarButton(
+                    key: removeKey,
+                    label: '从展示中移除',
+                    onPressed: () => hideComic(group.id, comic),
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                  )
+                : IconButton(
+                    key: removeKey,
+                    tooltip: '从展示中移除',
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 32,
+                      height: 32,
+                    ),
+                    padding: const EdgeInsets.all(6),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    onPressed: () => hideComic(group.id, comic),
+                    icon: const Icon(Icons.close_rounded, size: 15),
+                  );
             return KeyedSubtree(
               key: ValueKey(comic.identity),
               child: detailed

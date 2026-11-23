@@ -149,9 +149,10 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
 
   bool get _isNative => _protocol != AgentProtocol.chat;
 
-  List<AgentThinkingLevel> get _nativeLevels => AgentThinkingLevel.native(
-    _protocol,
-  ).where((level) => _native.contains(level.id)).toList();
+  List<AgentThinkingLevel> get _nativeLevels =>
+      AgentThinkingLevel.native(_protocol)
+          .where((level) => _native.contains(level.id))
+          .toList();
 
   void _toggleNative(String id, bool selected) {
     if (!selected && _nativeLevels.length == 1 && _native.contains(id)) return;
@@ -239,9 +240,8 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
       // A delayed clipboard response must not replace a newer manual edit.
       if (field.text != previousText) return;
       if (text == null || text.trim().isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('剪贴板中没有可粘贴的文本')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('剪贴板中没有可粘贴的文本')));
         return;
       }
       field.value = TextEditingValue(
@@ -250,9 +250,8 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
       );
     } catch (_) {
       if (mounted && ModalRoute.of(context)?.isCurrent == true) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('无法读取剪贴板，请长按输入框粘贴')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('无法读取剪贴板，请长按输入框粘贴')));
       }
     } finally {
       if (mounted) setState(() => _pastingKey = false);
@@ -272,15 +271,23 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
         headers: Map<String, String>.from(_object('headers', '请求头')),
       );
       connection.validate();
-      final selected = await showDialog<AgentProviderModel>(
-        context: context,
-        builder: (_) => AgentModelPicker(
-          connection: connection,
-          apiKey: _value('key'),
-          selectedId: _value('model'),
-          discoveryFactory: widget.discoveryFactory,
-        ),
+      final mobile = MobileUi.enabledOf(context);
+      final picker = AgentModelPicker(
+        connection: connection,
+        apiKey: _value('key'),
+        selectedId: _value('model'),
+        discoveryFactory: widget.discoveryFactory,
+        mobile: mobile,
       );
+      final selected = mobile
+          ? await showAgentMobileSheet<AgentProviderModel>(
+              context: context,
+              builder: (_) => picker,
+            )
+          : await showDialog<AgentProviderModel>(
+              context: context,
+              builder: (_) => picker,
+            );
       if (!mounted || selected == null) return;
       _fields['model']!.text = selected.id;
       if (_value('name').isEmpty) {
@@ -364,9 +371,8 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
         setState(() {
           _error = e is FormatException ? e.message : '配置无效或保存失败，请检查各项内容';
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_error!)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_error!)));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -396,12 +402,14 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
   ) async {
     FocusManager.instance.primaryFocus?.unfocus();
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ListenableBuilder(
+      _agentSettingsRoute<void>(
+        context,
+        (_) => ListenableBuilder(
           listenable: _draftRevision,
           builder: (context, _) => _AgentSettingsScaffold(
             title: title,
-            footer: FilledButton.tonalIcon(
+            footer: _AgentSettingsButton(
+              tonal: true,
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.check_rounded),
               label: const Text('完成配置'),
@@ -425,8 +433,8 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
     const _AgentSectionTitle('模型能力'),
     _AgentSettingsGroup(
       children: [
-        SwitchListTile(
-          key: const ValueKey('agent-model-native-search'),
+        _AgentSettingsSwitch(
+          controlKey: const ValueKey('agent-model-native-search'),
           title: const Text('模型原生网络搜索'),
           subtitle: Text(
             _protocol.supportsNativeWebSearch
@@ -438,23 +446,23 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
               ? null
               : (value) => _change(() => _nativeWebSearch = value),
         ),
-        SwitchListTile(
-          key: const ValueKey('agent-model-vision'),
+        _AgentSettingsSwitch(
+          controlKey: const ValueKey('agent-model-vision'),
           title: const Text('图片输入'),
           subtitle: const Text('仅在模型与服务商接口支持识图时开启'),
           value: _vision,
           onChanged: (value) => _change(() => _vision = value),
         ),
-        SwitchListTile(
-          key: const ValueKey('agent-model-stream'),
+        _AgentSettingsSwitch(
+          controlKey: const ValueKey('agent-model-stream'),
           title: const Text('流式输出'),
           subtitle: const Text('边生成边显示；服务不支持流式工具调用时可关闭'),
           value: _stream,
           onChanged: (value) => _change(() => _stream = value),
         ),
         if (_protocol != AgentProtocol.messages) ...[
-          SwitchListTile(
-            key: const ValueKey('agent-model-reasoning'),
+          _AgentSettingsSwitch(
+            controlKey: const ValueKey('agent-model-reasoning'),
             title: const Text('回传思考内容'),
             subtitle: Text(
               _protocol == AgentProtocol.chat
@@ -570,7 +578,7 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
       key: _form,
       child: _AgentSettingsScaffold(
         title: widget.original == null || widget.duplicate ? '添加模型' : '编辑模型',
-        footer: FilledButton.icon(
+        footer: _AgentSettingsButton(
           onPressed: _saving || _pastingKey ? null : _save,
           icon: const Icon(Icons.check_rounded),
           label: Text(_saving ? '保存中…' : '保存模型'),
@@ -608,8 +616,8 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
               _field('key', 'API Key', hint: '只保存在本机；无需密钥的本地服务可留空。'),
               Align(
                 alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  key: const ValueKey('agent-model-fetch-models'),
+                child: _AgentSettingsTextButton(
+                  controlKey: const ValueKey('agent-model-fetch-models'),
                   onPressed: _saving || _pastingKey ? null : _fetchModels,
                   icon: const Icon(Icons.cloud_download_outlined),
                   label: const Text('从服务获取模型列表'),
@@ -617,8 +625,8 @@ class _AgentModelEditorState extends State<_AgentModelEditor> {
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  key: const ValueKey('agent-model-paste-key'),
+                child: _AgentSettingsTextButton(
+                  controlKey: const ValueKey('agent-model-paste-key'),
                   onPressed: _saving || _pastingKey ? null : _pasteKey,
                   icon: _pastingKey
                       ? const SizedBox(

@@ -1,10 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/card.dart' as prism show Card;
+import 'package:prism_ui/common_button.dart'
+    as prism
+    show FilledButton, TextButton;
+import 'package:prism_ui/list_row.dart' as prism show ListRow;
+import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
+import 'package:prism_ui/switch.dart' as prism show Switch;
+import 'package:prism_ui/text_field.dart'
+    as prism
+    show InputDecoration, TextFormField;
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
+import 'package:venera_next/foundation/app_page_route.dart';
 import 'package:venera_next/components/appbar.dart';
+
 import 'agent_models.dart';
 import 'agent_model_discovery.dart';
+import 'agent_mobile_sheet.dart';
 import 'agent_model_picker.dart';
 import 'agent_source_backups.dart';
 import 'agent_store.dart';
@@ -55,9 +71,8 @@ class _AgentSettingsPageState extends State<AgentSettingsPage>
   AgentStore get store => widget.store;
 
   Future<void> _open(Widget page) async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => page));
+    await Navigator.of(context)
+        .push(_agentSettingsRoute<void>(context, (_) => page));
     if (mounted) setState(() {});
   }
 
@@ -159,8 +174,9 @@ class _AgentModelsPageState extends State<AgentModelsPage>
 
   Future<void> _edit([AgentModel? model, bool duplicate = false]) async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => _AgentModelEditor(
+      _agentSettingsRoute<void>(
+        context,
+        (_) => _AgentModelEditor(
           store: store,
           original: model,
           duplicate: duplicate,
@@ -207,8 +223,8 @@ class _AgentModelsPageState extends State<AgentModelsPage>
     final settings = store.settings;
     return _AgentSettingsScaffold(
       title: '模型管理',
-      footer: FilledButton.icon(
-        key: const ValueKey('agent-add-model'),
+      footer: _AgentSettingsButton(
+        controlKey: const ValueKey('agent-add-model'),
         onPressed: _saving ? null : () => _edit(),
         icon: const Icon(Icons.add),
         label: const Text('添加模型'),
@@ -237,26 +253,63 @@ class _AgentModelsPageState extends State<AgentModelsPage>
                   subtitle:
                       '${model.model}${settings.defaultModel?.id == model.id ? ' · 默认模型' : ''}',
                   onTap: _saving ? null : () => _edit(model),
-                  trailing: PopupMenuButton<String>(
-                    tooltip: '管理 ${model.name}',
-                    enabled: !_saving,
-                    onSelected: (action) {
-                      if (action == 'duplicate') {
-                        _edit(model, true);
-                      } else if (action == 'delete') {
-                        _delete(model);
-                      } else {
-                        _saveSettings(
-                          store.settings.copyWith(defaultModelId: model.id),
-                        );
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'default', child: Text('设为默认模型')),
-                      PopupMenuItem(value: 'duplicate', child: Text('复制模型配置')),
-                      PopupMenuItem(value: 'delete', child: Text('删除模型')),
-                    ],
-                  ),
+                  trailing: MobileUi.enabledOf(context)
+                      ? _saving
+                            ? MobileToolbarButton(
+                                label: '管理 ${model.name}',
+                                icon: const Icon(Icons.more_horiz),
+                                onPressed: null,
+                              )
+                            : MobileMenuButton(
+                                label: '管理 ${model.name}',
+                                items: [
+                                  prism.PopupMenuItem(
+                                    label: '设为默认模型',
+                                    onPressed: () => _saveSettings(
+                                      store.settings.copyWith(
+                                        defaultModelId: model.id,
+                                      ),
+                                    ),
+                                  ),
+                                  prism.PopupMenuItem(
+                                    label: '复制模型配置',
+                                    onPressed: () => _edit(model, true),
+                                  ),
+                                  prism.PopupMenuItem(
+                                    label: '删除模型',
+                                    danger: true,
+                                    onPressed: () => _delete(model),
+                                  ),
+                                ],
+                              )
+                      : PopupMenuButton<String>(
+                          tooltip: '管理 ${model.name}',
+                          enabled: !_saving,
+                          onSelected: (action) {
+                            if (action == 'duplicate') {
+                              _edit(model, true);
+                            } else if (action == 'delete') {
+                              _delete(model);
+                            } else {
+                              _saveSettings(
+                                store.settings.copyWith(
+                                  defaultModelId: model.id,
+                                ),
+                              );
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'default',
+                              child: Text('设为默认模型'),
+                            ),
+                            PopupMenuItem(
+                              value: 'duplicate',
+                              child: Text('复制模型配置'),
+                            ),
+                            PopupMenuItem(value: 'delete', child: Text('删除模型')),
+                          ],
+                        ),
                 ),
               ],
             ],

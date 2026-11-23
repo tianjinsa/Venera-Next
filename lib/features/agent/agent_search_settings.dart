@@ -24,9 +24,8 @@ class _AgentSearchSettingsPage extends StatefulWidget {
 
 class _AgentSearchSettingsPageState extends State<_AgentSearchSettingsPage> {
   Future<void> _open(Widget page) async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => page));
+    await Navigator.of(context)
+        .push(_agentSettingsRoute<void>(context, (_) => page));
     if (mounted) setState(() {});
   }
 
@@ -190,8 +189,8 @@ class _AgentSearchProviderPageState extends State<_AgentSearchProviderPage>
     key: _form,
     child: _AgentSettingsScaffold(
       title: '${widget.engine.label} 搜索',
-      footer: FilledButton.icon(
-        key: ValueKey(
+      footer: _AgentSettingsButton(
+        controlKey: ValueKey(
           _deepseek
               ? 'agent-deepseek-save'
               : widget.engine == AgentSearchEngine.tavily
@@ -205,8 +204,8 @@ class _AgentSearchProviderPageState extends State<_AgentSearchProviderPage>
       children: [
         _AgentSettingsGroup(
           children: [
-            SwitchListTile(
-              key: ValueKey('agent-search-${widget.engine.name}'),
+            _AgentSettingsSwitch(
+              controlKey: ValueKey('agent-search-${widget.engine.name}'),
               title: Text('启用 ${widget.engine.label}'),
               subtitle: Text(_searchDescription(widget.engine)),
               value: _enabled,
@@ -245,8 +244,8 @@ class _AgentSearchProviderPageState extends State<_AgentSearchProviderPage>
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  key: ValueKey('agent-${widget.engine.name}-paste-key'),
+                child: _AgentSettingsTextButton(
+                  controlKey: ValueKey('agent-${widget.engine.name}-paste-key'),
                   onPressed: _saving || _pasting ? null : _paste,
                   icon: const Icon(Icons.content_paste_rounded),
                   label: const Text('粘贴 API Key'),

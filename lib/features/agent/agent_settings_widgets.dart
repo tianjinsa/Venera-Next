@@ -1,5 +1,12 @@
 part of 'agent_settings_page.dart';
 
+PageRoute<T> _agentSettingsRoute<T>(
+  BuildContext context,
+  WidgetBuilder builder,
+) => MobileUi.enabledOf(context)
+    ? AppPageRoute<T>(builder: builder, mobile: true)
+    : MaterialPageRoute<T>(builder: builder);
+
 class _AgentSettingsScaffold extends StatelessWidget {
   final String title;
   final List<Widget> children;
@@ -12,7 +19,15 @@ class _AgentSettingsScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: Appbar(title: Text(title), leading: const BackButton()),
+    appBar: MobileUi.enabledOf(context)
+        ? PreferredSize(
+            preferredSize: const Size.fromHeight(54),
+            child: SafeArea(
+              bottom: false,
+              child: MobileToolbar(title: Text(title), showBack: true),
+            ),
+          )
+        : Appbar(title: Text(title), leading: const BackButton()),
     bottomNavigationBar: footer == null
         ? null
         : SafeArea(
@@ -80,16 +95,137 @@ class _AgentSettingsTile extends StatelessWidget {
   });
 
   @override
-  // Match the app's Appearance / App settings: ordinary ListTile typography,
-  // monochrome leading icon and chevron, with height driven by the text.
-  Widget build(BuildContext context) => ListTile(
-    enabled: onTap != null,
-    leading: Icon(icon),
-    title: Text(title),
-    subtitle: Text(subtitle),
-    trailing: trailing ?? const Icon(Icons.chevron_right),
-    onTap: onTap,
-  );
+  Widget build(BuildContext context) => MobileUi.enabledOf(context)
+      ? Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: prism.Card(
+            padding: EdgeInsets.zero,
+            onPressed: onTap,
+            child: prism.ListRow(
+              leading: Icon(icon),
+              title: Text(title),
+              subtitle: Text(subtitle),
+              trailing: trailing ?? const Icon(Icons.chevron_right),
+            ),
+          ),
+        )
+      : ListTile(
+          enabled: onTap != null,
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          trailing: trailing ?? const Icon(Icons.chevron_right),
+          onTap: onTap,
+        );
+}
+
+class _AgentSettingsSwitch extends StatelessWidget {
+  const _AgentSettingsSwitch({
+    required this.controlKey,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final Key controlKey;
+  final Text title;
+  final Widget subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => MobileUi.enabledOf(context)
+      ? Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: prism.Card(
+            padding: EdgeInsets.zero,
+            child: prism.ListRow(
+              title: title,
+              subtitle: subtitle,
+              trailing: prism.Switch(
+                key: controlKey,
+                semanticLabel: title.data,
+                value: value,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        )
+      : SwitchListTile(
+          key: controlKey,
+          title: title,
+          subtitle: subtitle,
+          value: value,
+          onChanged: onChanged,
+        );
+}
+
+class _AgentSettingsButton extends StatelessWidget {
+  const _AgentSettingsButton({
+    this.controlKey,
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    this.tonal = false,
+  });
+
+  final Key? controlKey;
+  final VoidCallback? onPressed;
+  final Widget icon;
+  final Widget label;
+  final bool tonal;
+
+  @override
+  Widget build(BuildContext context) => MobileUi.enabledOf(context)
+      ? prism.FilledButton.icon(
+          key: controlKey,
+          onPressed: onPressed,
+          icon: icon,
+          label: label,
+        )
+      : tonal
+      ? FilledButton.tonalIcon(
+          key: controlKey,
+          onPressed: onPressed,
+          icon: icon,
+          label: label,
+        )
+      : FilledButton.icon(
+          key: controlKey,
+          onPressed: onPressed,
+          icon: icon,
+          label: label,
+        );
+}
+
+class _AgentSettingsTextButton extends StatelessWidget {
+  const _AgentSettingsTextButton({
+    this.controlKey,
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  });
+
+  final Key? controlKey;
+  final VoidCallback? onPressed;
+  final Widget icon;
+  final Widget label;
+
+  @override
+  Widget build(BuildContext context) => MobileUi.enabledOf(context)
+      ? prism.TextButton.icon(
+          key: controlKey,
+          onPressed: onPressed,
+          icon: icon,
+          label: label,
+        )
+      : TextButton.icon(
+          key: controlKey,
+          onPressed: onPressed,
+          icon: icon,
+          label: label,
+        );
 }
 
 class _AgentSectionTitle extends StatelessWidget {
@@ -201,7 +337,26 @@ Widget _agentField({
       children: [
         Text(label, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 8),
-        TextFormField(
+        if (MobileUi.enabledOf(context))
+          prism.TextFormField(
+            key: fieldKey,
+            controller: controller,
+            enabled: enabled,
+            minLines: lines,
+            maxLines: lines == 1 ? 1 : lines + 5,
+            keyboardType: lines == 1
+                ? TextInputType.text
+                : TextInputType.multiline,
+            autocorrect: false,
+            enableSuggestions: true,
+            enableIMEPersonalizedLearning: !secret,
+            decoration: const prism.InputDecoration(errorMaxLines: 4),
+            validator: required
+                ? (value) => value?.trim().isEmpty != false ? '请填写此项' : null
+                : null,
+          )
+        else
+          TextFormField(
           key: fieldKey,
           controller: controller,
           enabled: enabled,
@@ -232,7 +387,7 @@ Widget _agentField({
   ),
 );
 
-class _AgentChoiceField<T> extends StatelessWidget {
+class _AgentChoiceField<T extends Object> extends StatelessWidget {
   final String label;
   final T? value;
   final List<(T, String)> options;
@@ -311,6 +466,26 @@ class _AgentChoiceField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MobileUi.enabledOf(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MobileChoiceFormField<T>(
+            label: label,
+            initialValue: value,
+            placeholder: '请先配置可选项',
+            options: [
+              for (final (id, text) in options) MobileChoiceOption(id, text),
+            ],
+            onChanged: onChanged,
+          ),
+          if (hint != null) ...[
+            const SizedBox(height: 4),
+            _AgentHelpText(hint!),
+          ],
+        ],
+      );
+    }
     final selected = options.where((option) => option.$1 == value).firstOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

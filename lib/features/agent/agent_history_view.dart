@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/card.dart' as prism show Card;
+import 'package:prism_ui/common_button.dart'
+    as prism
+    show ButtonStyle, TextButton;
+import 'package:prism_ui/list_row.dart' as prism show ListRow;
+import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
+import 'package:prism_ui/search_field.dart' as prism show SearchField;
+import 'package:venera_next/components/mobile_ui.dart';
+
 import 'agent_models.dart';
 
 class AgentHistoryPanel extends StatefulWidget {
@@ -8,6 +17,7 @@ class AgentHistoryPanel extends StatefulWidget {
   final ValueChanged<String> onSearch;
   final VoidCallback onNew;
   final VoidCallback? close;
+  final bool mobile;
   final ValueChanged<AgentConversation> onSelect;
   final ValueChanged<AgentConversation> onRename;
   final Future<bool> Function(List<AgentConversation>) onDelete;
@@ -19,6 +29,7 @@ class AgentHistoryPanel extends StatefulWidget {
     required this.onSearch,
     required this.onNew,
     this.close,
+    this.mobile = false,
     required this.onSelect,
     required this.onRename,
     required this.onDelete,
@@ -66,6 +77,188 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
     }
   }
 
+  void _toggleMode() => setState(() {
+    _selecting = !_selecting;
+    _selected.clear();
+  });
+
+  void _toggleAll(bool all) => setState(() {
+    _selected.clear();
+    if (!all) _selected.addAll(widget.conversations.map((c) => c.id));
+  });
+
+  Widget _mobileContent(BuildContext context, bool all, int selectedBytes) {
+    final theme = Theme.of(context);
+    return CustomScrollView(
+      key: const ValueKey('agent-history-mobile-scroll'),
+      primary: true,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _selecting ? '已选 ${_selected.length} 段' : '历史对话',
+                        style: theme.textTheme.titleLarge,
+                      ),
+                    ),
+                    MobileToolbarButton(
+                      key: const ValueKey('agent-history-manage'),
+                      label: _selecting ? '退出多选' : '管理对话',
+                      icon: Icon(
+                        _selecting ? Icons.close : Icons.checklist_rounded,
+                        size: 20,
+                      ),
+                      onPressed: _deleting ? null : _toggleMode,
+                    ),
+                    if (!_selecting)
+                      MobileToolbarButton(
+                        label: widget.close == null ? '新对话' : '关闭',
+                        icon: Icon(
+                          widget.close == null ? Icons.add : Icons.close,
+                        ),
+                        onPressed: widget.close ?? widget.onNew,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ExcludeFocus(
+                  excluding: _deleting,
+                  child: IgnorePointer(
+                    ignoring: _deleting,
+                    child: prism.SearchField(
+                      controller: widget.search,
+                      onChanged: widget.onSearch,
+                      hintText: '搜索对话',
+                      fill: theme.colorScheme.surfaceContainerHigh,
+                    ),
+                  ),
+                ),
+                if (_selecting) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '所选内容约 ${agentFormatBytes(selectedBytes)}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    children: [
+                      prism.TextButton(
+                        key: const ValueKey('agent-history-select-all'),
+                        onPressed: _deleting || widget.conversations.isEmpty
+                            ? null
+                            : () => _toggleAll(all),
+                        child: Text(all ? '取消全选' : '全选结果'),
+                      ),
+                      prism.TextButton.icon(
+                        key: const ValueKey('agent-history-delete-selected'),
+                        onPressed: _selected.isEmpty || _deleting
+                            ? null
+                            : _delete,
+                        style: prism.ButtonStyle.from(
+                          foregroundColor: theme.colorScheme.error,
+                        ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: Text(_deleting ? '删除中' : '删除所选'),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (widget.conversations.isEmpty)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Text('没有匹配的对话')),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList.builder(
+              itemCount: widget.conversations.length,
+              itemBuilder: (context, index) =>
+                  _mobileRow(widget.conversations[index]),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _mobileRow(AgentConversation conversation) {
+    final date = DateTime.fromMillisecondsSinceEpoch(conversation.updatedAt);
+    final selected = _selecting
+        ? _selected.contains(conversation.id)
+        : conversation.id == widget.currentId;
+    final VoidCallback? onLongPress = _deleting
+        ? null
+        : () => _toggle(conversation);
+    return Padding(
+      key: ValueKey('history-${conversation.id}'),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Semantics(
+        selected: selected,
+        onLongPress: onLongPress,
+        child: GestureDetector(
+          excludeFromSemantics: true,
+          onLongPress: onLongPress,
+          child: prism.Card(
+            padding: EdgeInsets.zero,
+            isSelected: selected,
+            fillsSelection: true,
+            onPressed: _deleting
+                ? null
+                : () => _selecting
+                      ? _toggle(conversation)
+                      : widget.onSelect(conversation),
+            child: prism.ListRow(
+              minVerticalPadding: 8,
+              leading: !_selecting
+                  ? null
+                  : Icon(
+                      selected
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                    ),
+              title: Text(conversation.title),
+              subtitle: Text(
+                '${date.month}/${date.day} · ${conversation.messageCount} 条消息'
+                '\n约 ${agentFormatBytes(conversation.storageBytes)}',
+                key: ValueKey('history-size-${conversation.id}'),
+              ),
+              trailing: _selecting
+                  ? null
+                  : MobileMenuButton(
+                      label: '对话选项',
+                      items: [
+                        prism.PopupMenuItem(
+                          label: '重命名',
+                          onPressed: () => widget.onRename(conversation),
+                        ),
+                        prism.PopupMenuItem(
+                          label: '选择对话',
+                          onPressed: () => _toggle(conversation),
+                        ),
+                        prism.PopupMenuItem(
+                          label: '删除',
+                          onPressed: () => widget.onDelete([conversation]),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -75,6 +268,7 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
     final selectedBytes = widget.conversations
         .where((c) => _selected.contains(c.id))
         .fold<int>(0, (total, c) => total + c.storageBytes);
+    if (widget.mobile) return _mobileContent(context, all, selectedBytes);
     return Column(
       children: [
         SizedBox(
@@ -91,12 +285,7 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
               IconButton(
                 key: const ValueKey('agent-history-manage'),
                 tooltip: _selecting ? '退出多选' : '管理对话',
-                onPressed: _deleting
-                    ? null
-                    : () => setState(() {
-                        _selecting = !_selecting;
-                        _selected.clear();
-                      }),
+                onPressed: _deleting ? null : _toggleMode,
                 icon: Icon(
                   _selecting ? Icons.close : Icons.checklist_rounded,
                   size: 20,
@@ -150,14 +339,7 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
                       key: const ValueKey('agent-history-select-all'),
                       onPressed: _deleting || widget.conversations.isEmpty
                           ? null
-                          : () => setState(() {
-                              _selected.clear();
-                              if (!all) {
-                                _selected.addAll(
-                                  widget.conversations.map((c) => c.id),
-                                );
-                              }
-                            }),
+                          : () => _toggleAll(all),
                       child: Text(all ? '取消全选' : '全选结果'),
                     ),
                     TextButton.icon(

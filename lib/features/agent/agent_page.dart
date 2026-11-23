@@ -1,18 +1,30 @@
 import 'agent_file_picker.dart';
+
 import 'dart:async';
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
+import 'package:prism_ui/common_button.dart'
+    as prism
+    show IconButton, TextButton;
 import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
+import 'package:prism_ui/text_field.dart'
+    as prism
+    show InputDecoration, TextField;
+import 'package:venera_next/foundation/app_page_route.dart';
+import 'package:venera_next/components/mobile_dock_inset.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
+
 import 'agent_attachment_view.dart';
 import 'agent_controller.dart';
 import 'agent_floating_composer.dart';
 import 'agent_history_view.dart';
 import 'agent_images.dart';
 import 'agent_message_view.dart';
+import 'agent_mobile_sheet.dart';
 import 'agent_model_header.dart';
 import 'agent_models.dart';
 import 'agent_queue_view.dart';
@@ -296,10 +308,13 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
     final controller = _controller!;
     await controller.stopAndWait();
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AgentSettingsPage(store: controller.store),
-      ),
+    final navigator = Navigator.of(context);
+    Widget builder(BuildContext context) =>
+        AgentSettingsPage(store: controller.store);
+    await navigator.push(
+      MobileUi.enabledOf(context)
+          ? AppPageRoute<void>(builder: builder, mobile: true)
+          : MaterialPageRoute<void>(builder: builder),
     );
     if (mounted) controller.reload();
   }
@@ -443,19 +458,41 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _history() => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (sheetContext) => SizedBox(
-      height: MediaQuery.sizeOf(sheetContext).height * .85,
-      child: AnimatedBuilder(
-        animation: _controller!,
-        builder: (_, _) =>
-            _historyPanel(close: () => Navigator.pop(sheetContext)),
+  Future<void> _history() async {
+    if (MobileUi.enabledOf(context)) {
+      final controller = _controller!;
+      FocusManager.instance.primaryFocus?.unfocus();
+      final selected = await showAgentMobileSheet<AgentConversation>(
+        context: context,
+        builder: (sheetContext) => AnimatedBuilder(
+          animation: controller,
+          builder: (_, _) => _historyPanel(
+            mobile: true,
+            close: () => Navigator.pop(sheetContext),
+            select: (conversation) => Navigator.pop(sheetContext, conversation),
+          ),
+        ),
+      );
+      if (selected != null && mounted) {
+        await _act(() => controller.selectConversation(selected));
+      }
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => SizedBox(
+        height: MediaQuery.sizeOf(sheetContext).height * .85,
+        child: AnimatedBuilder(
+          animation: _controller!,
+          builder: (_, _) =>
+              _historyPanel(close: () => Navigator.pop(sheetContext)),
+        ),
       ),
-    ),
-  );
+    );
+  }
+
   Future<void> _showcase([String? id]) async {
     if (id != null) {
       setState(() {
@@ -473,6 +510,20 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
           );
         }
       });
+      return;
+    }
+    if (MobileUi.enabledOf(context)) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await showAgentMobileSheet<void>(
+        context: context,
+        builder: (sheetContext) => AnimatedBuilder(
+          animation: _controller!,
+          builder: (_, _) => _showcasePanel(
+            mobile: true,
+            close: () => Navigator.pop(sheetContext),
+          ),
+        ),
+      );
       return;
     }
     await showModalBottomSheet<void>(
@@ -593,15 +644,13 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
                   onPressed: _showcase,
                 ),
               ),
+              MobileToolbarButton(
+                key: const ValueKey('agent-settings'),
+                label: 'Agent 设置',
+                icon: const Icon(Icons.tune),
+                onPressed: () => _act(_settings),
+              ),
             ],
-            more: MobileMenuButton(
-              items: [
-                prism.PopupMenuItem(
-                  label: 'Agent 设置',
-                  onPressed: () => _act(_settings),
-                ),
-              ],
-            ),
           )
         else
           SizedBox(
@@ -805,31 +854,60 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
                 Wrap(
                   spacing: 8,
                   children: [
-                    if (controller.pendingMessages.isEmpty)
-                      TextButton.icon(
-                        onPressed: () => _act(controller.resume),
-                        icon: const Icon(Icons.play_arrow, size: 16),
-                        label: const Text('继续'),
+                    if (MobileUi.enabledOf(context)) ...[
+                      if (controller.pendingMessages.isEmpty)
+                        prism.TextButton.icon(
+                          onPressed: () => _act(controller.resume),
+                          icon: const Icon(Icons.play_arrow, size: 16),
+                          label: const Text('继续'),
+                        ),
+                      MobileMenuButton(
+                        label: '重试回复',
+                        icon: const Icon(Icons.refresh),
+                        items: [
+                          prism.PopupMenuItem(
+                            label: '沿用原模型重新生成',
+                            onPressed: () => _act(controller.regenerate),
+                          ),
+                          prism.PopupMenuItem(
+                            label: '用当前模型重试',
+                            onPressed: () => _act(
+                              () =>
+                                  controller.regenerate(useCurrentModel: true),
+                            ),
+                          ),
+                        ],
                       ),
-                    PopupMenuButton<String>(
-                      tooltip: '重试回复',
-                      onSelected: (value) => _act(
-                        () => controller.regenerate(
-                          useCurrentModel: value == 'current',
+                    ] else ...[
+                      if (controller.pendingMessages.isEmpty)
+                        TextButton.icon(
+                          onPressed: () => _act(controller.resume),
+                          icon: const Icon(Icons.play_arrow, size: 16),
+                          label: const Text('继续'),
+                        ),
+                      PopupMenuButton<String>(
+                        tooltip: '重试回复',
+                        onSelected: (value) => _act(
+                          () => controller.regenerate(
+                            useCurrentModel: value == 'current',
+                          ),
+                        ),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'original',
+                            child: Text('沿用原模型重新生成'),
+                          ),
+                          PopupMenuItem(
+                            value: 'current',
+                            child: Text('用当前模型重试'),
+                          ),
+                        ],
+                        child: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text('重新生成'),
                         ),
                       ),
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: 'original',
-                          child: Text('沿用原模型重新生成'),
-                        ),
-                        PopupMenuItem(value: 'current', child: Text('用当前模型重试')),
-                      ],
-                      child: const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text('重新生成'),
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ],
@@ -850,6 +928,10 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
             ),
           ),
         ),
+        // Reserve the dock only under the fixed composer, not on the shell.
+        // AgentFloatingComposer already measures the actual gap to the screen
+        // bottom before translating above the keyboard.
+        SizedBox(height: MobileDockInset.of(context)),
       ],
     );
   }
@@ -950,9 +1032,8 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
                           child: Text(
                             label,
                             key: const ValueKey('agent-context-status'),
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(color: color),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: color),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1048,63 +1129,117 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  PopupMenuButton<_AgentAttachmentType>(
-                    key: const ValueKey('agent-attach'),
-                    tooltip: '添加附件',
-                    enabled: !_pickingAttachments && !controller.isStopping,
-                    onSelected: _pickAttachments,
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        key: ValueKey('agent-upload-images'),
-                        value: _AgentAttachmentType.images,
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.photo_library_outlined),
-                          title: Text('上传图片'),
+                  if (MobileUi.enabledOf(context))
+                    if (_pickingAttachments || controller.isStopping)
+                      MobileToolbarButton(
+                        key: const ValueKey('agent-attach'),
+                        label: '添加附件',
+                        onPressed: null,
+                        icon: _pickingAttachments
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.attach_file, size: 22),
+                      )
+                    else
+                      MobileMenuButton(
+                        key: const ValueKey('agent-attach'),
+                        label: '添加附件',
+                        icon: const Icon(Icons.attach_file, size: 22),
+                        items: [
+                          prism.PopupMenuItem(
+                            label: '上传图片',
+                            onPressed: () =>
+                                _pickAttachments(_AgentAttachmentType.images),
+                          ),
+                          prism.PopupMenuItem(
+                            label: '上传文件',
+                            onPressed: () =>
+                                _pickAttachments(_AgentAttachmentType.files),
+                          ),
+                        ],
+                      )
+                  else
+                    PopupMenuButton<_AgentAttachmentType>(
+                      key: const ValueKey('agent-attach'),
+                      tooltip: '添加附件',
+                      enabled: !_pickingAttachments && !controller.isStopping,
+                      onSelected: _pickAttachments,
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          key: ValueKey('agent-upload-images'),
+                          value: _AgentAttachmentType.images,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.photo_library_outlined),
+                            title: Text('上传图片'),
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        key: ValueKey('agent-upload-files'),
-                        value: _AgentAttachmentType.files,
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.description_outlined),
-                          title: Text('上传文件'),
+                        PopupMenuItem(
+                          key: ValueKey('agent-upload-files'),
+                          value: _AgentAttachmentType.files,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.description_outlined),
+                            title: Text('上传文件'),
+                          ),
                         ),
-                      ),
-                    ],
-                    icon: _pickingAttachments
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.attach_file, size: 22),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      key: const ValueKey('agent-input'),
-                      controller: _draft,
-                      minLines: 1,
-                      maxLines: 5,
-                      textInputAction: TextInputAction.newline,
-                      // Filled like the search bar on the home page.
-                      decoration: InputDecoration(
-                        hintText: '输入消息…',
-                        filled: true,
-                        fillColor: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHigh,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 14,
-                        ),
-                      ),
+                      ],
+                      icon: _pickingAttachments
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.attach_file, size: 22),
                     ),
+                  Expanded(
+                    child: MobileUi.enabledOf(context)
+                        ? prism.TextField(
+                            key: const ValueKey('agent-input'),
+                            controller: _draft,
+                            minLines: 1,
+                            maxLines: 5,
+                            textInputAction: TextInputAction.newline,
+                            decoration: prism.InputDecoration(
+                              hintText: '输入消息…',
+                              filled: true,
+                              fillColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHigh,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          )
+                        : TextField(
+                            key: const ValueKey('agent-input'),
+                            controller: _draft,
+                            minLines: 1,
+                            maxLines: 5,
+                            textInputAction: TextInputAction.newline,
+                            // Filled like the search bar on the home page.
+                            decoration: InputDecoration(
+                              hintText: '输入消息…',
+                              filled: true,
+                              fillColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHigh,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 14,
+                              ),
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 8),
                   ValueListenableBuilder<TextEditingValue>(
@@ -1115,7 +1250,39 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
                           _draftImages.isNotEmpty ||
                           _draftFiles.isNotEmpty;
                       final pause = controller.busy && !hasContent;
+                      final mobile = MobileUi.enabledOf(context);
+                      final disabled =
+                          controller.isStopping || _pickingAttachments;
                       if (controller.busy && hasContent) {
+                        if (mobile) {
+                          if (disabled) {
+                            return const MobileToolbarButton(
+                              key: ValueKey('agent-send'),
+                              label: '选择发送方式',
+                              icon: Icon(Icons.arrow_upward, size: 20),
+                              onPressed: null,
+                            );
+                          }
+                          return MobileMenuButton(
+                            key: const ValueKey('agent-send'),
+                            label: '选择发送方式',
+                            icon: const Icon(Icons.arrow_upward, size: 20),
+                            items: [
+                              prism.PopupMenuItem(
+                                label: '插入消息',
+                                subtitle: '随下一次请求处理',
+                                onPressed: () =>
+                                    _send(mode: AgentSendMode.insert),
+                              ),
+                              prism.PopupMenuItem(
+                                label: '排队消息',
+                                subtitle: '当前任务完成后处理',
+                                onPressed: () =>
+                                    _send(mode: AgentSendMode.queue),
+                              ),
+                            ],
+                          );
+                        }
                         final scheme = Theme.of(context).colorScheme;
                         return PopupMenuButton<AgentSendMode>(
                           key: const ValueKey('agent-send'),
@@ -1152,21 +1319,32 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
                           ],
                         );
                       }
-                      return IconButton.filled(
-                        key: ValueKey(pause ? 'agent-stop' : 'agent-send'),
-                        tooltip: pause ? '暂停' : '发送（Ctrl+Enter）',
-                        onPressed: controller.isStopping
-                            ? null
-                            : pause
-                            ? controller.stop
-                            : _pickingAttachments || !hasContent
-                            ? null
-                            : _send,
-                        icon: Icon(
-                          pause ? Icons.pause_rounded : Icons.arrow_upward,
-                          size: 20,
-                        ),
+                      final key = ValueKey(pause ? 'agent-stop' : 'agent-send');
+                      final tooltip = pause ? '暂停' : '发送（Ctrl+Enter）';
+                      final VoidCallback? onPressed = controller.isStopping
+                          ? null
+                          : pause
+                          ? controller.stop
+                          : _pickingAttachments || !hasContent
+                          ? null
+                          : _send;
+                      final icon = Icon(
+                        pause ? Icons.pause_rounded : Icons.arrow_upward,
+                        size: 20,
                       );
+                      return mobile
+                          ? prism.IconButton.filled(
+                              key: key,
+                              tooltip: tooltip,
+                              icon: icon,
+                              onPressed: onPressed,
+                            )
+                          : IconButton.filled(
+                              key: key,
+                              tooltip: tooltip,
+                              icon: icon,
+                              onPressed: onPressed,
+                            );
                     },
                   ),
                 ],
@@ -1191,9 +1369,8 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
     return Container(
       margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.primaryContainer.withValues(alpha: .36),
+        color: Theme.of(context).colorScheme.primaryContainer
+            .withValues(alpha: .36),
         border: Border.all(
           color: Theme.of(context).colorScheme.outlineVariant,
           width: .6,
@@ -1258,7 +1435,11 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _historyPanel({VoidCallback? close}) {
+  Widget _historyPanel({
+    VoidCallback? close,
+    ValueChanged<AgentConversation>? select,
+    bool mobile = false,
+  }) {
     final controller = _controller!;
     return AgentHistoryPanel(
       conversations: controller.conversations,
@@ -1266,11 +1447,14 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
       search: _historySearch,
       onSearch: controller.searchHistory,
       onNew: () => _act(controller.newConversation),
+      mobile: mobile,
       close: close,
-      onSelect: (conversation) {
-        close?.call();
-        _act(() => controller.selectConversation(conversation));
-      },
+      onSelect:
+          select ??
+          (conversation) {
+            close?.call();
+            _act(() => controller.selectConversation(conversation));
+          },
       onRename: (conversation) async {
         final text = await _editText('重命名对话', conversation.title);
         if (text != null) controller.renameConversation(conversation, text);
@@ -1279,13 +1463,18 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _showcasePanel({VoidCallback? close, ScrollController? scroll}) {
+  Widget _showcasePanel({
+    VoidCallback? close,
+    ScrollController? scroll,
+    bool mobile = false,
+  }) {
     final controller = _controller!;
     return AgentShowcasePanel(
       conversationId: controller.conversation.id,
       groups: controller.showcases,
       focusedGroup: _focusedGroup,
       focusRevision: _focusRevision,
+      mobile: mobile,
       close: close,
       scroll: scroll,
       clear: controller.clearShowcases,
