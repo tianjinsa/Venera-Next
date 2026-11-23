@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show PredictiveBackEvent;
 import 'package:prism_ui/page_transition.dart' as prism show CardRouteMixin;
 import 'package:prism_ui/view_scope.dart' as prism show ViewScope;
 import 'package:venera_next/foundation/edge_back_gesture.dart';
@@ -99,20 +99,6 @@ class _MobilePageRoute<T> extends AppPageRoute<T> with prism.CardRouteMixin<T> {
     super.preventRebuild,
   }) : super._();
 
-  late final _predictiveBack = _MobilePredictiveBack(this);
-
-  @override
-  void install() {
-    super.install();
-    if (App.isAndroid) WidgetsBinding.instance.addObserver(_predictiveBack);
-  }
-
-  @override
-  void dispose() {
-    if (App.isAndroid) WidgetsBinding.instance.removeObserver(_predictiveBack);
-    super.dispose();
-  }
-
   @override
   Color settledFillOf(Color surface) => Colors.transparent;
 
@@ -125,32 +111,6 @@ class _MobilePageRoute<T> extends AppPageRoute<T> with prism.CardRouteMixin<T> {
   ) => _withIOSBackGesture(
     super.buildTransitions(context, animation, secondaryAnimation, child),
   );
-}
-
-/// Feeds Android's system gesture into the Prism route's animation controller.
-class _MobilePredictiveBack with WidgetsBindingObserver {
-  _MobilePredictiveBack(this.route);
-
-  final PageRoute<dynamic> route;
-
-  @override
-  bool handleStartBackGesture(PredictiveBackEvent event) {
-    if (event.isButtonEvent || !route.isCurrent || !route.popGestureEnabled) {
-      return false;
-    }
-    route.handleStartBackGesture(progress: 1 - event.progress);
-    return true;
-  }
-
-  @override
-  void handleUpdateBackGestureProgress(PredictiveBackEvent event) =>
-      route.handleUpdateBackGestureProgress(progress: 1 - event.progress);
-
-  @override
-  void handleCancelBackGesture() => route.handleCancelBackGesture();
-
-  @override
-  void handleCommitBackGesture() => route.handleCommitBackGesture();
 }
 
 mixin _AppRouteTransitionMixin<T> on PageRoute<T> {
@@ -222,14 +182,8 @@ mixin _AppRouteTransitionMixin<T> on PageRoute<T> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    PageTransitionsBuilder builder;
-    if (App.isAndroid) {
-      builder = PredictiveBackPageTransitionsBuilder();
-    } else {
-      builder = SlidePageTransitionBuilder();
-    }
-
-    return builder.buildTransitions(
+    // Android's OS back is a normal pop; only iOS owns an interactive edge.
+    return SlidePageTransitionBuilder().buildTransitions(
       this,
       context,
       animation,
