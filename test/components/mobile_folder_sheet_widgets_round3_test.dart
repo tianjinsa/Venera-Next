@@ -14,8 +14,7 @@ void main() {
           ..devicePixelRatio = 1
           ..physicalSize = const Size(320, 680);
         addTearDown(tester.view.reset);
-        final accessibility = tester.ensureSemantics();
-        addTearDown(accessibility.dispose);
+
         bool expanded = false;
         String? selected;
         int closed = 0;
@@ -131,8 +130,12 @@ void main() {
         await tester.tap(find.text('Disabled nested folder'));
         await tester.pumpAndSettle();
         expect(selected, isNull);
-        // The long label remains available to assistive technology.
-        expect(find.bySemanticsLabel(parentName), findsWidgets);
+        // The actionable node combines the name and count; truncation
+        // is visual only, it must retain the entire original folder name.
+        expect(
+          tester.getSemantics(select).getSemanticsData().label,
+          contains(parentName),
+        );
         await tester.tap(select);
         await tester.pumpAndSettle();
         expect(mark, findsOneWidget);
