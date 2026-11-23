@@ -8,6 +8,7 @@ import 'package:venera_next/components/tv_navigation.dart';
 import 'package:venera_next/foundation/translations.dart';
 
 import 'favorite_folder.dart';
+import 'mobile_folder_sheet_widgets.dart';
 
 /// Shared folder navigation for browsing, membership and destination picking.
 /// Expansion is presentation-only; searching never changes stored hierarchy.
@@ -25,6 +26,8 @@ class FavoriteFolderBrowser extends StatefulWidget {
     this.trailingBuilder,
     this.headers = const [],
     this.footers = const [],
+    this.trailingSlivers = const [],
+    this.mobileSheetRows = false,
     this.padding = EdgeInsets.zero,
     this.shrinkWrap = false,
     this.primary = false,
@@ -41,6 +44,11 @@ class FavoriteFolderBrowser extends StatefulWidget {
   final Widget Function(String)? trailingBuilder;
   final List<Widget> headers;
   final List<Widget> footers;
+  final List<Widget> trailingSlivers;
+
+  /// Only the physical-left favorites sheet uses these navigation cells.
+  /// Membership/editing pickers retain their existing row and controls.
+  final bool mobileSheetRows;
   final EdgeInsetsGeometry padding;
   final bool shrinkWrap;
   final bool primary;
@@ -87,13 +95,29 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
   }
 
   Widget _buildSearch(BuildContext context) {
-    if (MobileUi.enabledOf(context) && widget.enabled) {
-      return prism.SearchField(
+    if (MobileUi.enabledOf(context) &&
+        (widget.enabled || widget.mobileSheetRows)) {
+      final label = 'Search local folders'.tl;
+      final search = prism.SearchField(
         key: const ValueKey('favorite-folder-search'),
         controller: _search,
-        hintText: 'Search local folders'.tl,
+        hintText: label,
+        fill: widget.mobileSheetRows
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : null,
         onChanged: (value) =>
             setState(() => _query = value.trim().toLowerCase()),
+      );
+      if (widget.enabled) return search;
+      return Semantics(
+        label: label,
+        textField: true,
+        enabled: false,
+        child: ExcludeSemantics(
+          child: ExcludeFocus(
+            child: AbsorbPointer(child: Opacity(opacity: .45, child: search)),
+          ),
+        ),
       );
     }
     final field = TextField(
@@ -163,6 +187,13 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
         rows.addAll(children);
       }
     }
+    final mobileRows = widget.mobileSheetRows && MobileUi.enabledOf(context);
+    final rowIndexes = mobileRows
+        ? {
+            for (var i = 0; i < rows.length; i++)
+              'favorite-folder-${rows[i].id}': i,
+          }
+        : null;
     return CustomScrollView(
       primary: widget.primary,
       shrinkWrap: widget.shrinkWrap,
@@ -187,6 +218,9 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
                 ),
               SliverList.builder(
                 itemCount: rows.length,
+                findChildIndexCallback: rowIndexes == null
+                    ? null
+                    : (key) => rowIndexes[(key as ValueKey<String>).value],
                 itemBuilder: (context, index) {
                   final folder = rows[index];
                   final children = tree.childrenOf(folder.id);
@@ -196,12 +230,44 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
                       widget.enabled && !widget.disabled.contains(folder.name);
                   final child = folder.parentId != null;
                   final count = widget.countFor?.call(folder.name);
-                  final title = Text(folder.name, softWrap: true);
-                  final subtitle = child && _query.isNotEmpty
-                      ? Text(tree.label(folder.name))
+                  final detail = child && _query.isNotEmpty
+                      ? tree.label(folder.name)
                       : children.isEmpty
                       ? null
-                      : Text('@a subfolders'.tlParams({'a': children.length}));
+                      : '@a subfolders'.tlParams({'a': children.length});
+                  final key = ValueKey('favorite-folder-${folder.id}');
+                  final selected = widget.selected.contains(folder.name);
+                  void toggle() {
+                    setState(() {
+                      if (!_expanded.add(folder.id)) {
+                        _expanded.remove(folder.id);
+                      }
+                    });
+                  }
+
+                  final canToggle = widget.enabled && _query.isEmpty;
+                  if (mobileRows) {
+                    return MobileFolderSheetRow(
+                      key: key,
+                      label: folder.name,
+                      icon: expanded && children.isNotEmpty
+                          ? Icons.folder_open
+                          : Icons.folder_outlined,
+                      subtitle: detail,
+                      count: count,
+                      selected: selected,
+                      nested: child,
+                      expanded: children.isEmpty ? null : expanded,
+                      onToggle: children.isNotEmpty && canToggle
+                          ? toggle
+                          : null,
+                      onPressed: enabled
+                          ? () => widget.onSelected(folder.name)
+                          : null,
+                    );
+                  }
+                  final title = Text(folder.name, softWrap: true);
+                  final subtitle = detail == null ? null : Text(detail);
                   final trailing =
                       widget.trailingBuilder?.call(folder.name) ??
                       (count == null
@@ -231,7 +297,7 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
                             )
                           : subtitle;
                       return Row(
-                        key: ValueKey('favorite-folder-${folder.id}'),
+                        key: key,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           if (child) const SizedBox(width: 24),
@@ -255,14 +321,7 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
                                             ? Icons.expand_more
                                             : Icons.chevron_right,
                                       ),
-                                      onPressed:
-                                          !widget.enabled || _query.isNotEmpty
-                                          ? null
-                                          : () => setState(() {
-                                              if (!_expanded.add(folder.id)) {
-                                                _expanded.remove(folder.id);
-                                              }
-                                            }),
+                                      onPressed: canToggle ? toggle : null,
                                     ),
                                   ),
                           ),
@@ -302,6 +361,7 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
                 },
               ),
               SliverList.list(children: widget.footers),
+              ...widget.trailingSlivers,
               if (MobileDockInset.of(context) > 0)
                 SliverToBoxAdapter(
                   child: SizedBox(height: MobileDockInset.of(context)),

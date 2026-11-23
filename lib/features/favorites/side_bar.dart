@@ -4,6 +4,8 @@ import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/button.dart';
 import 'package:venera_next/components/gesture.dart';
+import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/window_selection_task.dart';
@@ -14,6 +16,7 @@ import 'package:venera_next/features/favorites/favorites_manager.dart';
 import 'package:venera_next/features/favorites/folder_order_dialog.dart';
 import 'favorite_folder_browser.dart';
 import 'favorite_folder.dart';
+import 'mobile_folder_sheet_widgets.dart';
 import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/context.dart';
@@ -127,27 +130,7 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
       child: Column(
         children: [
           if (widget.inMobileSheet)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 4, 0),
-              child: Row(
-                children: [
-                  const CloseButton(),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Semantics(
-                      namesRoute: true,
-                      header: true,
-                      child: Text(
-                        'Folders'.tl,
-                        style: Theme.of(context).textTheme.titleLarge,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
+            MobileFolderSheetHeader(onClose: () => Navigator.maybePop(context))
           else if (widget.withAppbar)
             SizedBox(
               height: 56,
@@ -163,6 +146,7 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
           Expanded(
             child: FavoriteFolderBrowser(
               tree: _tree,
+              mobileSheetRows: widget.inMobileSheet,
               enabled: _hasManager,
               selected: {
                 if (!widget.isNetworkSelected && widget.selectedFolder != null)
@@ -187,7 +171,24 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
               ],
               footers: [
                 buildNetworkTitle(),
-                for (final folder in networkFolders) buildNetworkFolder(folder),
+                if (!widget.inMobileSheet)
+                  for (final folder in networkFolders)
+                    buildNetworkFolder(folder),
+              ],
+              trailingSlivers: [
+                if (widget.inMobileSheet)
+                  SliverList.builder(
+                    itemCount: networkFolders.length,
+                    findChildIndexCallback: (key) {
+                      if (key is! ValueKey<String>) return null;
+                      final index = networkFolders.indexWhere(
+                        (id) => 'mobile-folder-sheet-network-$id' == key.value,
+                      );
+                      return index < 0 ? null : index;
+                    },
+                    itemBuilder: (_, index) =>
+                        buildNetworkFolder(networkFolders[index]),
+                  ),
               ],
             ),
           ),
@@ -197,6 +198,58 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
   }
 
   Widget buildLocalTitle() {
+    final entries = [
+      MenuEntry(
+        icon: Icons.add,
+        text: 'Create Folder'.tl,
+        onClick: () {
+          if (!_hasManager) return;
+          newFolder(
+            context,
+            onChanged: (next) {
+              if (!mounted || !_hasManager) return;
+              updateFolders();
+            },
+          );
+        },
+      ),
+      MenuEntry(
+        icon: Icons.reorder,
+        text: 'Sort'.tl,
+        onClick: () {
+          if (!_hasManager) return;
+          final owner = WindowSelectionTask(context);
+          if (!owner.canPresent) return;
+          sortFolders(context).then<void>(
+            (_) {
+              if (owner.canPresent && _hasManager) updateFolders();
+            },
+            onError: (Object error, StackTrace stack) {
+              Log.error('Favorite folder list', error, stack);
+            },
+          );
+        },
+      ),
+    ];
+    if (widget.inMobileSheet) {
+      return MobileFolderSheetSection(
+        label: 'Local'.tl,
+        icon: Icons.folder_outlined,
+        action: _hasManager
+            ? MobileMenuButton(
+                key: const ValueKey('mobile-folder-sheet-local-more'),
+                items: [
+                  for (final entry in entries)
+                    collectionMenuAction(context, entry),
+                ],
+              )
+            : MobileToolbarButton(
+                label: 'More'.tl,
+                icon: const Icon(Icons.more_horiz),
+                onPressed: null,
+              ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -208,46 +261,30 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
           MenuButton(
             // Route-status rebuilds keep the same library actions available.
             menuIdentity: (_manager, _managerGeneration),
-            entries: [
-              MenuEntry(
-                icon: Icons.add,
-                text: 'Create Folder'.tl,
-                onClick: () {
-                  if (!_hasManager) return;
-                  newFolder(
-                    context,
-                    onChanged: (next) {
-                      if (!mounted || !_hasManager) return;
-                      updateFolders();
-                    },
-                  );
-                },
-              ),
-              MenuEntry(
-                icon: Icons.reorder,
-                text: 'Sort'.tl,
-                onClick: () {
-                  if (!_hasManager) return;
-                  final owner = WindowSelectionTask(context);
-                  if (!owner.canPresent) return;
-                  sortFolders(context).then<void>(
-                    (_) {
-                      if (owner.canPresent && _hasManager) updateFolders();
-                    },
-                    onError: (Object error, StackTrace stack) {
-                      Log.error('Favorite folder list', error, stack);
-                    },
-                  );
-                },
-              ),
-            ],
+            entries: entries,
           ),
         ],
-      ).paddingHorizontal(16),
-    );
+      ),
+    ).paddingHorizontal(16);
   }
 
   Widget buildNetworkTitle() {
+    void settings() {
+      showPopUpWidget(appNavigation.rootContext, setFavoritesPagesWidget());
+    }
+
+    if (widget.inMobileSheet) {
+      return MobileFolderSheetSection(
+        label: 'Network'.tl,
+        icon: Icons.cloud_outlined,
+        action: MobileToolbarButton(
+          key: const ValueKey('mobile-folder-sheet-network-settings'),
+          label: 'Settings'.tl,
+          icon: const Icon(Icons.settings),
+          onPressed: settings,
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       margin: const EdgeInsets.only(top: 8),
@@ -265,15 +302,7 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
           const SizedBox(width: 12),
           Text("Network".tl),
           const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              showPopUpWidget(
-                appNavigation.rootContext,
-                setFavoritesPagesWidget(),
-              );
-            },
-          ),
+          IconButton(icon: const Icon(Icons.settings), onPressed: settings),
         ],
       ).paddingHorizontal(16),
     );
@@ -291,16 +320,29 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
     var folderName = name == localAllFolderLabel
         ? "All".tl
         : getFavoriteDataOrNull(name)?.title ?? name;
+    void select() {
+      if (!_hasManager) return;
+      if (isSelected) {
+        if (widget.inMobileSheet) widget.onSelected?.call();
+        return;
+      }
+      widget.onFolderSelected(false, name);
+      widget.onSelected?.call();
+    }
+
+    if (widget.inMobileSheet) {
+      return MobileFolderSheetRow(
+        key: ValueKey('mobile-folder-sheet-local-all'),
+        label: folderName,
+        icon: Icons.collections_bookmark_outlined,
+        count: count,
+        countHint: '@a comics'.tlParams({'a': count}),
+        selected: isSelected,
+        onPressed: _hasManager ? select : null,
+      );
+    }
     return ClickInkWell(
-      onTap: () {
-        if (!_hasManager) return;
-        if (isSelected) {
-          if (widget.inMobileSheet) widget.onSelected?.call();
-          return;
-        }
-        widget.onFolderSelected(false, name);
-        widget.onSelected?.call();
-      },
+      onTap: select,
       child: Container(
         height: 42,
         alignment: Alignment.centerLeft,
@@ -342,16 +384,27 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
       return const SizedBox();
     }
     bool isSelected = key == widget.selectedFolder && widget.isNetworkSelected;
+    void select() {
+      if (!_hasManager) return;
+      if (isSelected) {
+        if (widget.inMobileSheet) widget.onSelected?.call();
+        return;
+      }
+      widget.onFolderSelected(true, key);
+      widget.onSelected?.call();
+    }
+
+    if (widget.inMobileSheet) {
+      return MobileFolderSheetRow(
+        key: ValueKey('mobile-folder-sheet-network-$key'),
+        label: data.title,
+        icon: Icons.cloud_outlined,
+        selected: isSelected,
+        onPressed: _hasManager ? select : null,
+      );
+    }
     return ClickInkWell(
-      onTap: () {
-        if (!_hasManager) return;
-        if (isSelected) {
-          if (widget.inMobileSheet) widget.onSelected?.call();
-          return;
-        }
-        widget.onFolderSelected(true, key);
-        widget.onSelected?.call();
-      },
+      onTap: select,
       child: Container(
         height: 42,
         alignment: Alignment.centerLeft,

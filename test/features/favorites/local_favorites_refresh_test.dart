@@ -10,7 +10,12 @@ import 'package:venera_next/components/mobile_ui.dart';
 import 'package:prism_ui/search_field.dart' as prism;
 import 'package:venera_next/features/comic_details/comic_details.dart';
 import 'package:venera_next/features/comic_source/comic_source_api.dart'
-    show Comic, FavoriteData, configureFavoriteDataResolver;
+    show
+        Comic,
+        ComicSource,
+        FavoriteData,
+        configureComicSourceRegistry,
+        configureFavoriteDataResolver;
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/features/favorites/favorite_models.dart';
 import 'package:venera_next/features/favorites/favorites_manager.dart';
@@ -18,6 +23,7 @@ import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/features/favorites/favorites_page.dart';
 import 'package:venera_next/features/favorites/favorite_folder_browser.dart';
 import 'package:venera_next/features/favorites/local_favorites_page.dart';
+import 'package:venera_next/features/favorites/mobile_folder_sheet_widgets.dart';
 import 'package:venera_next/features/favorites/network_favorites_page.dart';
 import 'package:venera_next/features/history/history.dart';
 import 'package:venera_next/features/history/history_scope.dart';
@@ -42,6 +48,16 @@ FavoriteItem _comic(String id, String title) => FavoriteItem(
 Finder _tile(String id) => find.byWidgetPredicate(
   (widget) => widget is ComicTile && widget.comic.id == id,
 );
+
+class _NetworkSource extends Fake implements ComicSource {
+  _NetworkSource(this.favoriteData);
+
+  @override
+  final FavoriteData favoriteData;
+
+  @override
+  String get key => favoriteData.key;
+}
 
 class _CountingHistory extends HistoryManager {
   _CountingHistory() : super.create();
@@ -268,6 +284,56 @@ void main() {
       expect(tester.getTopLeft(panel).dx, 8);
       final browser = find.byType(FavoriteFolderBrowser);
       expect(browser, findsOneWidget);
+      Finder control(Key key) =>
+          find.descendant(of: panel, matching: find.byKey(key));
+      expect(
+        control(const ValueKey('mobile-folder-sheet-local-all')),
+        findsOneWidget,
+      );
+      expect(
+        control(const ValueKey('mobile-folder-sheet-close')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: panel, matching: find.byType(ListTile)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: panel, matching: find.byType(Chip)),
+        findsNothing,
+      );
+      final rootRow = find.descendant(
+        of: panel,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is MobileFolderSheetRow && widget.label == 'B',
+        ),
+      );
+      final check = find.descendant(
+        of: rootRow,
+        matching: find.byKey(const ValueKey('mobile-folder-sheet-selected')),
+      );
+      final expand = find.descendant(
+        of: rootRow,
+        matching: find.byKey(const ValueKey('mobile-folder-sheet-expand')),
+      );
+      expect(check, findsOneWidget);
+      expect(tester.widget<MobileFolderSheetRow>(rootRow).count, 1);
+      expect(option(nested), findsNothing);
+      await tester.tap(expand);
+      await tester.pumpAndSettle();
+      expect(option(nested), findsOneWidget);
+      expect(panel, findsOneWidget);
+
+      await tester.tap(
+        control(const ValueKey('mobile-folder-sheet-local-more')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Create Folder'), findsOneWidget);
+      expect(find.text('Sort'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+
       await tester.tap(option('B'));
       await tester.pumpAndSettle();
       expect(panel, findsNothing);
@@ -319,7 +385,23 @@ void main() {
           loadFolders: ([_]) async => const Res({'sub': 'Network list'}),
         );
         configureFavoriteDataResolver((key) => key == data.key ? data : null);
-        addTearDown(() => configureFavoriteDataResolver(null));
+        final source = _NetworkSource(data);
+        configureComicSourceRegistry(
+          all: () => [source],
+          find: (key) => key == source.key ? source : null,
+          fromIntKey: (_) => null,
+          isEmpty: () => false,
+        );
+        appdata.settings[DiscoveryPreferences.favoritePages.key] = [data.key];
+        addTearDown(() {
+          configureFavoriteDataResolver(null);
+          configureComicSourceRegistry(
+            all: () => [],
+            find: (_) => null,
+            fromIntKey: (_) => null,
+            isEmpty: () => true,
+          );
+        });
         appdata.implicitData['favoriteFolder'] = {
           'name': data.key,
           'isNetwork': true,
@@ -339,8 +421,31 @@ void main() {
         await tester.tap(name);
         await tester.pumpAndSettle();
         expect(panel, findsOneWidget);
+        final networkRow = find.descendant(
+          of: panel,
+          matching: find.byKey(
+            ValueKey('mobile-folder-sheet-network-${data.key}'),
+          ),
+        );
+        expect(networkRow, findsOneWidget);
+        expect(
+          tester.widget<MobileFolderSheetRow>(networkRow).selected,
+          isTrue,
+        );
+        expect(
+          find.descendant(
+            of: panel,
+            matching: find.byKey(
+              const ValueKey('mobile-folder-sheet-network-settings'),
+            ),
+          ),
+          findsOneWidget,
+        );
         await tester.tap(
-          find.descendant(of: panel, matching: find.byType(CloseButton)),
+          find.descendant(
+            of: panel,
+            matching: find.byKey(const ValueKey('mobile-folder-sheet-close')),
+          ),
         );
         await tester.pumpAndSettle();
         expect(panel, findsNothing);

@@ -676,6 +676,7 @@
     "features/favorites/folder_order_dialog.dart",
     "features/favorites/folder_rename_dialog.dart",
     "features/favorites/local_favorites_page.dart",
+    "features/favorites/mobile_folder_sheet_widgets.dart",
     "features/favorites/network_favorite_import_dialog.dart",
     "features/favorites/network_favorites_page.dart",
     "features/favorites/read_later.dart",
