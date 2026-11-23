@@ -217,6 +217,84 @@ void main() {
   App.dataPath = Directory.systemTemp.path;
   App.cachePath = Directory.systemTemp.path;
 
+  testWidgets(
+    'favorite title opens the left modal; current folder pops without reloading, nested choice replaces it',
+    (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+      final fixture = await _prepare(tester, 1);
+      const nested = 'A very long / named folder that requires truncation';
+      await tester.runAsync(() async {
+        await fixture.manager.createChildFolder(
+          nested,
+          fixture.manager.folderTree.named('B')!.id,
+        );
+        await fixture.manager.addComic(
+          nested,
+          _comic('nested-one', 'Nested book'),
+        );
+      });
+      appdata.implicitData['favoriteFolder'] = {
+        'name': 'B',
+        'isNetwork': false,
+      };
+      await tester.pumpWidget(
+        fixture.host(phone: true, page: const FavoritesPage()),
+      );
+      await _settle(tester);
+      final path = find.byKey(const ValueKey('favorite-path-current'));
+      final chevron = find.byKey(const ValueKey('favorite-path-open-sheet'));
+      final local = find.byType(LocalFavoritesPage);
+      final panel = find.byKey(const ValueKey('mobile-side-sheet-surface'));
+      Finder option(String label) =>
+          find.descendant(of: panel, matching: find.text(label)).hitTestable();
+
+      expect(find.byIcon(Icons.menu), findsNothing);
+      expect(
+        tester.getCenter(chevron).dx,
+        greaterThan(tester.getCenter(find.text('B')).dx),
+      );
+      final original = tester.state(local);
+      await tester.tap(find.text('B'));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(panel).dx, 8);
+      final browser = find.byType(FavoriteFolderBrowser);
+      expect(browser, findsOneWidget);
+      await tester.tap(option('B'));
+      await tester.pumpAndSettle();
+      expect(panel, findsNothing);
+      expect(tester.state(local), same(original));
+      expect(_tile('seed-0'), findsOneWidget);
+
+      await tester.tap(path);
+      await tester.pumpAndSettle();
+      final search = find.descendant(
+        of: panel,
+        matching: find.byType(EditableText),
+      );
+      await tester.enterText(search, 'requires truncation');
+      await tester.pumpAndSettle();
+      expect(option(nested), findsOneWidget);
+      await tester.tap(option(nested));
+      await _settle(tester);
+      expect(panel, findsNothing);
+      expect(_tile('nested-one'), findsOneWidget);
+      expect(find.byTooltip(nested), findsOneWidget);
+      expect(chevron, findsOneWidget);
+
+      await tester.tap(find.text(nested));
+      await tester.pumpAndSettle();
+      expect(option(nested), findsOneWidget);
+      await tester.tapAt(const Offset(380, 100));
+      await tester.pumpAndSettle();
+      expect(panel, findsNothing);
+      expect(_tile('nested-one'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final nested in [false, true]) {
     testWidgets(
       'favorites tab: local search morph keeps the pinned header and snapshot '

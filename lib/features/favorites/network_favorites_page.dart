@@ -13,6 +13,7 @@ import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/features/favorites/favorite_actions.dart';
+import 'package:venera_next/features/favorites/favorite_folder_path.dart';
 import 'package:venera_next/features/favorites/favorites_constants.dart';
 import 'package:venera_next/features/favorites/favorites_display.dart';
 import 'package:venera_next/foundation/consts.dart';
@@ -70,6 +71,34 @@ void _publishNetworkFavoriteChange(VoidCallback? onCommitted) {
     );
   }
 }
+
+Widget? _legacyFolderButton(BuildContext context, VoidCallback open) =>
+    !MobileUi.enabledOf(context) &&
+        context.width <= favoritesTwoPanelChangeWidth
+    ? Tooltip(
+        message: 'Folders'.tl,
+        child: IconButton(
+          icon: const Icon(Icons.menu),
+          color: context.colorScheme.primary,
+          onPressed: open,
+        ),
+      )
+    : null;
+
+Widget _networkFolderTitle(
+  BuildContext context,
+  String name,
+  VoidCallback open,
+) => MobileUi.enabledOf(context)
+    ? FavoriteFolderPath(
+        currentName: name,
+        showFolderChevron: true,
+        onCurrentSelected: open,
+      )
+    : GestureDetector(
+        onTap: context.width < favoritesTwoPanelChangeWidth ? open : null,
+        child: Text(name),
+      );
 
 class NetworkFavoritePage extends StatelessWidget {
   const NetworkFavoritePage(this.data, {super.key, required this.showFolders});
@@ -138,28 +167,12 @@ class _NormalFavoritePageState extends State<_NormalFavoritePage> {
         style: context.width < changePoint
             ? AppbarStyle.shadow
             : AppbarStyle.blur,
-        leading: Tooltip(
-          message: "Folders".tl,
-          child: context.width <= favoritesTwoPanelChangeWidth
-              ? mobile
-                    ? collectionShortcut(
-                        context,
-                        label: 'Folders'.tl,
-                        icon: const Icon(Icons.menu),
-                        onPressed: widget.showFolders,
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.menu),
-                        color: context.colorScheme.primary,
-                        onPressed: widget.showFolders,
-                      )
-              : null,
-        ),
-        title: GestureDetector(
-          onTap: context.width < favoritesTwoPanelChangeWidth
-              ? widget.showFolders
-              : null,
-          child: Text(widget.data.title),
+        mobileShowBack: false,
+        leading: _legacyFolderButton(context, widget.showFolders),
+        title: _networkFolderTitle(
+          context,
+          widget.data.title,
+          widget.showFolders,
         ),
         mobileMore: mobile
             ? FavoriteDisplayButton.mobileMore(
@@ -179,28 +192,12 @@ class _NormalFavoritePageState extends State<_NormalFavoritePage> {
         ],
       ),
       errorLeading: Appbar(
-        leading: Tooltip(
-          message: "Folders".tl,
-          child: context.width <= favoritesTwoPanelChangeWidth
-              ? mobile
-                    ? collectionShortcut(
-                        context,
-                        label: 'Folders'.tl,
-                        icon: const Icon(Icons.menu),
-                        onPressed: widget.showFolders,
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.menu),
-                        color: context.colorScheme.primary,
-                        onPressed: widget.showFolders,
-                      )
-              : null,
-        ),
-        title: GestureDetector(
-          onTap: context.width < favoritesTwoPanelChangeWidth
-              ? widget.showFolders
-              : null,
-          child: Text(widget.data.title),
+        mobileShowBack: false,
+        leading: _legacyFolderButton(context, widget.showFolders),
+        title: _networkFolderTitle(
+          context,
+          widget.data.title,
+          widget.showFolders,
         ),
       ),
       loadPage: widget.data.loadComic == null
@@ -308,47 +305,24 @@ class _MultiFolderFavoritesPageState extends State<_MultiFolderFavoritesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final mobile = MobileUi.enabledOf(context);
-    Widget folderButton() => mobile
-        ? collectionShortcut(
-            context,
-            label: 'Folders'.tl,
-            icon: const Icon(Icons.menu),
-            onPressed: widget.showFolders,
-          )
-        : Tooltip(
-            message: 'Folders'.tl,
-            child: IconButton(
-              icon: const Icon(Icons.menu),
-              color: context.colorScheme.primary,
-              onPressed: widget.showFolders,
-            ),
-          );
-    var sliverAppBar = SliverAppbar(
+    final title = _networkFolderTitle(
+      context,
+      widget.data.title,
+      widget.showFolders,
+    );
+    final leading = _legacyFolderButton(context, widget.showFolders);
+    final sliverAppBar = SliverAppbar(
       style: context.width < changePoint
           ? AppbarStyle.shadow
           : AppbarStyle.blur,
-      leading: context.width <= favoritesTwoPanelChangeWidth
-          ? folderButton()
-          : null,
-      title: GestureDetector(
-        onTap: context.width < favoritesTwoPanelChangeWidth
-            ? widget.showFolders
-            : null,
-        child: Text(widget.data.title),
-      ),
+      mobileShowBack: false,
+      leading: leading,
+      title: title,
     );
-
-    var appBar = Appbar(
-      leading: context.width <= favoritesTwoPanelChangeWidth
-          ? folderButton()
-          : null,
-      title: GestureDetector(
-        onTap: context.width < favoritesTwoPanelChangeWidth
-            ? widget.showFolders
-            : null,
-        child: Text(widget.data.title),
-      ),
+    final appBar = Appbar(
+      mobileShowBack: false,
+      leading: leading,
+      title: title,
     );
 
     if (_loading) {

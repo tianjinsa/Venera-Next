@@ -9,12 +9,16 @@ class FavoriteFolderPath extends StatelessWidget {
     this.parentName,
     this.onParentSelected,
     this.onCurrentSelected,
+    this.showFolderChevron = false,
   });
 
   final String currentName;
   final String? parentName;
   final VoidCallback? onParentSelected;
   final VoidCallback? onCurrentSelected;
+
+  /// Root favorites uses the physical right arrow on phones, even in RTL.
+  final bool showFolderChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +42,23 @@ class FavoriteFolderPath extends StatelessWidget {
                   ),
                 ),
                 onPressed: onCurrentSelected,
-                child: _PathLabel(currentName),
+                child: showFolderChevron
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        textDirection: TextDirection.ltr,
+                        children: [
+                          Flexible(child: _PathLabel(currentName)),
+                          const ExcludeSemantics(
+                            child: Icon(
+                              Icons.chevron_right,
+                              key: ValueKey('favorite-path-open-sheet'),
+                              size: 18,
+                              textDirection: TextDirection.ltr,
+                            ),
+                          ),
+                        ],
+                      )
+                    : _PathLabel(currentName),
               )
             : _PathLabel(currentName),
       ),
@@ -51,6 +71,9 @@ class FavoriteFolderPath extends StatelessWidget {
         // A narrow title keeps a full-size parent button and prioritizes the
         // current name. Full labels remain available through tooltips/semantics.
         final compact = constraints.maxWidth < 160;
+        // Prefer the sheet trigger over a breadcrumb when search/sync/menu
+        // leave room for only one control. The sheet can still pick the parent.
+        if (showFolderChevron && constraints.maxWidth < 104) return current();
         if (compact && constraints.maxWidth < 48) {
           return current(interactive: false);
         }

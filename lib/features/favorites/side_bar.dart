@@ -36,7 +36,9 @@ class FavoritesFolderSidebar extends StatefulWidget {
     required this.onFolderSelected,
     this.onFolderListReady,
     this.onSelected,
+    this.store,
     this.withAppbar = false,
+    this.inMobileSheet = false,
   });
 
   final String? selectedFolder;
@@ -49,7 +51,9 @@ class FavoritesFolderSidebar extends StatefulWidget {
 
   final VoidCallback? onSelected;
 
+  final FavoriteStoreBinding? store;
   final bool withAppbar;
+  final bool inMobileSheet;
 
   @override
   State<FavoritesFolderSidebar> createState() => _FavoritesFolderSidebarState();
@@ -86,7 +90,7 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
 
   @override
   void initState() {
-    _store = FavoritesScope.capture(context);
+    _store = widget.store ?? FavoritesScope.capture(context);
     _manager = _store.manager;
     _managerGeneration = _manager.connectionGeneration;
     widget.onFolderListReady?.call(this);
@@ -110,17 +114,41 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: BoxDecoration(
-        border: Border(
-          right: BorderSide(
-            color: context.colorScheme.outlineVariant,
-            width: 0.6,
-          ),
-        ),
-      ),
+      decoration: widget.inMobileSheet
+          ? null
+          : BoxDecoration(
+              border: Border(
+                right: BorderSide(
+                  color: context.colorScheme.outlineVariant,
+                  width: 0.6,
+                ),
+              ),
+            ),
       child: Column(
         children: [
-          if (widget.withAppbar)
+          if (widget.inMobileSheet)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 4, 0),
+              child: Row(
+                children: [
+                  const CloseButton(),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Semantics(
+                      namesRoute: true,
+                      header: true,
+                      child: Text(
+                        'Folders'.tl,
+                        style: Theme.of(context).textTheme.titleLarge,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (widget.withAppbar)
             SizedBox(
               height: 56,
               child: Row(
@@ -143,7 +171,11 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
               countFor: (name) => _hasManager ? _manager.folderComics(name) : 0,
               onSelected: (name) {
                 if (!_hasManager) return;
-                widget.onFolderSelected(false, name);
+                if (!widget.inMobileSheet ||
+                    widget.isNetworkSelected ||
+                    widget.selectedFolder != name) {
+                  widget.onFolderSelected(false, name);
+                }
                 widget.onSelected?.call();
               },
               padding: widget.withAppbar
@@ -261,7 +293,9 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
         : getFavoriteDataOrNull(name)?.title ?? name;
     return ClickInkWell(
       onTap: () {
+        if (!_hasManager) return;
         if (isSelected) {
+          if (widget.inMobileSheet) widget.onSelected?.call();
           return;
         }
         widget.onFolderSelected(false, name);
@@ -310,7 +344,9 @@ class _FavoritesFolderSidebarState extends State<FavoritesFolderSidebar>
     bool isSelected = key == widget.selectedFolder && widget.isNetworkSelected;
     return ClickInkWell(
       onTap: () {
+        if (!_hasManager) return;
         if (isSelected) {
+          if (widget.inMobileSheet) widget.onSelected?.call();
           return;
         }
         widget.onFolderSelected(true, key);

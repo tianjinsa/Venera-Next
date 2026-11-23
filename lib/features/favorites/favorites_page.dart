@@ -5,13 +5,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
+import 'package:venera_next/components/mobile_side_sheet.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/context.dart';
+import 'package:venera_next/foundation/navigation_admission.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
+import 'package:venera_next/features/favorites/favorite_folder_path.dart';
 import 'package:venera_next/features/favorites/favorites_constants.dart';
 import 'package:venera_next/features/favorites/local_favorites_page.dart';
 import 'package:venera_next/features/favorites/network_favorites_page.dart';
@@ -93,6 +96,7 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = MobileUi.enabledOf(context);
     return protectSettings(
       Column(
         children: [
@@ -104,22 +108,23 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
               ),
               child: Stack(
                 children: [
-                  AnimatedPositioned(
-                    left: context.width <= favoritesTwoPanelChangeWidth
-                        ? -_kLeftBarWidth
-                        : 0,
-                    top: 0,
-                    bottom: 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: FavoritesFolderSidebar(
-                      selectedFolder: folder,
-                      isNetworkSelected: isNetwork,
-                      onFolderSelected: setFolder,
-                      onFolderListReady: (list) {
-                        folderList = list;
-                      },
-                    ).fixWidth(_kLeftBarWidth),
-                  ),
+                  if (!mobile)
+                    AnimatedPositioned(
+                      left: context.width <= favoritesTwoPanelChangeWidth
+                          ? -_kLeftBarWidth
+                          : 0,
+                      top: 0,
+                      bottom: 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: FavoritesFolderSidebar(
+                        selectedFolder: folder,
+                        isNetworkSelected: isNetwork,
+                        onFolderSelected: setFolder,
+                        onFolderListReady: (list) {
+                          folderList = list;
+                        },
+                      ).fixWidth(_kLeftBarWidth),
+                    ),
                   Positioned(
                     top: 0,
                     left: context.width <= favoritesTwoPanelChangeWidth
@@ -139,61 +144,74 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
   }
 
   void showFolderSelector() {
-    if (!acceptsSettingsChanges || _folderSelector != null) return;
+    if (!acceptsSettingsChanges ||
+        _folderSelector != null ||
+        !NavigationAdmission.allows(context) ||
+        ModalRoute.isCurrentOf(context) == false) {
+      return;
+    }
     final origin = ModalRoute.of(context);
     final navigator = Navigator.of(context, rootNavigator: true);
-    final route = PageRouteBuilder<void>(
-      barrierDismissible: true,
-      fullscreenDialog: true,
-      opaque: false,
-      barrierColor: Colors.black.toOpacity(0.36),
-      pageBuilder: (context, animation, secondary) {
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: Material(
-            child: SizedBox(
-              width: min(300, context.width - 16),
-              child: FavoritesFolderSidebar(
-                withAppbar: true,
-                selectedFolder: folder,
-                isNetworkSelected: isNetwork,
-                onFolderSelected: (network, name) {
-                  if (mounted &&
-                      identical(ModalRoute.of(this.context), origin)) {
-                    setFolder(network, name);
-                  }
-                },
-                onFolderListReady: (list) {
-                  folderList = list;
-                },
-                onSelected: () {
-                  if (context.mounted &&
-                      ModalRoute.of(context)?.isCurrent == true) {
-                    Navigator.of(context).maybePop();
-                  }
-                },
-              ),
-            ),
-          ),
-        );
+    final store = FavoritesScope.capture(context);
+    final mobile = MobileUi.enabledOf(context);
+    final selected = folder;
+    final networkSelected = isNetwork;
+    Widget sidebar(BuildContext sheetContext) => FavoritesFolderSidebar(
+      store: store,
+      withAppbar: true,
+      inMobileSheet: mobile,
+      selectedFolder: selected,
+      isNetworkSelected: networkSelected,
+      onFolderSelected: (network, name) {
+        if (mounted &&
+            store.isCurrent &&
+            identical(ModalRoute.of(context), origin) &&
+            ModalRoute.isCurrentOf(sheetContext) == true) {
+          setFolder(network, name);
+        }
       },
-      transitionsBuilder: (context, animation, secondary, child) {
-        var offset = Tween<Offset>(
-          begin: const Offset(-1, 0),
-          end: const Offset(0, 0),
-        );
-        return SlideTransition(
-          position: offset.animate(
-            CurvedAnimation(parent: animation, curve: Curves.fastOutSlowIn),
-          ),
-          child: child,
-        );
+      onSelected: () {
+        if (sheetContext.mounted &&
+            ModalRoute.isCurrentOf(sheetContext) == true) {
+          Navigator.of(sheetContext).maybePop();
+        }
       },
     );
+
+    final TransitionRoute<void> route = mobile
+        ? MobileSideSheetRoute<void>(context: context, builder: sidebar)
+        : PageRouteBuilder<void>(
+            barrierDismissible: true,
+            fullscreenDialog: true,
+            opaque: false,
+            barrierColor: Colors.black.toOpacity(0.36),
+            pageBuilder: (context, animation, secondary) => Align(
+              alignment: Alignment.centerLeft,
+              child: Material(
+                child: SizedBox(
+                  width: min(300, context.width - 16),
+                  child: sidebar(context),
+                ),
+              ),
+            ),
+            transitionsBuilder: (context, animation, secondary, child) =>
+                SlideTransition(
+                  position: animation.drive(
+                    Tween(
+                      begin: const Offset(-1, 0),
+                      end: Offset.zero,
+                    ).chain(CurveTween(curve: Curves.fastOutSlowIn)),
+                  ),
+                  child: child,
+                ),
+          );
     _folderSelector = route;
-    navigator.push(route).whenComplete(() {
-      if (identical(_folderSelector, route)) _folderSelector = null;
-    });
+    unawaited(navigator.push(route));
+    unawaited(
+      route.completed.whenComplete(() {
+        if (identical(_folderSelector, route)) _folderSelector = null;
+      }),
+    );
   }
 
   @override
@@ -211,31 +229,34 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
 
   Widget buildBody() {
     if (folder == null) {
+      final mobile = MobileUi.enabledOf(context);
+      final canOpen = context.width <= favoritesTwoPanelChangeWidth;
       return CustomScrollView(
         slivers: [
           SliverAppbar(
-            leading: MobileUi.enabledOf(context)
-                ? MobileToolbarButton(
-                    label: 'Folders'.tl,
-                    icon: const Icon(Icons.folder_open),
-                    onPressed: showFolderSelector,
+            mobileShowBack: false,
+            leading: !mobile && canOpen
+                ? Tooltip(
+                    message: 'Folders'.tl,
+                    child: IconButton(
+                      icon: const Icon(Icons.menu),
+                      color: context.colorScheme.primary,
+                      onPressed: showFolderSelector,
+                    ),
                   )
-                : Tooltip(
-                    message: "Folders".tl,
-                    child: context.width <= favoritesTwoPanelChangeWidth
-                        ? IconButton(
-                            icon: const Icon(Icons.menu),
-                            color: context.colorScheme.primary,
-                            onPressed: showFolderSelector,
-                          )
+                : null,
+            title: mobile
+                ? FavoriteFolderPath(
+                    currentName: 'Unselected'.tl,
+                    onCurrentSelected: showFolderSelector,
+                    showFolderChevron: true,
+                  )
+                : GestureDetector(
+                    onTap: context.width < favoritesTwoPanelChangeWidth
+                        ? showFolderSelector
                         : null,
+                    child: Text('Unselected'.tl),
                   ),
-            title: GestureDetector(
-              onTap: context.width < favoritesTwoPanelChangeWidth
-                  ? showFolderSelector
-                  : null,
-              child: Text("Unselected".tl),
-            ),
           ),
         ],
       );

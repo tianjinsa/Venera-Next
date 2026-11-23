@@ -17,6 +17,7 @@ class Appbar extends StatefulWidget implements PreferredSizeWidget {
   const Appbar({
     required this.title,
     this.leading,
+    this.mobileShowBack = true,
     this.actions,
     this.backgroundColor,
     this.style = AppbarStyle.blur,
@@ -26,6 +27,7 @@ class Appbar extends StatefulWidget implements PreferredSizeWidget {
   final Widget title;
 
   final Widget? leading;
+  final bool mobileShowBack;
 
   final List<Widget>? actions;
 
@@ -94,7 +96,7 @@ class _AppbarState extends State<Appbar> {
       return MobileToolbar(
         title: widget.title,
         leading: widget.leading,
-        showBack: true,
+        showBack: widget.mobileShowBack,
         shortcuts: widget.actions ?? const [],
         backgroundColor: widget.backgroundColor,
         height: _kAppBarHeight,
@@ -151,6 +153,7 @@ class SliverAppbar extends StatelessWidget {
     super.key,
     required this.title,
     this.leading,
+    this.mobileShowBack,
     this.actions,
     this.mobileMore,
     this.mobileSearch,
@@ -159,6 +162,7 @@ class SliverAppbar extends StatelessWidget {
   });
 
   final Widget? leading;
+  final bool? mobileShowBack;
 
   final Widget title;
 
@@ -176,6 +180,7 @@ class SliverAppbar extends StatelessWidget {
       pinned: true,
       delegate: _MySliverAppBarDelegate(
         leading: leading,
+        mobileShowBack: mobileShowBack,
         title: title,
         actions: actions,
         mobileMore: mobileMore,
@@ -192,6 +197,7 @@ const _kAppBarHeight = 52.0;
 
 class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   final Widget? leading;
+  final bool? mobileShowBack;
 
   final Widget title;
 
@@ -207,6 +213,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   _MySliverAppBarDelegate({
     this.leading,
+    this.mobileShowBack,
     required this.title,
     this.actions,
     this.mobileMore,
@@ -226,7 +233,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
       Widget toolbar(Widget? searchButton) => MobileToolbar(
         title: title,
         leading: leading,
-        showBack: Navigator.of(context).canPop(),
+        showBack: mobileShowBack ?? Navigator.of(context).canPop(),
         shortcuts: [?searchButton, ...?actions],
         more: mobileMore,
         height: _kAppBarHeight,
@@ -297,6 +304,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(SliverPersistentHeaderDelegate oldDelegate) {
     return oldDelegate is! _MySliverAppBarDelegate ||
         leading != oldDelegate.leading ||
+        mobileShowBack != oldDelegate.mobileShowBack ||
         title != oldDelegate.title ||
         actions != oldDelegate.actions ||
         mobileMore != oldDelegate.mobileMore ||

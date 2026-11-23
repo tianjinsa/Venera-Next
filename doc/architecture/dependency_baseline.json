@@ -574,6 +574,7 @@
     "components/mobile_scroll_top.dart",
     "components/mobile_search_route.dart",
     "components/mobile_setting_row.dart",
+    "components/mobile_side_sheet.dart",
     "components/mobile_ui.dart",
     "components/navigation_bar.dart",
     "components/pop_up_widget.dart",

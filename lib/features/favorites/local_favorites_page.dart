@@ -891,13 +891,6 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
       label: 'Select comics'.tl,
     );
 
-    Widget folderButton() => collectionShortcut(
-      context,
-      label: "Folders".tl,
-      icon: const Icon(Icons.menu),
-      onPressed: widget.showFolders,
-    );
-
     Widget body = SmoothCustomScrollView(
       controller: scrollController,
       slivers: [
@@ -916,23 +909,26 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
             style: context.width < changePoint
                 ? AppbarStyle.shadow
                 : AppbarStyle.blur,
-            leading: context.width <= favoritesTwoPanelChangeWidth
-                ? mobile
-                      ? folderButton()
-                      : Tooltip(
-                          message: "Folders".tl,
-                          child: IconButton(
-                            icon: const Icon(Icons.menu),
-                            color: context.colorScheme.primary,
-                            onPressed: widget.showFolders,
-                          ),
-                        )
+            mobileShowBack: false,
+            leading: !mobile && context.width <= favoritesTwoPanelChangeWidth
+                ? Tooltip(
+                    message: 'Folders'.tl,
+                    child: IconButton(
+                      icon: const Icon(Icons.menu),
+                      color: context.colorScheme.primary,
+                      onPressed: widget.showFolders,
+                    ),
+                  )
+                : mobile
+                ? null
                 : const SizedBox(),
             title: FavoriteFolderPath(
               currentName: title,
+              showFolderChevron: mobile,
               parentName: parentFolder?.name,
               onParentSelected: parentFolder == null ? null : goToParent,
-              onCurrentSelected: context.width < favoritesTwoPanelChangeWidth
+              onCurrentSelected:
+                  mobile || context.width < favoritesTwoPanelChangeWidth
                   ? () {
                       if (_queryOwner?.canPresent == true &&
                           widget.folder == target.folder) {
