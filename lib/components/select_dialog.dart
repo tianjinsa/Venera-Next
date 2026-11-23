@@ -57,6 +57,7 @@ Future<int?> showSelectDialog({
                   child: Text('Cancel'.tl),
                 ),
                 prism.TextButton(
+                  key: ValueKey(current != null),
                   onPressed: current == null
                       ? null
                       : () {

@@ -236,18 +236,24 @@ class _ButtonState extends State<Button> {
           )
         : widget.child;
     final VoidCallback? onPressed = isLoading ? null : _activateMobile;
+    // The pinned Prism button syncs its enabled state during widget updates.
+    // Retire only that internal press state when availability changes.
+    final availabilityKey = ValueKey(!isLoading);
     return switch (type) {
       ButtonType.filled || ButtonType.normal => prism.FilledButton(
+        key: availabilityKey,
         style: style,
         onPressed: onPressed,
         child: content,
       ),
       ButtonType.outlined => prism.OutlinedButton(
+        key: availabilityKey,
         style: style,
         onPressed: onPressed,
         child: content,
       ),
       ButtonType.text => prism.TextButton(
+        key: availabilityKey,
         style: style,
         onPressed: onPressed,
         child: content,
@@ -420,6 +426,7 @@ class _IconButtonState extends State<_IconButton> {
       final iconSize = widget.size ?? 24;
       final size = Size.square(iconSize + 12);
       return prism.IconButton(
+        key: ValueKey(!widget.isLoading),
         onPressed: widget.isLoading ? null : widget.onPressed,
         iconSize: iconSize,
         padding: const EdgeInsets.all(6),

@@ -197,8 +197,14 @@ class MobileToolbarButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) =>
-      prism.IconButton(tooltip: label, icon: icon, onPressed: onPressed);
+  Widget build(BuildContext context) => prism.IconButton(
+    // The pinned StyledButton notifies its own states during a disabled
+    // flip. Remount only that small press surface, never its enclosing bar.
+    key: ValueKey(onPressed != null),
+    tooltip: label,
+    icon: icon,
+    onPressed: onPressed,
+  );
 }
 
 class MobileMenuButton extends StatelessWidget {

@@ -727,8 +727,9 @@ class _SliverComicSourceState extends SettingsSaveState<_SliverComicSource> {
                         destructive: const {'delete'},
                         onSelected: (action) {
                           if (!_current(targetSource) ||
-                              !NavigationAdmission.allows(context))
+                              !NavigationAdmission.allows(context)) {
                             return;
+                          }
                           switch (action) {
                             case 'origin':
                               showSourceOriginPicker(context, targetSource);

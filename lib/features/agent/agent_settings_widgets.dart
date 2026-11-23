@@ -178,11 +178,14 @@ class _AgentSettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MobileUi.enabledOf(context)
-      ? prism.FilledButton.icon(
+      ? KeyedSubtree(
           key: controlKey,
-          onPressed: onPressed,
-          icon: icon,
-          label: label,
+          child: prism.FilledButton.icon(
+            key: ValueKey(onPressed != null),
+            onPressed: onPressed,
+            icon: icon,
+            label: label,
+          ),
         )
       : tonal
       ? FilledButton.tonalIcon(
@@ -214,11 +217,14 @@ class _AgentSettingsTextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MobileUi.enabledOf(context)
-      ? prism.TextButton.icon(
+      ? KeyedSubtree(
           key: controlKey,
-          onPressed: onPressed,
-          icon: icon,
-          label: label,
+          child: prism.TextButton.icon(
+            key: ValueKey(onPressed != null),
+            onPressed: onPressed,
+            icon: icon,
+            label: label,
+          ),
         )
       : TextButton.icon(
           key: controlKey,

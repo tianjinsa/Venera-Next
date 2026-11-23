@@ -90,8 +90,9 @@ class SourceRepositoriesPanel extends StatelessWidget {
                             if (!context.mounted ||
                                 current == null ||
                                 current.url != repository.url ||
-                                current.name != repository.name)
+                                current.name != repository.name) {
                               return;
+                            }
                             if (action == 'edit') {
                               _editRepository(context, current);
                             } else if (action == 'remove') {

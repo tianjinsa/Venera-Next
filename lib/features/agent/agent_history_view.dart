@@ -89,6 +89,8 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
 
   Widget _mobileContent(BuildContext context, bool all, int selectedBytes) {
     final theme = Theme.of(context);
+    final canSelectAll = !_deleting && widget.conversations.isNotEmpty;
+    final canDelete = !_deleting && _selected.isNotEmpty;
     return CustomScrollView(
       key: const ValueKey('agent-history-mobile-scroll'),
       primary: true,
@@ -148,23 +150,30 @@ class _AgentHistoryPanelState extends State<AgentHistoryPanel> {
                   Wrap(
                     alignment: WrapAlignment.spaceBetween,
                     children: [
-                      prism.TextButton(
+                      // Remount only the button on state changes: the
+                      // pinned Prism button notifies its press surface during
+                      // didUpdateWidget when enabled changes.
+                      KeyedSubtree(
                         key: const ValueKey('agent-history-select-all'),
-                        onPressed: _deleting || widget.conversations.isEmpty
-                            ? null
-                            : () => _toggleAll(all),
-                        child: Text(all ? '取消全选' : '全选结果'),
-                      ),
-                      prism.TextButton.icon(
-                        key: const ValueKey('agent-history-delete-selected'),
-                        onPressed: _selected.isEmpty || _deleting
-                            ? null
-                            : _delete,
-                        style: prism.ButtonStyle.from(
-                          foregroundColor: theme.colorScheme.error,
+                        child: prism.TextButton(
+                          key: ValueKey(canSelectAll),
+                          onPressed: canSelectAll
+                              ? () => _toggleAll(all)
+                              : null,
+                          child: Text(all ? '取消全选' : '全选结果'),
                         ),
-                        icon: const Icon(Icons.delete_outline, size: 18),
-                        label: Text(_deleting ? '删除中' : '删除所选'),
+                      ),
+                      KeyedSubtree(
+                        key: const ValueKey('agent-history-delete-selected'),
+                        child: prism.TextButton.icon(
+                          key: ValueKey(canDelete),
+                          onPressed: canDelete ? _delete : null,
+                          style: prism.ButtonStyle.from(
+                            foregroundColor: theme.colorScheme.error,
+                          ),
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          label: Text(_deleting ? '删除中' : '删除所选'),
+                        ),
                       ),
                     ],
                   ),

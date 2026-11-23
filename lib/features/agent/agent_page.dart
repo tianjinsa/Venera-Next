@@ -1333,11 +1333,14 @@ class _AgentPageState extends State<AgentPage> with WidgetsBindingObserver {
                         size: 20,
                       );
                       return mobile
-                          ? prism.IconButton.filled(
+                          ? KeyedSubtree(
                               key: key,
-                              tooltip: tooltip,
-                              icon: icon,
-                              onPressed: onPressed,
+                              child: prism.IconButton.filled(
+                                key: ValueKey(onPressed != null),
+                                tooltip: tooltip,
+                                icon: icon,
+                                onPressed: onPressed,
+                              ),
                             )
                           : IconButton.filled(
                               key: key,

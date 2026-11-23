@@ -668,11 +668,16 @@ class _HoverButtonState extends State<_HoverButton> {
       final onPressed = widget.enabled ? widget.onTap : null;
       return widget.isFavorite
           ? prism.OutlinedButton(
+              key: ValueKey(widget.enabled),
               style: prism.ButtonStyle.from(foregroundColor: removeColor),
               onPressed: onPressed,
               child: label,
             )
-          : prism.FilledButton(onPressed: onPressed, child: label);
+          : prism.FilledButton(
+              key: ValueKey(widget.enabled),
+              onPressed: onPressed,
+              child: label,
+            );
     }
 
     return MouseRegion(

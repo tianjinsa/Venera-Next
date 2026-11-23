@@ -61,7 +61,7 @@ void main() {
     expect(calls, ['pressed', origin, 'pressed', origin]);
   });
 
-  testWidgets('icon keeps circle size, tooltip and desktop fallback', (
+  testWidgets('shared icon keeps size and switches on the same themed host', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -70,22 +70,60 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
 
     var presses = 0;
-    Widget button() => Button.icon(
-      icon: const Icon(Icons.star),
-      size: 18,
-      tooltip: 'Star it',
-      onPressed: () => presses++,
+    final loading = ValueNotifier(false);
+    addTearDown(loading.dispose);
+    await tester.pumpWidget(
+      _host(
+        ValueListenableBuilder(
+          valueListenable: loading,
+          builder: (_, value, _) => Button.icon(
+            icon: const Icon(Icons.star),
+            size: 18,
+            tooltip: 'Star it',
+            isLoading: value,
+            onPressed: () => presses++,
+          ),
+        ),
+        phone: true,
+      ),
     );
-    await tester.pumpWidget(_host(button(), phone: true));
     final icon = find.byType(prism.IconButton);
     expect(tester.getSize(icon), const Size.square(30));
     expect(tester.widget<prism.IconButton>(icon).tooltip, 'Star it');
     await tester.tap(icon);
     expect(presses, 1);
 
-    await tester.pumpWidget(_host(button(), phone: false));
+    loading.value = true;
+    await tester.pump();
+    expect(tester.getSize(icon), const Size.square(30));
+    expect(tester.widget<prism.IconButton>(icon).onPressed, isNull);
+    await tester.tap(icon, warnIfMissed: false);
+    expect(presses, 1);
+
+    loading.value = false;
+    await tester.pump();
+    await tester.tap(icon);
+    expect(presses, 2);
+
+    tester.view.physicalSize = const Size(820, 844);
+    await tester.pump();
     expect(icon, findsNothing);
     await tester.tap(find.byIcon(Icons.star));
-    expect(presses, 2);
+    expect(presses, 3);
+  });
+
+  testWidgets('desktop host still renders the original shared button', (
+    tester,
+  ) async {
+    var presses = 0;
+    await tester.pumpWidget(
+      _host(
+        Button.icon(icon: const Icon(Icons.star), onPressed: () => presses++),
+        phone: false,
+      ),
+    );
+    expect(find.byType(prism.IconButton), findsNothing);
+    await tester.tap(find.byIcon(Icons.star));
+    expect(presses, 1);
   });
 }

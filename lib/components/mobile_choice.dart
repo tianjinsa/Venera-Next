@@ -158,6 +158,7 @@ class MobileChoiceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => prism.OutlinedButton(
+    key: ValueKey(onPressed != null),
     onPressed: onPressed,
     style: prism.ButtonStyle.from(
       minimumSize: Size(minWidth, 48),

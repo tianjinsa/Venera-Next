@@ -27,6 +27,7 @@ class ReaderChromeAction extends StatelessWidget {
   Widget build(BuildContext context) {
     if (usePrism) {
       return prism.IconButton(
+        key: ValueKey((onPressed != null, selected)),
         tooltip: label,
         icon: icon,
         isSelected: selected,

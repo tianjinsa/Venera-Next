@@ -593,8 +593,16 @@ class _SelectDownloadChapterState extends State<_SelectDownloadChapter> {
       final text = Text(label, textAlign: TextAlign.center);
       if (usePrism) {
         return primary
-            ? prism.FilledButton(onPressed: onPressed, child: text)
-            : prism.TextButton(onPressed: onPressed, child: text);
+            ? prism.FilledButton(
+                key: ValueKey((label, onPressed != null)),
+                onPressed: onPressed,
+                child: text,
+              )
+            : prism.TextButton(
+                key: ValueKey((label, onPressed != null)),
+                onPressed: onPressed,
+                child: text,
+              );
       }
       return primary
           ? FilledButton(onPressed: onPressed, child: text)

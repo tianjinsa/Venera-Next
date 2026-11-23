@@ -70,10 +70,18 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('agent-history-manage')));
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('agent-history-delete-selected')),
-        findsOneWidget,
+      final delete = find.byKey(
+        const ValueKey('agent-history-delete-selected'),
       );
+      expect(delete, findsOneWidget);
+      await tester.tap(find.text(earlier.title));
+      await tester.pumpAndSettle();
+      await tester.tap(delete);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(const ValueKey('agent-history-manage')));
       await tester.pumpAndSettle();
 
