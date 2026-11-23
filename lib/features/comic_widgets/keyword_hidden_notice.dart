@@ -1,17 +1,20 @@
 import 'dart:async';
-import 'comic_blocking.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/keyword_match_preview.dart';
 import 'package:venera_next/components/keyword_rule_labels.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
+import 'package:venera_next/components/mobile_large_sheet.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/features/comic_source/comic_source_api.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/keyword_filter.dart';
 import 'package:venera_next/foundation/translations.dart';
 
+import 'comic_blocking.dart';
 import 'comic_tile.dart';
 
 class KeywordHiddenNotice extends StatelessWidget {
@@ -26,22 +29,35 @@ class KeywordHiddenNotice extends StatelessWidget {
   final List<Comic> Function() comics;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        'Hidden by keyword filters: @a comics'.tlParams({'a': count}),
-      ),
-      subtitle: Text('View reasons'.tl),
-      trailing: const ExcludeSemantics(child: Icon(Icons.chevron_right)),
-      onTap: () => showKeywordFilterReview(
-        context,
-        comics: comics,
-        filterBlockedWords: filterBlockedWords,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final title = Text(
+      'Hidden by keyword filters: @a comics'.tlParams({'a': count}),
+    );
+    final subtitle = Text('View reasons'.tl);
+    const trailing = ExcludeSemantics(child: Icon(Icons.chevron_right));
+    void review() => showKeywordFilterReview(
+      context,
+      comics: comics,
+      filterBlockedWords: filterBlockedWords,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: MobileUi.enabledOf(context)
+          ? MobileContentRow(
+              title: title,
+              subtitle: subtitle,
+              trailing: trailing,
+              onTap: review,
+            )
+          : ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: title,
+              subtitle: subtitle,
+              trailing: trailing,
+              onTap: review,
+            ),
+    );
+  }
 }
 
 Future<void> showKeywordFilterReview(
@@ -51,36 +67,47 @@ Future<void> showKeywordFilterReview(
   String? description,
 }) {
   final work = context.getInheritedWidgetOfExactType<SettingsSaveScope>()?.work;
+  final mobile = MobileUi.enabledOf(context);
+  Widget review(BuildContext _) {
+    final body = _KeywordReview(
+      comics: comics,
+      filterBlockedWords: filterBlockedWords,
+      description: description,
+      sheet: mobile,
+    );
+    return work == null ? body : SettingsSaveScope(work: work, child: body);
+  }
+
+  if (mobile) {
+    // Keep the same navigation owner as the previous root dialog: the cover,
+    // details and source-specific searches must all appear above the review.
+    return Navigator.of(context, rootNavigator: true).push<void>(
+      mobileLargeSheetRoute<void>(context: context, builder: review),
+    );
+  }
   return showDialog<void>(
     context: context,
     animationStyle: MediaQuery.disableAnimationsOf(context)
         ? AnimationStyle.noAnimation
         : null,
-    builder: (_) {
-      final dialog = _KeywordHiddenDialog(
-        comics: comics,
-        filterBlockedWords: filterBlockedWords,
-        description: description,
-      );
-      return work == null
-          ? dialog
-          : SettingsSaveScope(work: work, child: dialog);
-    },
+    builder: review,
   );
 }
 
-class _KeywordHiddenDialog extends StatefulWidget {
-  const _KeywordHiddenDialog({
+class _KeywordReview extends StatefulWidget {
+  const _KeywordReview({
     required this.comics,
     required this.filterBlockedWords,
     this.description,
+    required this.sheet,
   });
   final bool filterBlockedWords;
   final List<Comic> Function() comics;
   final String? description;
+  final bool sheet;
 
   @override
-  State<_KeywordHiddenDialog> createState() => _KeywordHiddenDialogState();
+  State<_KeywordReview> createState() => _KeywordReviewState();
 }
 
 class _ReviewEntry {
@@ -94,7 +121,7 @@ class _ReviewEntry {
       : null;
 }
 
-class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
+class _KeywordReviewState extends State<_KeywordReview> {
   var _hidden = <_ReviewEntry>[];
   var _scanning = true;
   var _generation = 0;
@@ -147,6 +174,72 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
         : match == null || comicKeywordRuleEditor == null
         ? null
         : () => comicKeywordRuleEditor!(context, match.rule);
+    final cover = Tooltip(
+      message: 'Details'.tl,
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: () => openComicPage(
+            context: context,
+            id: comic.id,
+            sourceKey: comic.sourceKey,
+            cover: comic.cover,
+            title: comic.title,
+          ),
+          child: SizedBox(
+            width: 60,
+            height: 84,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: ColoredBox(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: ComicTile(comic: comic).buildImage(context),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final title = match?.field == KeywordMatchField.title
+        ? KeywordMatchPreview(match: match!)
+        : Text(
+            comic.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          );
+    final explanation = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (author != null) ...[
+          Text('Author blocking'.tl),
+          Text('Author: @a'.tlParams({'a': author})),
+        ] else if (match != null) ...[
+          Text('Matched in @a'.tlParams({'a': match.field.label})),
+          if (match.field != KeywordMatchField.title)
+            KeywordMatchPreview(match: match),
+          Text(
+            'Keyword: @a'.tlParams({
+              'a': match.rule.keyword.isEmpty
+                  ? 'Empty keyword'.tl
+                  : match.rule.keyword,
+            }),
+          ),
+          Text(keywordRuleSummary(match.rule)),
+        ],
+      ],
+    );
+    if (widget.sheet) {
+      return MobileContentRow(
+        key: ValueKey((comic.sourceKey, comic.id)),
+        title: title,
+        leading: cover,
+        subtitle: explanation,
+        onTap: edit,
+      );
+    }
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: edit,
@@ -155,67 +248,12 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Tooltip(
-              message: 'Details'.tl,
-              child: Semantics(
-                button: true,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () => openComicPage(
-                    context: context,
-                    id: comic.id,
-                    sourceKey: comic.sourceKey,
-                    cover: comic.cover,
-                    title: comic.title,
-                  ),
-                  child: SizedBox(
-                    width: 60,
-                    height: 84,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: ColoredBox(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        child: ComicTile(comic: comic).buildImage(context),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            cover,
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (match?.field == KeywordMatchField.title)
-                    KeywordMatchPreview(match: match!)
-                  else
-                    Text(
-                      comic.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  const SizedBox(height: 8),
-                  if (author != null) ...[
-                    Text('Author blocking'.tl),
-                    Text('Author: @a'.tlParams({'a': author})),
-                  ] else if (match != null) ...[
-                    Text('Matched in @a'.tlParams({'a': match.field.label})),
-                    if (match.field != KeywordMatchField.title)
-                      KeywordMatchPreview(match: match),
-                    Text(
-                      'Keyword: @a'.tlParams({
-                        'a': match.rule.keyword.isEmpty
-                            ? 'Empty keyword'.tl
-                            : match.rule.keyword,
-                      }),
-                    ),
-                    Text(keywordRuleSummary(match.rule)),
-                  ],
-                ],
+                children: [title, const SizedBox(height: 8), explanation],
               ),
             ),
           ],
@@ -224,46 +262,116 @@ class _KeywordHiddenDialogState extends State<_KeywordHiddenDialog> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) => ContentDialog(
-    title: 'Keyword filter reasons'.tl,
-    content: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.description ?? 'Tap a matching reason to edit its rule.'.tl,
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: 560,
-            height: math.min(400, MediaQuery.sizeOf(context).height * 0.5),
-            child: _scanning
-                ? const Center(child: CircularProgressIndicator())
-                : _hidden.isEmpty
-                ? Center(
-                    child: Text(
-                      'No comics in this list are hidden by keywords.'.tl,
+  String get _explanation =>
+      widget.description ?? 'Tap a matching reason to edit its rule.'.tl;
+
+  String get _empty => 'No comics in this list are hidden by keywords.'.tl;
+
+  Widget _sheet(BuildContext context) {
+    // The header and empty/loading copy participate in this same scroll
+    // view, including on a small phone at large text sizes. Do not replace
+    // the primary controller when scan results arrive or a rule is edited.
+    return CustomScrollView(
+      primary: true,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          'Keyword filter reasons'.tl,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
                     ),
-                  )
-                : ListView.separated(
-                    itemCount: _hidden.length,
-                    separatorBuilder: (_, _) => const Divider(),
-                    itemBuilder: (context, index) {
-                      final entry = _hidden[index];
-                      return _reason(entry.comic, entry.match, entry.author);
-                    },
-                  ),
+                    MobileToolbarButton(
+                      label: 'Close'.tl,
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                  ],
+                ),
+                Text(_explanation),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
-        ],
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).maybePop(),
-        child: Text('Close'.tl),
-      ),
-    ],
-  );
+        ),
+        if (_scanning || _hidden.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: _scanning
+                  ? const CircularProgressIndicator()
+                  : Text(_empty),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            sliver: SliverList.separated(
+              itemCount: _hidden.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 4),
+              itemBuilder: (context, index) {
+                final entry = _hidden[index];
+                return _reason(entry.comic, entry.match, entry.author);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.sheet
+      ? _sheet(context)
+      : ContentDialog(
+          title: 'Keyword filter reasons'.tl,
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(_explanation),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 560,
+                  height: math.min(
+                    400,
+                    MediaQuery.sizeOf(context).height * 0.5,
+                  ),
+                  child: _scanning
+                      ? const Center(child: CircularProgressIndicator())
+                      : _hidden.isEmpty
+                      ? Center(child: Text(_empty))
+                      : ListView.separated(
+                          itemCount: _hidden.length,
+                          separatorBuilder: (_, _) => const Divider(),
+                          itemBuilder: (context, index) {
+                            final entry = _hidden[index];
+                            return _reason(
+                              entry.comic,
+                              entry.match,
+                              entry.author,
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              child: Text('Close'.tl),
+            ),
+          ],
+        );
 }

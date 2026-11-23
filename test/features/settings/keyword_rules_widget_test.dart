@@ -7,6 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
+import 'package:venera_next/components/mobile_ui.dart';
+import 'package:venera_next/features/comic_widgets/keyword_hidden_notice.dart';
 import 'package:venera_next/components/keyword_match_preview.dart';
 import 'package:venera_next/components/image.dart';
 import 'package:venera_next/features/favorites/favorites_scope.dart';
@@ -234,6 +237,77 @@ void main() {
       expect(_saved(root)['blockedWordRules'], isEmpty);
       expect(isBlocked(_comic('black')), 'bl');
       expect(isBlocked(_comic('BLACK')), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'phone reason notice opens an expandable diagnostic sheet; cover and rule have distinct actions',
+    (tester) async {
+      _prepare();
+      tester.view
+        ..physicalSize = const Size(390, 844)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final edits = <String>[];
+      final opens = <String>[];
+      final comics = List.generate(18, (i) => _comic('alpha ${i + 1}'));
+      configureComicWidgets(
+        keywordRuleEditor: (_, rule) async => edits.add(rule.keyword),
+        comicPageBuilder:
+            ({required id, required sourceKey, cover, title, heroID}) {
+              opens.add(id);
+              return const Scaffold(body: Text('Review detail'));
+            },
+        tileImageProviderResolver: (_) =>
+            const AssetImage('assets/app_icon.png'),
+      );
+      addTearDown(() => configureComicWidgets());
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [MobileUiLocalizations.delegate],
+          builder: (_, child) => MobileUiTheme(glass: 'off', child: child!),
+          home: Scaffold(
+            body: KeywordHiddenNotice(
+              count: comics.length,
+              comics: () => comics,
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('View reasons'));
+      await tester.pumpAndSettle();
+      final sheet = find.byKey(const ValueKey('mobile-large-sheet-surface'));
+      expect(sheet, findsOneWidget);
+      expect(find.byType(ContentDialog), findsNothing);
+      final initial = tester.getRect(sheet);
+      expect(
+        initial.top,
+        greaterThan(300),
+      ); // diagnostic presentation, not an anchored selector
+      await tester.tap(find.byType(KeywordMatchPreview).first);
+      await tester.pumpAndSettle();
+      expect(edits, ['alpha']);
+      expect(opens, isEmpty);
+      await tester.tap(find.byTooltip('Details').first);
+      await tester.pumpAndSettle();
+      expect(opens, ['alpha 1']);
+      expect(edits, ['alpha']);
+      expect(find.text('Review detail'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(sheet, findsOneWidget);
+      await tester.dragFrom(
+        Offset(initial.center.dx, initial.top + 12),
+        const Offset(0, -420),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getRect(sheet).top, lessThan(initial.top - 100));
+      expect(find.byType(MobileContentRow), findsWidgets);
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(sheet, findsNothing);
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
