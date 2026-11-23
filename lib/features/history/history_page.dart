@@ -1,8 +1,13 @@
 import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/features/history/history_scope.dart';
+
 import 'dart:async';
+
 import 'package:venera_next/foundation/log.dart';
 import 'package:flutter/material.dart';
+import 'package:prism_ui/popup.dart' as prism;
+import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/button.dart';
 import 'package:venera_next/components/flyout.dart';
@@ -286,13 +291,12 @@ class _HistoryPageState extends State<HistoryPage> {
       }
       if (mounted && !cancelled) {
         context.showMessage(
-          message:
-              'Refresh Completed: Success @success, Failed @failed, Skipped @skipped'
-                  .tlParams({
-                    'success': success,
-                    'failed': failed,
-                    'skipped': skipped,
-                  }),
+          message: 'Refresh Completed: Success @success, Failed @failed, Skipped @skipped'
+              .tlParams({
+                'success': success,
+                'failed': failed,
+                'skipped': skipped,
+              }),
         );
       }
     } catch (error, stack) {
@@ -309,112 +313,164 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
+  void _deleteSelection() {
+    final comicsToDelete = selectedComics.toList();
+    _exitMultiSelect();
+    _manager.batchDeleteHistories(comicsToDelete);
+  }
+
+  List<Widget> _clearHistoryActions(
+    BuildContext dialogContext, {
+    FavoriteStoreBinding? binding,
+  }) => [
+    Button.outlined(
+      onPressed: () {
+        if (binding?.isCurrent == false) return;
+        _manager.clearUnfavoritedHistory(
+          manager: binding?.manager ?? FavoritesScope.read(dialogContext),
+        );
+        dialogContext.pop();
+      },
+      child: Text('Clear Unfavorited'.tl),
+    ),
+    const SizedBox(width: 4),
+    Button.filled(
+      color: dialogContext.colorScheme.error,
+      onPressed: () {
+        _manager.clearHistory();
+        dialogContext.pop();
+      },
+      child: Text('Clear'.tl),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    List<Widget> selectActions = [
-      IconButton(
-        icon: const Icon(Icons.select_all),
-        tooltip: "Select All".tl,
-        onPressed: _selectingAll ? null : selectAll,
-      ),
-      IconButton(
-        icon: const Icon(Icons.deselect),
-        tooltip: "Deselect".tl,
-        onPressed: deSelect,
-      ),
-      IconButton(
-        icon: const Icon(Icons.flip),
-        tooltip: "Invert Selection".tl,
-        onPressed: _selectingAll ? null : invertSelection,
-      ),
-      IconButton(
-        icon: const Icon(Icons.delete),
-        tooltip: "Delete".tl,
-        onPressed: selectedComics.isEmpty || _selectingAll
-            ? null
-            : () {
-                final comicsToDelete = selectedComics.toList();
-                _exitMultiSelect();
+    final mobile = MobileUi.enabledOf(context);
+    final canDelete = selectedComics.isNotEmpty && !_selectingAll;
+    void openStatistics() =>
+        context.to(() => ReadingStatsPage(manager: _manager));
+    void openSearch() => setState(() => searchMode = true);
+    final List<Widget> selectActions = mobile
+        ? [
+            collectionShortcut(
+              context,
+              label: 'Select All'.tl,
+              icon: const Icon(Icons.select_all),
+              onPressed: _selectingAll ? null : selectAll,
+            ),
+            collectionShortcut(
+              context,
+              label: 'Invert Selection'.tl,
+              icon: const Icon(Icons.flip),
+              onPressed: _selectingAll ? null : invertSelection,
+            ),
+          ]
+        : [
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              tooltip: "Select All".tl,
+              onPressed: _selectingAll ? null : selectAll,
+            ),
+            IconButton(
+              icon: const Icon(Icons.deselect),
+              tooltip: "Deselect".tl,
+              onPressed: deSelect,
+            ),
+            IconButton(
+              icon: const Icon(Icons.flip),
+              tooltip: "Invert Selection".tl,
+              onPressed: _selectingAll ? null : invertSelection,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              tooltip: "Delete".tl,
+              onPressed: canDelete ? _deleteSelection : null,
+            ),
+          ];
 
-                _manager.batchDeleteHistories(comicsToDelete);
-              },
-      ),
-    ];
-
-    List<Widget> normalActions = [
-      IconButton(
-        icon: const Icon(Icons.query_stats),
-        tooltip: 'Reading statistics'.tl,
-        onPressed: () => context.to(() => ReadingStatsPage(manager: _manager)),
-      ),
-      IconButton(
-        icon: const Icon(Icons.search),
-        tooltip: 'Search'.tl,
-        onPressed: () => setState(() => searchMode = true),
-      ),
-      IconButton(
-        icon: const Icon(Icons.refresh),
-        tooltip: 'Refresh All Histories'.tl,
-        onPressed: _refreshAllHistories,
-      ),
-      IconButton(
-        icon: const Icon(Icons.checklist),
-        tooltip: multiSelectMode ? "Exit Multi-Select".tl : "Multi-Select".tl,
-        onPressed: _enterMultiSelect,
-      ),
-      Tooltip(
-        message: 'Clear History'.tl,
-        child: Flyout(
-          controller: controller,
-          flyoutBuilder: (context) {
-            return FlyoutContent(
-              title: 'Clear History'.tl,
-              content: Text('Are you sure you want to clear your history?'.tl),
-              actions: [
-                Button.outlined(
+    final List<Widget> normalActions = mobile
+        ? [
+            collectionShortcut(
+              context,
+              label: 'Search'.tl,
+              icon: const Icon(Icons.search),
+              onPressed: openSearch,
+            ),
+            collectionShortcut(
+              context,
+              label: 'Refresh All Histories'.tl,
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshAllHistories,
+            ),
+            collectionShortcut(
+              context,
+              label: 'Multi-Select'.tl,
+              icon: const Icon(Icons.checklist),
+              onPressed: _enterMultiSelect,
+            ),
+          ]
+        : [
+            IconButton(
+              icon: const Icon(Icons.query_stats),
+              tooltip: 'Reading statistics'.tl,
+              onPressed: openStatistics,
+            ),
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Search'.tl,
+              onPressed: openSearch,
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh All Histories'.tl,
+              onPressed: _refreshAllHistories,
+            ),
+            IconButton(
+              icon: const Icon(Icons.checklist),
+              tooltip: multiSelectMode
+                  ? "Exit Multi-Select".tl
+                  : "Multi-Select".tl,
+              onPressed: _enterMultiSelect,
+            ),
+            Tooltip(
+              message: 'Clear History'.tl,
+              child: Flyout(
+                controller: controller,
+                flyoutBuilder: (context) {
+                  return FlyoutContent(
+                    title: 'Clear History'.tl,
+                    content: Text(
+                      'Are you sure you want to clear your history?'.tl,
+                    ),
+                    actions: _clearHistoryActions(context),
+                  );
+                },
+                child: IconButton(
+                  icon: const Icon(Icons.clear_all),
                   onPressed: () {
-                    _manager.clearUnfavoritedHistory(
-                      manager: FavoritesScope.read(context),
-                    );
-                    context.pop();
+                    controller.show();
                   },
-                  child: Text('Clear Unfavorited'.tl),
                 ),
-                const SizedBox(width: 4),
-                Button.filled(
-                  color: context.colorScheme.error,
-                  onPressed: () {
-                    _manager.clearHistory();
-                    context.pop();
-                  },
-                  child: Text('Clear'.tl),
-                ),
-              ],
-            );
-          },
-          child: IconButton(
-            icon: const Icon(Icons.clear_all),
-            onPressed: () {
-              controller.show();
-            },
-          ),
-        ),
-      ),
-    ];
+              ),
+            ),
+          ];
 
     final searchActions = [
       if (query.isNotEmpty)
-        IconButton(
+        collectionShortcut(
+          context,
           icon: const Icon(Icons.clear),
-          tooltip: 'Clear'.tl,
+          label: 'Clear'.tl,
           onPressed: () {
             searchController.clear();
             _search('');
           },
         ),
-      IconButton(
+      collectionShortcut(
+        context,
         icon: const Icon(Icons.checklist),
-        tooltip: 'Multi-Select'.tl,
+        label: 'Multi-Select'.tl,
         onPressed: _enterMultiSelect,
       ),
     ];
@@ -445,24 +501,23 @@ class _HistoryPageState extends State<HistoryPage> {
               controller: _scrollController,
               slivers: [
                 SliverAppbar(
-                  leading: Tooltip(
-                    message: multiSelectMode || searchMode
-                        ? "Cancel".tl
-                        : "Back".tl,
-                    child: IconButton(
-                      onPressed: () {
-                        if (multiSelectMode) {
-                          _exitMultiSelect();
-                        } else if (searchMode) {
-                          _closeSearch();
-                        } else {
-                          context.pop();
-                        }
-                      },
-                      icon: multiSelectMode || searchMode
-                          ? const Icon(Icons.close)
-                          : const Icon(Icons.arrow_back),
-                    ),
+                  leading: collectionShortcut(
+                    context,
+                    label: multiSelectMode || searchMode
+                        ? 'Cancel'.tl
+                        : 'Back'.tl,
+                    onPressed: () {
+                      if (multiSelectMode) {
+                        _exitMultiSelect();
+                      } else if (searchMode) {
+                        _closeSearch();
+                      } else {
+                        context.pop();
+                      }
+                    },
+                    icon: multiSelectMode || searchMode
+                        ? const Icon(Icons.close)
+                        : const Icon(Icons.arrow_back),
                   ),
                   title: multiSelectMode
                       ? Text(selectedComics.length.toString())
@@ -477,6 +532,52 @@ class _HistoryPageState extends State<HistoryPage> {
                           onChanged: _search,
                         )
                       : Text('History'.tl),
+                  mobileMore: !mobile || (!multiSelectMode && searchMode)
+                      ? null
+                      : MobileMenuButton(
+                          items: multiSelectMode
+                              ? [
+                                  prism.PopupMenuItem(
+                                    label: 'Deselect'.tl,
+                                    onPressed: deSelect,
+                                  ),
+                                  if (canDelete)
+                                    prism.PopupMenuItem(
+                                      label: 'Delete'.tl,
+                                      danger: true,
+                                      onPressed: _deleteSelection,
+                                    ),
+                                ]
+                              : [
+                                  prism.PopupMenuItem(
+                                    label: 'Reading statistics'.tl,
+                                    onPressed: openStatistics,
+                                  ),
+                                  prism.PopupMenuItem(
+                                    label: 'Clear History'.tl,
+                                    danger: true,
+                                    onPressed: () {
+                                      final binding = FavoritesScope.capture(
+                                        context,
+                                      );
+                                      showDialog<void>(
+                                        context: context,
+                                        builder: (context) => ContentDialog(
+                                          title: 'Clear History'.tl,
+                                          content: Text(
+                                            'Are you sure you want to clear your history?'
+                                                .tl,
+                                          ),
+                                          actions: _clearHistoryActions(
+                                            context,
+                                            binding: binding,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                        ),
                   actions: multiSelectMode
                       ? selectActions
                       : searchMode
@@ -487,6 +588,8 @@ class _HistoryPageState extends State<HistoryPage> {
                   key: _gridKey,
                   comics: comics,
                   filterBlockedComics: false,
+                  mobileCollection: true,
+                  selectionMode: multiSelectMode,
                   selections: {
                     for (final comic in comics)
                       if (selectedComics.contains(_identity(comic)))

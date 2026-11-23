@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/rendering.dart';
+
 import 'comic_blocking.dart';
+
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/keyword_filter.dart';
@@ -13,6 +16,8 @@ import 'package:venera_next/components/layout.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/comic_source/comic_source_api.dart';
 import 'package:venera_next/routing/app_navigation.dart';
@@ -35,6 +40,8 @@ class SliverGridComics extends StatefulWidget {
     this.onTap,
     this.onLongPressed,
     this.selections,
+    this.mobileCollection = false,
+    this.selectionMode = false,
     this.useFavoriteDisplaySettings = false,
     this.showHiddenCount = true,
     this.filterBlockedWords = true,
@@ -44,6 +51,8 @@ class SliverGridComics extends StatefulWidget {
   final List<Comic> comics;
 
   final Map<Comic, bool>? selections;
+  final bool mobileCollection;
+  final bool selectionMode;
 
   final void Function()? onLastItemBuild;
 
@@ -95,9 +104,8 @@ class SliverGridComicsState extends State<SliverGridComics> {
     if (identical(filter, _blockFilter) &&
         _filterWords == widget.filterBlockedWords &&
         _sourceComics.length == widget.comics.length &&
-        Iterable.generate(
-          _sourceComics.length,
-        ).every((i) => identical(_sourceComics[i], widget.comics[i]))) {
+        Iterable.generate(_sourceComics.length)
+            .every((i) => identical(_sourceComics[i], widget.comics[i]))) {
       return;
     }
     final previousIDs = <(String, String), List<int>>{};
@@ -199,6 +207,8 @@ class SliverGridComicsState extends State<SliverGridComics> {
       heroIDs: heroIDs,
       indexes: _indexes,
       selection: widget.selections,
+      mobileCollection: widget.mobileCollection && MobileUi.enabledOf(context),
+      selectionMode: widget.selectionMode,
       onLastItemBuild: widget.onLastItemBuild,
       badgeBuilder: widget.badgeBuilder,
       menuBuilder: widget.menuBuilder,
@@ -241,6 +251,8 @@ class _SliverGridComics extends StatelessWidget {
     this.onLongPressed,
     this.onBlocked,
     this.selection,
+    required this.mobileCollection,
+    required this.selectionMode,
     this.favoriteDisplayMode,
     this.galleryColumns,
   });
@@ -251,6 +263,8 @@ class _SliverGridComics extends StatelessWidget {
   final Map<(String, String), int> indexes;
 
   final Map<Comic, bool>? selection;
+  final bool mobileCollection;
+  final bool selectionMode;
 
   final void Function()? onLastItemBuild;
 
@@ -296,6 +310,14 @@ class _SliverGridComics extends StatelessWidget {
             heroID: heroIDs[index],
             displayMode: favoriteDisplayMode,
           );
+          if (mobileCollection) {
+            return MobileCollectionTileFrame(
+              key: ValueKey((comics[index].sourceKey, comics[index].id)),
+              selectionMode: selectionMode,
+              selected: isSelected,
+              child: comic,
+            );
+          }
           if (selection == null) {
             return comic;
           }
@@ -304,9 +326,8 @@ class _SliverGridComics extends StatelessWidget {
             duration: const Duration(milliseconds: 150),
             decoration: BoxDecoration(
               color: isSelected
-                  ? Theme.of(
-                      context,
-                    ).colorScheme.secondaryContainer.toOpacity(0.72)
+                  ? Theme.of(context).colorScheme.secondaryContainer
+                        .toOpacity(0.72)
                   : null,
               borderRadius: BorderRadius.circular(12),
             ),
@@ -341,9 +362,8 @@ String? isBlocked(
       tags: item.tags ?? const [],
     );
   }
-  return ComicBlockFilter.fromSettings(
-    appdata.settings,
-  ).firstReason(item, filterBlockedWords: filterBlockedWords);
+  return ComicBlockFilter.fromSettings(appdata.settings)
+      .firstReason(item, filterBlockedWords: filterBlockedWords);
 }
 
 class ComicList extends StatefulWidget {
@@ -360,6 +380,7 @@ class ComicList extends StatefulWidget {
     this.reloadHandlerCallback,
     this.enablePageStorage = false,
     this.useFavoriteDisplaySettings = false,
+    this.mobileCollection = false,
     this.filterBlockedComics = true,
   });
 
@@ -384,6 +405,7 @@ class ComicList extends StatefulWidget {
   final bool enablePageStorage;
 
   final bool useFavoriteDisplaySettings;
+  final bool mobileCollection;
   final bool filterBlockedComics;
 
   @override
@@ -690,9 +712,8 @@ class ComicListState extends State<ComicList> {
 
   @override
   Widget build(BuildContext context) {
-    final type = GlobalPreferenceStore(
-      appdata.settings,
-    ).read(DiscoveryPreferences.comicListDisplayMode);
+    final type = GlobalPreferenceStore(appdata.settings)
+        .read(DiscoveryPreferences.comicListDisplayMode);
     return type == 'paging' ? buildPagingMode() : buildContinuousMode();
   }
 
@@ -735,6 +756,7 @@ class ComicListState extends State<ComicList> {
           comics: _data[_page] ?? const [],
           menuBuilder: widget.menuBuilder,
           useFavoriteDisplaySettings: widget.useFavoriteDisplaySettings,
+          mobileCollection: widget.mobileCollection,
           filterBlockedComics: widget.filterBlockedComics,
         ),
         if (_data[_page]!.length > 6 && _maxPage != 1)
@@ -782,6 +804,7 @@ class ComicListState extends State<ComicList> {
           comics: _data.values.expand((element) => element).toList(),
           menuBuilder: widget.menuBuilder,
           useFavoriteDisplaySettings: widget.useFavoriteDisplaySettings,
+          mobileCollection: widget.mobileCollection,
           filterBlockedComics: widget.filterBlockedComics,
           onLastItemBuild: () {
             if (_error == null &&

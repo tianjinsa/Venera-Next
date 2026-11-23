@@ -1,8 +1,12 @@
 import 'package:venera_next/features/favorites/favorites_scope.dart';
+
 import 'favorite_models.dart';
+
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/menu.dart';
+import 'package:venera_next/components/mobile_ui.dart';
+import 'package:venera_next/features/favorites/favorites_display.dart';
 import 'package:venera_next/features/comic_details/comic_details.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/foundation/appdata.dart';
@@ -145,7 +149,12 @@ class ReadLaterPage extends StatelessWidget {
           final comics = manager.getReadLaterComics();
           return CustomScrollView(
             slivers: [
-              SliverAppbar(title: Text('Read later'.tl)),
+              SliverAppbar(
+                title: Text('Read later'.tl),
+                mobileMore: MobileUi.enabledOf(context) && comics.isNotEmpty
+                    ? const FavoriteDisplayButton.mobileMore()
+                    : null,
+              ),
               if (comics.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
@@ -162,6 +171,7 @@ class ReadLaterPage extends StatelessWidget {
               else
                 SliverGridComics(
                   filterBlockedComics: false,
+                  mobileCollection: true,
                   comics: comics,
                   useFavoriteDisplaySettings: true,
                   menuBuilder: (comic) => [

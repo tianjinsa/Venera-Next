@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/async_confirm_dialog.dart';
 import 'package:venera_next/components/button.dart';
@@ -107,8 +109,30 @@ class _NormalFavoritePageState extends State<_NormalFavoritePage> {
   @override
   Widget build(BuildContext context) {
     final data = widget.data;
+    final mobile = MobileUi.enabledOf(context);
+    final importEntry = MenuEntry(
+      icon: Icons.sync,
+      text: "Convert to local".tl,
+      onClick: () {
+        importNetworkFolder(
+          context,
+          data.key,
+          9999999,
+          null,
+          null,
+          isCurrent: () => mounted && identical(widget.data, data),
+        );
+      },
+    );
+    void refresh() {
+      // Force refresh bypassing cache.
+      NetworkCacheManager().clear();
+      comicListKey.currentState?.refresh();
+    }
+
     return ComicList(
       filterBlockedComics: false,
+      mobileCollection: true,
       key: comicListKey,
       leadingSliver: SliverAppbar(
         style: context.width < changePoint
@@ -117,11 +141,18 @@ class _NormalFavoritePageState extends State<_NormalFavoritePage> {
         leading: Tooltip(
           message: "Folders".tl,
           child: context.width <= favoritesTwoPanelChangeWidth
-              ? IconButton(
-                  icon: const Icon(Icons.menu),
-                  color: context.colorScheme.primary,
-                  onPressed: widget.showFolders,
-                )
+              ? mobile
+                    ? collectionShortcut(
+                        context,
+                        label: 'Folders'.tl,
+                        icon: const Icon(Icons.menu),
+                        onPressed: widget.showFolders,
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.menu),
+                        color: context.colorScheme.primary,
+                        onPressed: widget.showFolders,
+                      )
               : null,
         ),
         title: GestureDetector(
@@ -130,48 +161,39 @@ class _NormalFavoritePageState extends State<_NormalFavoritePage> {
               : null,
           child: Text(widget.data.title),
         ),
+        mobileMore: mobile
+            ? FavoriteDisplayButton.mobileMore(
+                isCurrent: () => mounted && identical(widget.data, data),
+                mobileItems: [collectionMenuAction(context, importEntry)],
+              )
+            : null,
         actions: [
-          const FavoriteDisplayButton(),
-          Tooltip(
-            message: "Refresh".tl,
-            child: IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () {
-                // Force refresh bypassing cache
-                NetworkCacheManager().clear();
-                comicListKey.currentState!.refresh();
-              },
-            ),
+          if (!mobile) const FavoriteDisplayButton(),
+          collectionShortcut(
+            context,
+            label: "Refresh".tl,
+            icon: const Icon(Icons.refresh),
+            onPressed: refresh,
           ),
-          MenuButton(
-            entries: [
-              MenuEntry(
-                icon: Icons.sync,
-                text: "Convert to local".tl,
-                onClick: () {
-                  importNetworkFolder(
-                    context,
-                    data.key,
-                    9999999,
-                    null,
-                    null,
-                    isCurrent: () => mounted && identical(widget.data, data),
-                  );
-                },
-              ),
-            ],
-          ),
+          if (!mobile) MenuButton(entries: [importEntry]),
         ],
       ),
       errorLeading: Appbar(
         leading: Tooltip(
           message: "Folders".tl,
           child: context.width <= favoritesTwoPanelChangeWidth
-              ? IconButton(
-                  icon: const Icon(Icons.menu),
-                  color: context.colorScheme.primary,
-                  onPressed: widget.showFolders,
-                )
+              ? mobile
+                    ? collectionShortcut(
+                        context,
+                        label: 'Folders'.tl,
+                        icon: const Icon(Icons.menu),
+                        onPressed: widget.showFolders,
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.menu),
+                        color: context.colorScheme.primary,
+                        onPressed: widget.showFolders,
+                      )
               : null,
         ),
         title: GestureDetector(
@@ -286,20 +308,29 @@ class _MultiFolderFavoritesPageState extends State<_MultiFolderFavoritesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = MobileUi.enabledOf(context);
+    Widget folderButton() => mobile
+        ? collectionShortcut(
+            context,
+            label: 'Folders'.tl,
+            icon: const Icon(Icons.menu),
+            onPressed: widget.showFolders,
+          )
+        : Tooltip(
+            message: 'Folders'.tl,
+            child: IconButton(
+              icon: const Icon(Icons.menu),
+              color: context.colorScheme.primary,
+              onPressed: widget.showFolders,
+            ),
+          );
     var sliverAppBar = SliverAppbar(
       style: context.width < changePoint
           ? AppbarStyle.shadow
           : AppbarStyle.blur,
-      leading: Tooltip(
-        message: "Folders".tl,
-        child: context.width <= favoritesTwoPanelChangeWidth
-            ? IconButton(
-                icon: const Icon(Icons.menu),
-                color: context.colorScheme.primary,
-                onPressed: widget.showFolders,
-              )
-            : null,
-      ),
+      leading: context.width <= favoritesTwoPanelChangeWidth
+          ? folderButton()
+          : null,
       title: GestureDetector(
         onTap: context.width < favoritesTwoPanelChangeWidth
             ? widget.showFolders
@@ -309,16 +340,9 @@ class _MultiFolderFavoritesPageState extends State<_MultiFolderFavoritesPage> {
     );
 
     var appBar = Appbar(
-      leading: Tooltip(
-        message: "Folders".tl,
-        child: context.width <= favoritesTwoPanelChangeWidth
-            ? IconButton(
-                icon: const Icon(Icons.menu),
-                color: context.colorScheme.primary,
-                onPressed: widget.showFolders,
-              )
-            : null,
-      ),
+      leading: context.width <= favoritesTwoPanelChangeWidth
+          ? folderButton()
+          : null,
       title: GestureDetector(
         onTap: context.width < favoritesTwoPanelChangeWidth
             ? widget.showFolders
@@ -470,6 +494,13 @@ class _FolderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MobileUi.enabledOf(context)) {
+      return MobileCollectionFolder(
+        label: name,
+        onOpen: onTap,
+        onDelete: deleteFolder == null ? null : () => onDeleteFolder(context),
+      );
+    }
     return Material(
       child: ClickInkWell(
         onTap: onTap,
@@ -533,32 +564,48 @@ class _FavoriteFolder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = MobileUi.enabledOf(context);
+    final importEntry = MenuEntry(
+      icon: Icons.sync,
+      text: "Convert to local".tl,
+      onClick: () {
+        importNetworkFolder(
+          context,
+          data.key,
+          9999999,
+          title,
+          folderID,
+          isCurrent: () => context.mounted && identical(context.widget, this),
+        );
+      },
+    );
     return ComicList(
       filterBlockedComics: false,
+      mobileCollection: true,
       key: comicListKey,
       enablePageStorage: true,
       leadingSliver: SliverAppbar(
         title: Text(title),
+        mobileMore: mobile
+            ? FavoriteDisplayButton.mobileMore(
+                isCurrent: () =>
+                    context.mounted && identical(context.widget, this),
+                mobileItems: [collectionMenuAction(context, importEntry)],
+              )
+            : null,
         actions: [
-          const FavoriteDisplayButton(),
-          MenuButton(
-            entries: [
-              MenuEntry(
-                icon: Icons.sync,
-                text: "Convert to local".tl,
-                onClick: () {
-                  importNetworkFolder(
-                    context,
-                    data.key,
-                    9999999,
-                    title,
-                    folderID,
-                    isCurrent: () => identical(context.widget, this),
-                  );
-                },
-              ),
-            ],
-          ),
+          if (!mobile) const FavoriteDisplayButton(),
+          if (!mobile) MenuButton(entries: [importEntry]),
+          if (mobile)
+            collectionShortcut(
+              context,
+              label: 'Refresh'.tl,
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                NetworkCacheManager().clear();
+                comicListKey.currentState?.refresh();
+              },
+            ),
         ],
       ),
       errorLeading: Appbar(title: Text(title)),

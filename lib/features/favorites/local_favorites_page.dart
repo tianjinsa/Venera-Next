@@ -4,15 +4,20 @@ import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/components/file_save_task.dart';
+
 import 'favorite_models.dart';
 import 'favorite_folder.dart';
 import 'favorite_folder_path.dart';
 import 'folder_move_dialog.dart';
 import 'folder_order_dialog.dart';
+
 import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/popup.dart' as prism;
+import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/services.dart';
 import 'package:venera_next/components/appbar.dart';
@@ -521,6 +526,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     }
 
     final displayedComics = searchMode ? searchResults : filterComics(comics);
+    final mobile = MobileUi.enabledOf(context);
     final compactActions = context.width < changePoint && !isAllFolder;
     final canSelect =
         _canReadObservedFolder && !isLoading && displayedComics.isNotEmpty;
@@ -548,6 +554,320 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
         _observedManager.folderTree.named(target.folder)?.id ==
             currentFolder.id;
 
+    final folderEntries = !searchMode && !multiSelectMode && !isAllFolder
+        ? <MenuEntry>[
+            if (!mobile && compactActions && canSelect)
+              MenuEntry(
+                icon: Icons.checklist_rounded,
+                text: 'Select comics'.tl,
+                onClick: enterSelection,
+              ),
+            if (currentFolder?.parentId == null)
+              MenuEntry(
+                icon: Icons.create_new_folder_outlined,
+                text: 'Create subfolder'.tl,
+                onClick: () {
+                  if (!_canReadObservedFolder ||
+                      currentFolder == null ||
+                      _queryOwner?.canPresent != true) {
+                    return;
+                  }
+                  newFolder(
+                    context,
+                    parentId: currentFolder.id,
+                    onChanged: (_) => target.updateFolderList(),
+                  );
+                },
+              ),
+            MenuEntry(
+              icon: Icons.drive_file_move_outline,
+              text: 'Move folder'.tl,
+              onClick: () {
+                if (!_canReadObservedFolder ||
+                    _queryOwner?.canPresent != true) {
+                  return;
+                }
+                moveFavoriteFolder(
+                  context,
+                  folder: target.folder,
+                  isCurrent: () =>
+                      _canReadObservedFolder && widget.folder == target.folder,
+                  onCommitted: target.updateFolderList,
+                );
+              },
+            ),
+            MenuEntry(
+              icon: Icons.edit_outlined,
+              text: "Rename".tl,
+              onClick: () {
+                renameFavoriteFolder(
+                  context,
+                  manager: _observedManager,
+                  folder: target.folder,
+                  isCurrent: () =>
+                      _canReadObservedFolder && widget.folder == target.folder,
+                  onRenamed: (name) {
+                    target.updateFolderList();
+                    if (_canReadObservedFolder &&
+                        _queryOwner?.canPresent == true &&
+                        widget.folder == target.folder) {
+                      target.onFolderSelected(false, name);
+                    }
+                  },
+                );
+              },
+            ),
+            if (childFolders.isNotEmpty)
+              MenuEntry(
+                icon: Icons.folder_copy_outlined,
+                text: 'Sort subfolders'.tl,
+                onClick: () {
+                  if (!isCurrentFolder() || _queryOwner?.canPresent != true) {
+                    return;
+                  }
+                  sortFolders(
+                    context,
+                    initialParentId: currentFolder!.id,
+                    isCurrent: isCurrentFolder,
+                  ).then<void>(
+                    (_) {
+                      if (isCurrentFolder() &&
+                          _queryOwner?.canPresent == true) {
+                        target.updateFolderList();
+                      }
+                    },
+                    onError: (Object error, StackTrace stack) {
+                      Log.error('Favorite subfolder order', error, stack);
+                    },
+                  );
+                },
+              ),
+            MenuEntry(
+              icon: Icons.reorder,
+              text: 'Reorder comics'.tl,
+              onClick: () {
+                if (_queryOwner?.canPresent != true) return;
+                reorderFavoriteComics(
+                  context,
+                  manager: _observedManager,
+                  folder: target.folder,
+                  isCurrent: () =>
+                      _canReadObservedFolder && widget.folder == target.folder,
+                );
+              },
+            ),
+            MenuEntry(
+              icon: Icons.upload_file,
+              text:
+                  (childFolders.isEmpty
+                          ? 'Export'
+                          : 'Export this folder only (no subfolders)')
+                      .tl,
+              onClick: () {
+                if (!_canReadObservedFolder ||
+                    _queryOwner?.canPresent != true ||
+                    widget.folder != target.folder) {
+                  return;
+                }
+                final json = _observedManager.folderToJson(target.folder);
+                saveFileForWindow(
+                  context,
+                  data: utf8.encode(json),
+                  filename: "${target.folder}.json",
+                );
+              },
+            ),
+            MenuEntry(
+              icon: Icons.update,
+              text: "Update Comics Info".tl,
+              onClick: () {
+                if (_queryOwner?.canPresent != true ||
+                    !_canReadObservedFolder ||
+                    widget.folder != target.folder) {
+                  return;
+                }
+                _refreshMetadata(context, target.folder);
+              },
+            ),
+            MenuEntry(
+              icon: Icons.delete_outline,
+              text: "Delete Folder".tl,
+              color: context.colorScheme.error,
+              onClick: () {
+                if (_queryOwner?.canPresent != true) return;
+                if (childFolders.isNotEmpty) {
+                  context.showMessage(
+                    message: 'Move subfolders before deleting this folder'.tl,
+                  );
+                  return;
+                }
+                confirmFavoriteMutation(
+                  context: context,
+                  manager: _observedManager,
+                  folder: target.folder,
+                  title: "Delete".tl,
+                  content:
+                      '${"Delete folder '@f' ?".tlParams({"f": target.folder})}\n${'Only favorite records in this folder are removed; comic files are kept.'.tl}',
+                  btnColor: context.colorScheme.error,
+                  isCurrent: () =>
+                      _canReadObservedFolder && widget.folder == target.folder,
+                  mutate: () => _observedManager.deleteFolder(target.folder),
+                  onCommitted: () {
+                    target.updateFolderList();
+                    if (_canReadObservedFolder &&
+                        _queryOwner?.canPresent == true &&
+                        widget.folder == target.folder) {
+                      target.onFolderSelected(false, null);
+                    }
+                  },
+                );
+              },
+            ),
+          ]
+        : const <MenuEntry>[];
+    final batchEntries = multiSelectMode
+        ? <MenuEntry>[
+            if (!isAllFolder && selectedItems.isNotEmpty)
+              MenuEntry(
+                icon: Icons.drive_file_move,
+                text: "Move to folder".tl,
+                onClick: () {
+                  if (_queryOwner?.canPresent != true ||
+                      !isCurrentSelection()) {
+                    return;
+                  }
+                  showFavoriteTransferDialog(
+                    context: context,
+                    manager: _observedManager,
+                    source: target.folder,
+                    comics: selectedItems,
+                    move: true,
+                    isCurrent: isCurrentSelection,
+                    onCommitted: _cancel,
+                  );
+                },
+              ),
+            if (!isAllFolder && selectedItems.isNotEmpty)
+              MenuEntry(
+                icon: Icons.copy,
+                text: "Copy to folder".tl,
+                onClick: () {
+                  if (_queryOwner?.canPresent != true ||
+                      !isCurrentSelection()) {
+                    return;
+                  }
+                  showFavoriteTransferDialog(
+                    context: context,
+                    manager: _observedManager,
+                    source: target.folder,
+                    comics: selectedItems,
+                    move: false,
+                    isCurrent: isCurrentSelection,
+                    onCommitted: _cancel,
+                  );
+                },
+              ),
+            if (!mobile && !inlineSelectionActions) ...[
+              MenuEntry(
+                icon: Icons.select_all,
+                text: "Select All".tl,
+                onClick: selectAll,
+              ),
+              MenuEntry(
+                icon: Icons.deselect,
+                text: "Deselect".tl,
+                onClick: _cancel,
+              ),
+              MenuEntry(
+                icon: Icons.flip,
+                text: "Invert Selection".tl,
+                onClick: invertSelection,
+              ),
+            ],
+            if (!isAllFolder && selectedItems.isNotEmpty)
+              MenuEntry(
+                icon: Icons.delete_outline,
+                text: "Delete Comic".tl,
+                color: context.colorScheme.error,
+                onClick: () {
+                  if (_queryOwner?.canPresent != true ||
+                      !isCurrentSelection()) {
+                    return;
+                  }
+                  confirmFavoriteMutation(
+                    context: context,
+                    manager: _observedManager,
+                    folder: target.folder,
+                    title: "Delete".tl,
+                    content: "Delete @c comics?".tlParams({
+                      "c": selectedItems.length,
+                    }),
+                    btnColor: context.colorScheme.error,
+                    isCurrent: isCurrentSelection,
+                    mutate: () => _observedManager.batchDeleteComics(
+                      target.folder,
+                      selectedItems,
+                    ),
+                    onCommitted: _cancel,
+                  );
+                },
+              ),
+            if (selectedItems.isNotEmpty)
+              MenuEntry(
+                icon: Icons.download,
+                text: "Download".tl,
+                onClick: downloadSelected,
+              ),
+            if (selectedComics.length == 1)
+              MenuEntry(
+                icon: Icons.copy,
+                text: "Copy Title".tl,
+                onClick: () {
+                  Clipboard.setData(
+                    ClipboardData(text: selectedComics.keys.first.title),
+                  );
+                  context.showMessage(message: "Copied".tl);
+                },
+              ),
+            if (selectedComics.length == 1)
+              MenuEntry(
+                icon: Icons.chrome_reader_mode_outlined,
+                text: "Read".tl,
+                onClick: () {
+                  final c = selectedComics.keys.first as FavoriteItem;
+                  appNavigation.rootContext.to(
+                    () => ReaderWithLoading(id: c.id, sourceKey: c.sourceKey),
+                    mobileTransition: false,
+                  );
+                },
+              ),
+            if (selectedComics.length == 1)
+              MenuEntry(
+                icon: Icons.arrow_forward_ios,
+                text: "Jump to Detail".tl,
+                onClick: () {
+                  final c = selectedComics.keys.first as FavoriteItem;
+                  context.to(() => ComicPage(id: c.id, sourceKey: c.sourceKey));
+                },
+              ),
+          ]
+        : const <MenuEntry>[];
+
+    void openSearch() {
+      setState(() {
+        keyword = "";
+        searchMode = true;
+        updateSearchResult();
+      });
+    }
+
+    Widget folderButton() => collectionShortcut(
+      context,
+      label: "Folders".tl,
+      icon: const Icon(Icons.menu),
+      onPressed: widget.showFolders,
+    );
+
     Widget body = SmoothCustomScrollView(
       controller: scrollController,
       slivers: [
@@ -556,16 +876,18 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
             style: context.width < changePoint
                 ? AppbarStyle.shadow
                 : AppbarStyle.blur,
-            leading: Tooltip(
-              message: "Folders".tl,
-              child: context.width <= favoritesTwoPanelChangeWidth
-                  ? IconButton(
-                      icon: const Icon(Icons.menu),
-                      color: context.colorScheme.primary,
-                      onPressed: widget.showFolders,
-                    )
-                  : const SizedBox(),
-            ),
+            leading: context.width <= favoritesTwoPanelChangeWidth
+                ? mobile
+                      ? folderButton()
+                      : Tooltip(
+                          message: "Folders".tl,
+                          child: IconButton(
+                            icon: const Icon(Icons.menu),
+                            color: context.colorScheme.primary,
+                            onPressed: widget.showFolders,
+                          ),
+                        )
+                : const SizedBox(),
             title: FavoriteFolderPath(
               currentName: title,
               parentName: parentFolder?.name,
@@ -579,6 +901,30 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     }
                   : null,
             ),
+            mobileMore: mobile
+                ? FavoriteDisplayButton.mobileMore(
+                    readingFilter: readFilterSelect,
+                    isCurrent: () =>
+                        _canReadObservedFolder &&
+                        widget.folder == target.folder &&
+                        !multiSelectMode &&
+                        !searchMode,
+                    onReadingFilterSaved: (value) {
+                      setState(() => readFilterSelect = value);
+                      updateComics();
+                    },
+                    mobileItems: [
+                      if (folderEntries.isNotEmpty)
+                        prism.PopupMenuItem(
+                          label: 'Folders'.tl,
+                          subItems: [
+                            for (final entry in folderEntries)
+                              collectionMenuAction(context, entry),
+                          ],
+                        ),
+                    ],
+                  )
+                : null,
             actions: [
               if (networkSource != null && !isAllFolder)
                 Tooltip(
@@ -628,7 +974,9 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     },
                     child: Builder(
                       builder: (context) {
-                        return IconButton(
+                        return collectionShortcut(
+                          context,
+                          label: "Sync".tl,
                           icon: const Icon(Icons.sync),
                           onPressed: () {
                             if (_updateFlyoutRoute == null &&
@@ -641,59 +989,54 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     ),
                   ),
                 ),
-              const FavoriteDisplayButton(),
-              Tooltip(
-                message: "Filter".tl,
-                child: IconButton(
-                  icon: const Icon(Icons.sort_rounded),
-                  color: readFilterSelect != readFilterList[0]
-                      ? context.colorScheme.primaryContainer
-                      : null,
-                  onPressed: () {
-                    final folder = widget.folder;
-                    final request = ++_filterRequest;
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return _LocalFavoritesFilterDialog(
-                          initReadFilterSelect: readFilterSelect,
-                          updateConfig: (readFilter) {
-                            if (!mounted ||
-                                widget.folder != folder ||
-                                request != _filterRequest) {
-                              return;
-                            }
-                            setState(() {
-                              readFilterSelect = readFilter;
-                            });
-                            updateComics();
-                          },
-                        );
-                      },
-                    );
-                  },
+              if (!mobile) const FavoriteDisplayButton(),
+              if (!mobile)
+                Tooltip(
+                  message: "Filter".tl,
+                  child: IconButton(
+                    icon: const Icon(Icons.sort_rounded),
+                    color: readFilterSelect != readFilterList[0]
+                        ? context.colorScheme.primaryContainer
+                        : null,
+                    onPressed: () {
+                      final folder = widget.folder;
+                      final request = ++_filterRequest;
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return _LocalFavoritesFilterDialog(
+                            initReadFilterSelect: readFilterSelect,
+                            updateConfig: (readFilter) {
+                              if (!mounted ||
+                                  widget.folder != folder ||
+                                  request != _filterRequest) {
+                                return;
+                              }
+                              setState(() {
+                                readFilterSelect = readFilter;
+                              });
+                              updateComics();
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
+              collectionShortcut(
+                context,
+                label: "Search".tl,
+                icon: const Icon(Icons.search),
+                onPressed: openSearch,
               ),
-              Tooltip(
-                message: "Search".tl,
-                child: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () {
-                    setState(() {
-                      keyword = "";
-                      searchMode = true;
-                      updateSearchResult();
-                    });
-                  },
-                ),
-              ),
-              if (!compactActions)
-                IconButton(
-                  tooltip: 'Select comics'.tl,
+              if (mobile || !compactActions)
+                collectionShortcut(
+                  context,
+                  label: 'Select comics'.tl,
                   icon: const Icon(Icons.checklist_rounded),
                   onPressed: canSelect ? enterSelection : null,
                 ),
-              if (!isAllFolder)
+              if (!mobile && !isAllFolder)
                 MenuButton(
                   menuIdentity: (
                     _observedManager,
@@ -705,189 +1048,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     compactActions,
                     canSelect,
                   ),
-                  entries: [
-                    if (compactActions && canSelect)
-                      MenuEntry(
-                        icon: Icons.checklist_rounded,
-                        text: 'Select comics'.tl,
-                        onClick: enterSelection,
-                      ),
-                    if (currentFolder?.parentId == null)
-                      MenuEntry(
-                        icon: Icons.create_new_folder_outlined,
-                        text: 'Create subfolder'.tl,
-                        onClick: () {
-                          if (!_canReadObservedFolder ||
-                              currentFolder == null ||
-                              _queryOwner?.canPresent != true) {
-                            return;
-                          }
-                          newFolder(
-                            context,
-                            parentId: currentFolder.id,
-                            onChanged: (_) => target.updateFolderList(),
-                          );
-                        },
-                      ),
-                    MenuEntry(
-                      icon: Icons.drive_file_move_outline,
-                      text: 'Move folder'.tl,
-                      onClick: () {
-                        if (!_canReadObservedFolder ||
-                            _queryOwner?.canPresent != true) {
-                          return;
-                        }
-                        moveFavoriteFolder(
-                          context,
-                          folder: target.folder,
-                          isCurrent: () =>
-                              _canReadObservedFolder &&
-                              widget.folder == target.folder,
-                          onCommitted: target.updateFolderList,
-                        );
-                      },
-                    ),
-                    MenuEntry(
-                      icon: Icons.edit_outlined,
-                      text: "Rename".tl,
-                      onClick: () {
-                        renameFavoriteFolder(
-                          context,
-                          manager: _observedManager,
-                          folder: target.folder,
-                          isCurrent: () =>
-                              _canReadObservedFolder &&
-                              widget.folder == target.folder,
-                          onRenamed: (name) {
-                            target.updateFolderList();
-                            if (_canReadObservedFolder &&
-                                _queryOwner?.canPresent == true &&
-                                widget.folder == target.folder) {
-                              target.onFolderSelected(false, name);
-                            }
-                          },
-                        );
-                      },
-                    ),
-                    if (childFolders.isNotEmpty)
-                      MenuEntry(
-                        icon: Icons.folder_copy_outlined,
-                        text: 'Sort subfolders'.tl,
-                        onClick: () {
-                          if (!isCurrentFolder() ||
-                              _queryOwner?.canPresent != true) {
-                            return;
-                          }
-                          sortFolders(
-                            context,
-                            initialParentId: currentFolder!.id,
-                            isCurrent: isCurrentFolder,
-                          ).then<void>(
-                            (_) {
-                              if (isCurrentFolder() &&
-                                  _queryOwner?.canPresent == true) {
-                                target.updateFolderList();
-                              }
-                            },
-                            onError: (Object error, StackTrace stack) {
-                              Log.error(
-                                'Favorite subfolder order',
-                                error,
-                                stack,
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    MenuEntry(
-                      icon: Icons.reorder,
-                      text: 'Reorder comics'.tl,
-                      onClick: () {
-                        if (_queryOwner?.canPresent != true) return;
-                        reorderFavoriteComics(
-                          context,
-                          manager: _observedManager,
-                          folder: target.folder,
-                          isCurrent: () =>
-                              _canReadObservedFolder &&
-                              widget.folder == target.folder,
-                        );
-                      },
-                    ),
-                    MenuEntry(
-                      icon: Icons.upload_file,
-                      text:
-                          (childFolders.isEmpty
-                                  ? 'Export'
-                                  : 'Export this folder only (no subfolders)')
-                              .tl,
-                      onClick: () {
-                        if (!_canReadObservedFolder ||
-                            _queryOwner?.canPresent != true ||
-                            widget.folder != target.folder) {
-                          return;
-                        }
-                        final json = _observedManager.folderToJson(
-                          target.folder,
-                        );
-                        saveFileForWindow(
-                          context,
-                          data: utf8.encode(json),
-                          filename: "${target.folder}.json",
-                        );
-                      },
-                    ),
-                    MenuEntry(
-                      icon: Icons.update,
-                      text: "Update Comics Info".tl,
-                      onClick: () {
-                        if (_queryOwner?.canPresent != true ||
-                            !_canReadObservedFolder ||
-                            widget.folder != target.folder) {
-                          return;
-                        }
-                        _refreshMetadata(context, target.folder);
-                      },
-                    ),
-                    MenuEntry(
-                      icon: Icons.delete_outline,
-                      text: "Delete Folder".tl,
-                      color: context.colorScheme.error,
-                      onClick: () {
-                        if (_queryOwner?.canPresent != true) return;
-                        if (childFolders.isNotEmpty) {
-                          context.showMessage(
-                            message:
-                                'Move subfolders before deleting this folder'
-                                    .tl,
-                          );
-                          return;
-                        }
-                        confirmFavoriteMutation(
-                          context: context,
-                          manager: _observedManager,
-                          folder: target.folder,
-                          title: "Delete".tl,
-                          content:
-                              '${"Delete folder '@f' ?".tlParams({"f": target.folder})}\n${'Only favorite records in this folder are removed; comic files are kept.'.tl}',
-                          btnColor: context.colorScheme.error,
-                          isCurrent: () =>
-                              _canReadObservedFolder &&
-                              widget.folder == target.folder,
-                          mutate: () =>
-                              _observedManager.deleteFolder(target.folder),
-                          onCommitted: () {
-                            target.updateFolderList();
-                            if (_canReadObservedFolder &&
-                                _queryOwner?.canPresent == true &&
-                                widget.folder == target.folder) {
-                              target.onFolderSelected(false, null);
-                            }
-                          },
-                        );
-                      },
-                    ),
-                  ],
+                  entries: folderEntries,
                 ),
             ],
           )
@@ -896,180 +1057,63 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
             style: context.width < changePoint
                 ? AppbarStyle.shadow
                 : AppbarStyle.blur,
-            leading: Tooltip(
-              message: "Cancel".tl,
-              child: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () {
-                  setState(() {
-                    multiSelectMode = false;
-                    selectedComics.clear();
-                  });
-                },
-              ),
+            leading: collectionShortcut(
+              context,
+              label: "Cancel".tl,
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                setState(() {
+                  multiSelectMode = false;
+                  selectedComics.clear();
+                });
+              },
             ),
             title: Text(
               "Selected @c comics".tlParams({"c": selectedComics.length}),
             ),
+            mobileMore: mobile && batchEntries.isNotEmpty
+                ? MobileMenuButton(
+                    key: ValueKey(Object.hashAll(selection)),
+                    items: [
+                      for (final entry in batchEntries)
+                        collectionMenuAction(context, entry),
+                    ],
+                  )
+                : null,
             actions: [
-              if (inlineSelectionActions) ...[
-                IconButton(
+              if (mobile || inlineSelectionActions) ...[
+                collectionShortcut(
+                  context,
                   key: const ValueKey('favorites-select-all'),
-                  tooltip: 'Select All'.tl,
+                  label: 'Select All'.tl,
                   icon: const Icon(Icons.select_all),
                   onPressed: canSelect ? selectAll : null,
                 ),
-                IconButton(
+                collectionShortcut(
+                  context,
                   key: const ValueKey('favorites-invert-selection'),
-                  tooltip: 'Invert Selection'.tl,
+                  label: 'Invert Selection'.tl,
                   icon: const Icon(Icons.flip),
                   onPressed: canSelect ? invertSelection : null,
                 ),
-                IconButton(
+                collectionShortcut(
+                  context,
                   key: const ValueKey('favorites-deselect'),
-                  tooltip: 'Deselect'.tl,
+                  label: 'Deselect'.tl,
                   icon: const Icon(Icons.deselect),
                   onPressed: _cancel,
                 ),
               ],
-              MenuButton(
-                menuIdentity: (
-                  _observedManager,
-                  _observedGeneration,
-                  target.folder,
-                  Object.hashAll(selection),
+              if (!mobile)
+                MenuButton(
+                  menuIdentity: (
+                    _observedManager,
+                    _observedGeneration,
+                    target.folder,
+                    Object.hashAll(selection),
+                  ),
+                  entries: batchEntries,
                 ),
-                entries: [
-                  if (!isAllFolder && selectedItems.isNotEmpty)
-                    MenuEntry(
-                      icon: Icons.drive_file_move,
-                      text: "Move to folder".tl,
-                      onClick: () {
-                        if (_queryOwner?.canPresent != true ||
-                            !isCurrentSelection()) {
-                          return;
-                        }
-                        showFavoriteTransferDialog(
-                          context: context,
-                          manager: _observedManager,
-                          source: target.folder,
-                          comics: selectedItems,
-                          move: true,
-                          isCurrent: isCurrentSelection,
-                          onCommitted: _cancel,
-                        );
-                      },
-                    ),
-                  if (!isAllFolder && selectedItems.isNotEmpty)
-                    MenuEntry(
-                      icon: Icons.copy,
-                      text: "Copy to folder".tl,
-                      onClick: () {
-                        if (_queryOwner?.canPresent != true ||
-                            !isCurrentSelection()) {
-                          return;
-                        }
-                        showFavoriteTransferDialog(
-                          context: context,
-                          manager: _observedManager,
-                          source: target.folder,
-                          comics: selectedItems,
-                          move: false,
-                          isCurrent: isCurrentSelection,
-                          onCommitted: _cancel,
-                        );
-                      },
-                    ),
-                  if (!inlineSelectionActions) ...[
-                    MenuEntry(
-                      icon: Icons.select_all,
-                      text: "Select All".tl,
-                      onClick: selectAll,
-                    ),
-                    MenuEntry(
-                      icon: Icons.deselect,
-                      text: "Deselect".tl,
-                      onClick: _cancel,
-                    ),
-                    MenuEntry(
-                      icon: Icons.flip,
-                      text: "Invert Selection".tl,
-                      onClick: invertSelection,
-                    ),
-                  ],
-                  if (!isAllFolder && selectedItems.isNotEmpty)
-                    MenuEntry(
-                      icon: Icons.delete_outline,
-                      text: "Delete Comic".tl,
-                      color: context.colorScheme.error,
-                      onClick: () {
-                        if (_queryOwner?.canPresent != true ||
-                            !isCurrentSelection()) {
-                          return;
-                        }
-                        confirmFavoriteMutation(
-                          context: context,
-                          manager: _observedManager,
-                          folder: target.folder,
-                          title: "Delete".tl,
-                          content: "Delete @c comics?".tlParams({
-                            "c": selectedItems.length,
-                          }),
-                          btnColor: context.colorScheme.error,
-                          isCurrent: isCurrentSelection,
-                          mutate: () => _observedManager.batchDeleteComics(
-                            target.folder,
-                            selectedItems,
-                          ),
-                          onCommitted: _cancel,
-                        );
-                      },
-                    ),
-                  if (selectedItems.isNotEmpty)
-                    MenuEntry(
-                      icon: Icons.download,
-                      text: "Download".tl,
-                      onClick: downloadSelected,
-                    ),
-                  if (selectedComics.length == 1)
-                    MenuEntry(
-                      icon: Icons.copy,
-                      text: "Copy Title".tl,
-                      onClick: () {
-                        Clipboard.setData(
-                          ClipboardData(text: selectedComics.keys.first.title),
-                        );
-                        context.showMessage(message: "Copied".tl);
-                      },
-                    ),
-                  if (selectedComics.length == 1)
-                    MenuEntry(
-                      icon: Icons.chrome_reader_mode_outlined,
-                      text: "Read".tl,
-                      onClick: () {
-                        final c = selectedComics.keys.first as FavoriteItem;
-                        appNavigation.rootContext.to(
-                          () => ReaderWithLoading(
-                            id: c.id,
-                            sourceKey: c.sourceKey,
-                          ),
-                          mobileTransition: false,
-                        );
-                      },
-                    ),
-                  if (selectedComics.length == 1)
-                    MenuEntry(
-                      icon: Icons.arrow_forward_ios,
-                      text: "Jump to Detail".tl,
-                      onClick: () {
-                        final c = selectedComics.keys.first as FavoriteItem;
-                        context.to(
-                          () => ComicPage(id: c.id, sourceKey: c.sourceKey),
-                        );
-                      },
-                    ),
-                ],
-              ),
             ],
           )
         else if (searchMode)
@@ -1077,19 +1121,22 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
             style: context.width < changePoint
                 ? AppbarStyle.shadow
                 : AppbarStyle.blur,
-            leading: Tooltip(
-              message: "Cancel".tl,
-              child: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () {
-                  setState(() {
-                    setState(() {
-                      searchMode = false;
-                    });
-                  });
-                },
-              ),
+            leading: collectionShortcut(
+              context,
+              label: "Cancel".tl,
+              icon: const Icon(Icons.close),
+              onPressed: () => setState(() => searchMode = false),
             ),
+            actions: mobile
+                ? [
+                    collectionShortcut(
+                      context,
+                      label: 'Select comics'.tl,
+                      icon: const Icon(Icons.checklist_rounded),
+                      onPressed: canSelect ? enterSelection : null,
+                    ),
+                  ]
+                : null,
             title: TextField(
               autofocus: true,
               decoration: InputDecoration(
@@ -1117,17 +1164,23 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
             itemCount: childFolders.length,
             itemBuilder: (context, index) {
               final folder = childFolders[index];
-              return ListTile(
-                leading: const Icon(Icons.folder_outlined),
-                title: Text(folder.name),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  if (_canReadObservedFolder &&
-                      _queryOwner?.canPresent == true) {
-                    target.onFolderSelected(false, folder.name);
-                  }
-                },
-              );
+              void openFolder() {
+                if (_canReadObservedFolder && _queryOwner?.canPresent == true) {
+                  target.onFolderSelected(false, folder.name);
+                }
+              }
+
+              return mobile
+                  ? MobileCollectionFolder(
+                      label: folder.name,
+                      onOpen: openFolder,
+                    )
+                  : ListTile(
+                      leading: const Icon(Icons.folder_outlined),
+                      title: Text(folder.name),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: openFolder,
+                    );
             },
           ),
         ],
@@ -1168,6 +1221,8 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
             showHiddenCount: true,
             selections: selectedComics,
             useFavoriteDisplaySettings: true,
+            mobileCollection: true,
+            selectionMode: multiSelectMode,
             menuBuilder: (c) {
               return [
                 if (!isAllFolder)
@@ -1241,9 +1296,8 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     context.showMessage(message: "Download started".tl);
                   },
                 ),
-                if (GlobalPreferenceStore(
-                      appdata.settings,
-                    ).read(FavoritePreferences.onClickFavorite) ==
+                if (GlobalPreferenceStore(appdata.settings)
+                        .read(FavoritePreferences.onClickFavorite) ==
                     "viewDetail")
                   MenuEntry(
                     icon: Icons.menu_book_outlined,
@@ -1269,9 +1323,8 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                   }
                   lastSelectedIndex = _visibleComics.indexOf(c);
                 });
-              } else if (GlobalPreferenceStore(
-                    appdata.settings,
-                  ).read(FavoritePreferences.onClickFavorite) ==
+              } else if (GlobalPreferenceStore(appdata.settings)
+                      .read(FavoritePreferences.onClickFavorite) ==
                   "viewDetail") {
                 context.to(
                   () => ComicPage(
@@ -1547,7 +1600,7 @@ class _LocalFavoritesFilterDialog extends StatefulWidget {
       _LocalFavoritesFilterDialogState();
 }
 
-const readFilterList = ['All', 'UnCompleted', 'Completed'];
+const readFilterList = favoriteReadFilters;
 
 class _LocalFavoritesFilterDialogState
     extends SettingsSaveState<_LocalFavoritesFilterDialog> {

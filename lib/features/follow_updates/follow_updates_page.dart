@@ -3,12 +3,17 @@ import 'package:venera_next/features/history/history_scope.dart';
 import 'package:venera_next/features/history/history_manager.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
+
 import 'dart:async';
+
 import 'follow_updates_folder_dialog.dart';
 import 'follow_updates_runtime.dart';
 import 'follow_updates_scope.dart';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/popup.dart' as prism;
+import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/message.dart';
@@ -65,9 +70,9 @@ class _FollowUpdatesWidgetState extends SettingsSaveState<FollowUpdatesWidget> {
 
   List<FavoriteItemWithUpdateInfo> previewComics = [];
 
-  String? get folder => GlobalPreferenceStore(
-    appdata.settings,
-  ).read(FavoritePreferences.followUpdatesFolder);
+  String? get folder =>
+      GlobalPreferenceStore(appdata.settings)
+          .read(FavoritePreferences.followUpdatesFolder);
 
   void updatePreviewData() {
     if (folder == null) {
@@ -233,9 +238,9 @@ class _FollowUpdatesPageState extends State<FollowUpdatesPage> {
     updateComics();
   }
 
-  String? get folder => GlobalPreferenceStore(
-    appdata.settings,
-  ).read(FavoritePreferences.followUpdatesFolder);
+  String? get folder =>
+      GlobalPreferenceStore(appdata.settings)
+          .read(FavoritePreferences.followUpdatesFolder);
 
   var updatedComics = <FavoriteItemWithUpdateInfo>[];
   var allComics = <FavoriteItemWithUpdateInfo>[];
@@ -276,10 +281,32 @@ class _FollowUpdatesPageState extends State<FollowUpdatesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = MobileUi.enabledOf(context);
     return Scaffold(
       body: SmoothCustomScrollView(
         slivers: [
-          SliverAppbar(title: Text('Follow Updates'.tl)),
+          SliverAppbar(
+            title: Text('Follow Updates'.tl),
+            actions: [
+              if (mobile && folder != null)
+                collectionShortcut(
+                  context,
+                  icon: const Icon(Icons.refresh),
+                  label: 'Check Now'.tl,
+                  onPressed: checkNow,
+                ),
+            ],
+            mobileMore: mobile && folder != null
+                ? MobileMenuButton(
+                    items: [
+                      prism.PopupMenuItem(
+                        label: 'Change Folder'.tl,
+                        onPressed: showSelector,
+                      ),
+                    ],
+                  )
+                : null,
+          ),
           if (folder == null)
             buildNotConfigured(context)
           else
@@ -350,20 +377,21 @@ class _FollowUpdatesPageState extends State<FollowUpdatesPage> {
               style: ts.s14,
             ).paddingHorizontal(16),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: showSelector,
-                  child: Text("Change Folder".tl),
-                ),
-                FilledButton.tonal(
-                  onPressed: checkNow,
-                  child: Text("Check Now".tl),
-                ),
-                const SizedBox(width: 16),
-              ],
-            ),
+            if (!MobileUi.enabledOf(context))
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: showSelector,
+                    child: Text("Change Folder".tl),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: checkNow,
+                    child: Text("Check Now".tl),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+              ),
             const SizedBox(height: 16),
           ],
         ),
@@ -438,7 +466,11 @@ class _FollowUpdatesPageState extends State<FollowUpdatesPage> {
             ).paddingHorizontal(16).paddingVertical(4),
           ),
         if (updatedComics.isNotEmpty)
-          SliverGridComics(filterBlockedComics: false, comics: updatedComics)
+          SliverGridComics(
+            filterBlockedComics: false,
+            mobileCollection: true,
+            comics: updatedComics,
+          )
         else
           SliverToBoxAdapter(
             child: Row(
@@ -492,7 +524,11 @@ class _FollowUpdatesPageState extends State<FollowUpdatesPage> {
             ),
           ),
         ),
-        SliverGridComics(filterBlockedComics: false, comics: allComics),
+        SliverGridComics(
+          filterBlockedComics: false,
+          mobileCollection: true,
+          comics: allComics,
+        ),
       ],
     );
   }

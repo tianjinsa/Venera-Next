@@ -1,5 +1,9 @@
 import 'package:venera_next/features/history/history_scope.dart';
 import 'package:flutter/material.dart';
+import 'package:prism_ui/popup.dart' as prism;
+import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_ui.dart';
+import 'package:venera_next/components/settings_save_state.dart';
 import 'package:intl/intl.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/button.dart';
@@ -30,7 +34,7 @@ class ImageFavoritesPage extends StatefulWidget {
   State<ImageFavoritesPage> createState() => _ImageFavoritesPageState();
 }
 
-class _ImageFavoritesPageState extends State<ImageFavoritesPage> {
+class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
   late ImageFavoriteManager _manager =
       widget.manager ?? HistoryScope.readImages(context);
 
@@ -233,8 +237,27 @@ class _ImageFavoritesPageState extends State<ImageFavoritesPage> {
     update();
   }
 
+  void _saveMobileSort(ImageFavoriteSortType value) {
+    if (!acceptsSettingsChanges || savingSettings || hasSettingsSaveError) {
+      return;
+    }
+    saveSetting(
+      'image_favorites_sort',
+      () => appdata.updateImplicit((draft) {
+        draft['image_favorites_sort'] = value.value;
+      }),
+      onSaved: () {
+        setState(() {
+          sortType = value;
+          sortImageFavorites();
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final mobile = MobileUi.enabledOf(context);
     List<Widget> selectActions = [
       IconButton(
         icon: const Icon(Icons.select_all),
@@ -255,42 +278,89 @@ class _ImageFavoritesPageState extends State<ImageFavoritesPage> {
         if (!searchMode && !multiSelectMode)
           SliverAppbar(
             title: Text("Image Favorites".tl),
-            actions: [
-              Tooltip(
-                message: "Search".tl,
-                child: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () {
-                    setState(() {
-                      searchMode = true;
-                    });
-                  },
-                ),
-              ),
-              Tooltip(
-                message: "Sort".tl,
-                child: IconButton(
-                  isSelected:
-                      timeFilterSelect != TimeRange.all ||
-                      numFilterSelect != numFilterList[0],
-                  icon: const Icon(Icons.sort_rounded),
-                  onPressed: sort,
-                ),
-              ),
-              Tooltip(
-                message: multiSelectMode
-                    ? "Exit Multi-Select".tl
-                    : "Multi-Select".tl,
-                child: IconButton(
-                  icon: const Icon(Icons.checklist),
-                  onPressed: () {
-                    setState(() {
-                      multiSelectMode = !multiSelectMode;
-                    });
-                  },
-                ),
-              ),
-            ],
+            mobileMore: !mobile
+                ? null
+                : savingSettings || hasSettingsSaveError
+                ? MobileToolbarButton(
+                    label: (hasSettingsSaveError ? 'Retry' : 'Save').tl,
+                    icon: const Icon(Icons.refresh),
+                    onPressed: savingSettings ? null : retrySettingsSave,
+                  )
+                : MobileMenuButton(
+                    items: [
+                      prism.PopupMenuItem(
+                        label: 'Sort'.tl,
+                        subItems: [
+                          for (final value in ImageFavoriteSortType.values)
+                            collectionOption(
+                              label: value.value.tl,
+                              value: value,
+                              current: sortType,
+                              onSelected: _saveMobileSort,
+                            ),
+                        ],
+                      ),
+                      prism.PopupMenuItem(
+                        label: 'Filter'.tl,
+                        onPressed: () => sort(filterOnly: true),
+                      ),
+                    ],
+                  ),
+            actions: mobile
+                ? [
+                    collectionShortcut(
+                      context,
+                      label: 'Search'.tl,
+                      icon: const Icon(Icons.search),
+                      onPressed: () => setState(() => searchMode = true),
+                    ),
+                    collectionShortcut(
+                      context,
+                      label: 'Multi-Select'.tl,
+                      icon: const Icon(Icons.checklist),
+                      onPressed: comics.isEmpty
+                          ? null
+                          : () {
+                              setState(() => multiSelectMode = true);
+                            },
+                    ),
+                  ]
+                : [
+                    Tooltip(
+                      message: "Search".tl,
+                      child: IconButton(
+                        icon: const Icon(Icons.search),
+                        onPressed: () {
+                          setState(() {
+                            searchMode = true;
+                          });
+                        },
+                      ),
+                    ),
+                    Tooltip(
+                      message: "Sort".tl,
+                      child: IconButton(
+                        isSelected:
+                            timeFilterSelect != TimeRange.all ||
+                            numFilterSelect != numFilterList[0],
+                        icon: const Icon(Icons.sort_rounded),
+                        onPressed: sort,
+                      ),
+                    ),
+                    Tooltip(
+                      message: multiSelectMode
+                          ? "Exit Multi-Select".tl
+                          : "Multi-Select".tl,
+                      child: IconButton(
+                        icon: const Icon(Icons.checklist),
+                        onPressed: () {
+                          setState(() {
+                            multiSelectMode = !multiSelectMode;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
           )
         else if (multiSelectMode)
           SliverAppbar(
@@ -307,7 +377,33 @@ class _ImageFavoritesPageState extends State<ImageFavoritesPage> {
               ),
             ),
             title: Text(selectedImageFavorites.length.toString()),
-            actions: selectActions,
+            mobileMore: mobile && selectedImageFavorites.isNotEmpty
+                ? MobileMenuButton(
+                    items: [
+                      prism.PopupMenuItem(
+                        label: 'Delete'.tl,
+                        danger: true,
+                        onPressed: _deleting ? null : deleteSelected,
+                      ),
+                    ],
+                  )
+                : null,
+            actions: mobile
+                ? [
+                    collectionShortcut(
+                      context,
+                      label: 'Select All'.tl,
+                      icon: const Icon(Icons.select_all),
+                      onPressed: _deleting ? null : selectAll,
+                    ),
+                    collectionShortcut(
+                      context,
+                      label: 'Deselect'.tl,
+                      icon: const Icon(Icons.deselect),
+                      onPressed: _deleting ? null : deSelect,
+                    ),
+                  ]
+                : selectActions,
           )
         else if (searchMode)
           SliverAppbar(
@@ -391,12 +487,13 @@ class _ImageFavoritesPageState extends State<ImageFavoritesPage> {
     );
   }
 
-  void sort() {
+  void sort({bool filterOnly = false}) {
     showDialog(
       context: context,
       builder: (context) {
         return _ImageFavoritesDialog(
           initSortType: sortType,
+          filterOnly: filterOnly,
           initTimeFilterSelect: timeFilterSelect,
           initNumFilterSelect: numFilterSelect,
           updateConfig: (sortType, timeFilter, numFilter) {
@@ -417,12 +514,14 @@ class _ImageFavoritesPageState extends State<ImageFavoritesPage> {
 class _ImageFavoritesDialog extends StatefulWidget {
   const _ImageFavoritesDialog({
     required this.initSortType,
+    this.filterOnly = false,
     required this.initTimeFilterSelect,
     required this.initNumFilterSelect,
     required this.updateConfig,
   });
 
   final ImageFavoriteSortType initSortType;
+  final bool filterOnly;
   final TimeRange initTimeFilterSelect;
   final int initNumFilterSelect;
   final Function updateConfig;
@@ -432,7 +531,8 @@ class _ImageFavoritesDialog extends StatefulWidget {
 }
 
 class _ImageFavoritesDialogState extends State<_ImageFavoritesDialog> {
-  List<String> optionTypes = ['Sort', 'Filter'];
+  List<String> get optionTypes =>
+      widget.filterOnly ? ['Filter'] : ['Sort', 'Filter'];
   late var sortType = widget.initSortType;
   late var numFilter = widget.initNumFilterSelect;
   late TimeRangeType timeRangeType;
@@ -496,24 +596,25 @@ class _ImageFavoritesDialogState extends State<_ImageFavoritesDialog> {
             tabBar,
             TabViewBody(
               children: [
-                RadioGroup<ImageFavoriteSortType>(
-                  groupValue: sortType,
-                  onChanged: (v) {
-                    setState(() {
-                      sortType = v ?? sortType;
-                    });
-                  },
-                  child: Column(
-                    children: ImageFavoriteSortType.values
-                        .map(
-                          (e) => RadioListTile<ImageFavoriteSortType>(
-                            title: Text(e.value.tl),
-                            value: e,
-                          ),
-                        )
-                        .toList(),
+                if (!widget.filterOnly)
+                  RadioGroup<ImageFavoriteSortType>(
+                    groupValue: sortType,
+                    onChanged: (v) {
+                      setState(() {
+                        sortType = v ?? sortType;
+                      });
+                    },
+                    child: Column(
+                      children: ImageFavoriteSortType.values
+                          .map(
+                            (e) => RadioListTile<ImageFavoriteSortType>(
+                              title: Text(e.value.tl),
+                              value: e,
+                            ),
+                          )
+                          .toList(),
+                    ),
                   ),
-                ),
                 Column(
                   children: [
                     ListTile(
