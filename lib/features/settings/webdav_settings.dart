@@ -1,6 +1,10 @@
+import 'mobile_setting_row.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/features/sync/sync.dart';
@@ -90,14 +94,14 @@ class _BackupWebdavSettingState extends SettingsSaveState<BackupWebdavSetting> {
                 ),
               ),
               const SizedBox(height: 12),
-              ListTile(
+              SettingRow(
                 leading: Icon(Icons.sync),
                 title: Text("Sync archive config".tl),
                 subtitle: Text(
                   "Sync archive WebDAV URL, username, password and remote path with app data."
                       .tl,
                 ),
-                trailing: Switch(
+                trailing: SettingInlineSwitch(
                   value: syncEnabled,
                   onChanged: busy
                       ? null
@@ -251,6 +255,46 @@ class _WebDavComicLibrarySettingState
     super.dispose();
   }
 
+  Widget _updateIntervalField(BuildContext context, {required bool enabled}) {
+    final options = [
+      if (![15, 60, 360, 1440].contains(syncIntervalMinutes))
+        MobileChoiceOption(
+          syncIntervalMinutes,
+          '@minutes min'.tlParams({'minutes': '$syncIntervalMinutes'}),
+        ),
+      MobileChoiceOption(15, 'Every 15 minutes'.tl),
+      MobileChoiceOption(60, 'Every hour'.tl),
+      MobileChoiceOption(360, 'Every 6 hours'.tl),
+      MobileChoiceOption(1440, 'Every day'.tl),
+    ];
+    void update(int value) => setState(() => syncIntervalMinutes = value);
+    final label = 'Update interval'.tl;
+    if (MobileUi.enabledOf(context)) {
+      return MobileChoiceFormField<int>(
+        label: label,
+        initialValue: syncIntervalMinutes,
+        options: options,
+        onChanged: enabled ? update : null,
+      );
+    }
+    return DropdownButtonFormField<int>(
+      initialValue: syncIntervalMinutes,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      items: [
+        for (final option in options)
+          DropdownMenuItem(value: option.value, child: Text(option.label)),
+      ],
+      onChanged: !enabled
+          ? null
+          : (value) {
+              if (value != null) update(value);
+            },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return protectSettings(
@@ -290,7 +334,7 @@ class _WebDavComicLibrarySettingState
                 ),
               ),
               const SizedBox(height: 16),
-              SwitchListTile(
+              SettingSwitchRow(
                 contentPadding: EdgeInsets.zero,
                 title: Text('Automatic library updates'.tl),
                 subtitle: Text(
@@ -308,43 +352,7 @@ class _WebDavComicLibrarySettingState
               ),
               if (autoSyncEnabled) ...[
                 const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: syncIntervalMinutes,
-                  decoration: InputDecoration(
-                    labelText: 'Update interval'.tl,
-                    border: const OutlineInputBorder(),
-                  ),
-                  items: [
-                    if (![15, 60, 360, 1440].contains(syncIntervalMinutes))
-                      DropdownMenuItem(
-                        value: syncIntervalMinutes,
-                        child: Text(
-                          '@minutes min'.tlParams({
-                            'minutes': '$syncIntervalMinutes',
-                          }),
-                        ),
-                      ),
-                    DropdownMenuItem(
-                      value: 15,
-                      child: Text('Every 15 minutes'.tl),
-                    ),
-                    DropdownMenuItem(value: 60, child: Text('Every hour'.tl)),
-                    DropdownMenuItem(
-                      value: 360,
-                      child: Text('Every 6 hours'.tl),
-                    ),
-                    DropdownMenuItem(value: 1440, child: Text('Every day'.tl)),
-                  ],
-                  onChanged: busy
-                      ? null
-                      : (value) {
-                          if (value != null) {
-                            setState(() {
-                              syncIntervalMinutes = value;
-                            });
-                          }
-                        },
-                ),
+                _updateIntervalField(context, enabled: !busy),
               ],
               const SizedBox(height: 16),
               ValueListenableBuilder<WebDavLibrarySyncStatus>(

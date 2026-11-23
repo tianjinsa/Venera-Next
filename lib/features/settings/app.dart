@@ -1,11 +1,16 @@
+import 'mobile_setting_row.dart';
+
 import 'package:venera_next/foundation/app_sync_preferences.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/button.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/components/window_hotkey_scope.dart';
@@ -44,7 +49,7 @@ class _AppSettingsState extends State<AppSettings> {
         SliverAppbar(title: Text("App".tl)),
         SettingPartTitle(title: "Data".tl, icon: Icons.storage),
         const LocalStorageSettings().toSliver(),
-        ListTile(
+        SettingRow(
           title: Text("Cache Size".tl),
           subtitle: Text(bytesToReadableString(CacheManager().currentSize)),
         ).toSliver(),
@@ -144,9 +149,8 @@ class _AppSettingsState extends State<AppSettings> {
         ).toSliver(),
         CallbackSetting(
           title: "WebDAV Comic Library".tl,
-          subtitle:
-              "Online reading uses directory image structure only; CBZ is kept for archive backup and restore."
-                  .tl,
+          subtitle: "Online reading uses directory image structure only; CBZ is kept for archive backup and restore."
+              .tl,
           callback: () async {
             showPopUpWidget(
               context,
@@ -333,32 +337,44 @@ class _WebdavSettingState extends State<_WebdavSetting> {
               ),
               const SizedBox(height: 12),
               if (syncMode != DataSyncMode.manual) ...[
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Initial sync'.tl),
-                ),
-                RadioGroup<bool>(
-                  groupValue: upload,
-                  onChanged: (value) {
-                    setState(() {
-                      upload = value ?? upload;
-                    });
-                  },
-                  child: Column(
-                    children: [
-                      RadioListTile<bool>(
-                        value: true,
-                        title: Text('Upload'.tl),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      RadioListTile<bool>(
-                        value: false,
-                        title: Text('Download'.tl),
-                        contentPadding: EdgeInsets.zero,
-                      ),
+                if (MobileUi.enabledOf(context))
+                  MobileChoiceFormField<bool>(
+                    label: 'Initial sync'.tl,
+                    initialValue: upload,
+                    options: [
+                      MobileChoiceOption(true, 'Upload'.tl),
+                      MobileChoiceOption(false, 'Download'.tl),
                     ],
+                    onChanged: (value) => setState(() => upload = value),
+                  )
+                else ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Initial sync'.tl),
                   ),
-                ),
+                  RadioGroup<bool>(
+                    groupValue: upload,
+                    onChanged: (value) {
+                      setState(() {
+                        upload = value ?? upload;
+                      });
+                    },
+                    child: Column(
+                      children: [
+                        RadioListTile<bool>(
+                          value: true,
+                          title: Text('Upload'.tl),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<bool>(
+                          value: false,
+                          title: Text('Download'.tl),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: 16),
               AnimatedSize(

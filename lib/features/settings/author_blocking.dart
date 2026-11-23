@@ -1,3 +1,5 @@
+import 'mobile_setting_row.dart';
+
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/message.dart';
@@ -150,9 +152,8 @@ class _AuthorBlockingSettingsState
 
   @override
   Widget build(BuildContext context) {
-    final authors = GlobalPreferenceStore(
-      appdata.settings,
-    ).read(KeywordPreferences.authors);
+    final authors = GlobalPreferenceStore(appdata.settings)
+        .read(KeywordPreferences.authors);
     return protectSettings(
       PopUpWidgetScaffold(
         title: 'Author blocking'.tl,
@@ -177,7 +178,7 @@ class _AuthorBlockingSettingsState
               ),
             ),
             for (final author in authors)
-              ListTile(
+              SettingRow(
                 title: Text(author),
                 onTap: () => showAuthorRuleEditor(context, author),
                 trailing: IconButton(

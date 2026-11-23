@@ -3,6 +3,8 @@ import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/settings/setting_components.dart';
@@ -42,9 +44,8 @@ class _NetworkSettingsState extends State<NetworkSettings> {
         ).toSliver(),
         SwitchSetting.preference(
           title: 'Continue past unavailable images by default'.tl,
-          subtitle:
-              'Applies only to new image download tasks. Existing tasks keep their own setting.'
-                  .tl,
+          subtitle: 'Applies only to new image download tasks. Existing tasks keep their own setting.'
+              .tl,
           preference: NetworkPreferences.skipUnavailableDownloadImages,
         ).toSliver(),
       ],
@@ -77,6 +78,17 @@ class _ProxySettingViewState extends SettingsSaveState<_ProxySettingView> {
     super.initState();
   }
 
+  void _chooseMode(ProxyMode? mode) {
+    if (!acceptsSettingsChanges) return;
+    _selection++;
+    setState(() {
+      configuration = configuration.copyWith(mode: mode);
+    });
+    if (configuration.mode != ProxyMode.manual) {
+      _saveProxy(configuration.serialize());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return protectSettings(
@@ -85,36 +97,48 @@ class _ProxySettingViewState extends SettingsSaveState<_ProxySettingView> {
         onBack: leaveSettings,
         tailing: [settingsSaveStatus],
         body: SingleChildScrollView(
-          child: RadioGroup<ProxyMode>(
-            groupValue: configuration.mode,
-            onChanged: (v) {
-              if (!acceptsSettingsChanges) return;
-              _selection++;
-              setState(() {
-                configuration = configuration.copyWith(mode: v);
-              });
-              if (configuration.mode != ProxyMode.manual) {
-                _saveProxy(configuration.serialize());
-              }
-            },
-            child: Column(
-              children: [
-                RadioListTile<ProxyMode>(
-                  title: Text("Direct".tl),
-                  value: ProxyMode.direct,
+          child: MobileUi.enabledOf(context)
+              ? Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: MobileChoiceFormField<ProxyMode>(
+                        label: 'Proxy'.tl,
+                        initialValue: configuration.mode,
+                        options: [
+                          MobileChoiceOption(ProxyMode.direct, 'Direct'.tl),
+                          MobileChoiceOption(ProxyMode.system, 'System'.tl),
+                          MobileChoiceOption(ProxyMode.manual, 'Manual'.tl),
+                        ],
+                        onChanged: acceptsSettingsChanges ? _chooseMode : null,
+                      ),
+                    ),
+                    if (configuration.mode == ProxyMode.manual)
+                      buildManualProxy(),
+                  ],
+                )
+              : RadioGroup<ProxyMode>(
+                  groupValue: configuration.mode,
+                  onChanged: _chooseMode,
+                  child: Column(
+                    children: [
+                      RadioListTile<ProxyMode>(
+                        title: Text("Direct".tl),
+                        value: ProxyMode.direct,
+                      ),
+                      RadioListTile<ProxyMode>(
+                        title: Text("System".tl),
+                        value: ProxyMode.system,
+                      ),
+                      RadioListTile(
+                        title: Text("Manual".tl),
+                        value: ProxyMode.manual,
+                      ),
+                      if (configuration.mode == ProxyMode.manual)
+                        buildManualProxy(),
+                    ],
+                  ),
                 ),
-                RadioListTile<ProxyMode>(
-                  title: Text("System".tl),
-                  value: ProxyMode.system,
-                ),
-                RadioListTile(
-                  title: Text("Manual".tl),
-                  value: ProxyMode.manual,
-                ),
-                if (configuration.mode == ProxyMode.manual) buildManualProxy(),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -236,9 +260,8 @@ class __DNSOverridesState extends SettingsSaveState<_DNSOverrides> {
     final engine = JsEngine();
     saveSetting('dnsOverrides', () async {
       await appdata.updateSettings((draft) {
-        GlobalPreferenceStore(
-          draft,
-        ).write(NetworkPreferences.dnsOverrides, map);
+        GlobalPreferenceStore(draft)
+            .write(NetworkPreferences.dnsOverrides, map);
       });
       engine.resetDio();
     });

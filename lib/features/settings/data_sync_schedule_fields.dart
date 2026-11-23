@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/sync_configuration.dart';
 import 'package:venera_next/foundation/translations.dart';
 
@@ -21,60 +23,31 @@ class DataSyncScheduleFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InputDecorator(
-          decoration: InputDecoration(
-            labelText: 'Sync mode'.tl,
-            border: const OutlineInputBorder(),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<DataSyncMode>(
-              isExpanded: true,
-              value: mode,
-              items: [
-                DropdownMenuItem(
-                  value: DataSyncMode.manual,
-                  child: Text('Manual sync'.tl),
-                ),
-                DropdownMenuItem(
-                  value: DataSyncMode.realtime,
-                  child: Text('Real-time sync'.tl),
-                ),
-                DropdownMenuItem(
-                  value: DataSyncMode.scheduled,
-                  child: Text('Scheduled sync'.tl),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) onModeChanged(value);
-              },
-            ),
-          ),
+        _field<DataSyncMode>(
+          context,
+          label: 'Sync mode'.tl,
+          value: mode,
+          options: [
+            MobileChoiceOption(DataSyncMode.manual, 'Manual sync'.tl),
+            MobileChoiceOption(DataSyncMode.realtime, 'Real-time sync'.tl),
+            MobileChoiceOption(DataSyncMode.scheduled, 'Scheduled sync'.tl),
+          ],
+          onChanged: onModeChanged,
         ),
         if (mode == DataSyncMode.scheduled) ...[
           const SizedBox(height: 16),
-          InputDecorator(
-            decoration: InputDecoration(
-              labelText: 'Sync interval'.tl,
-              border: const OutlineInputBorder(),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                isExpanded: true,
-                value: minutes,
-                items: [
-                  for (final interval in SyncConfiguration.intervalOptions)
-                    DropdownMenuItem(
-                      value: interval,
-                      child: Text(
-                        '@minutes min'.tlParams({'minutes': '$interval'}),
-                      ),
-                    ),
-                ],
-                onChanged: (value) {
-                  if (value != null) onIntervalChanged(value);
-                },
-              ),
-            ),
+          _field<int>(
+            context,
+            label: 'Sync interval'.tl,
+            value: minutes,
+            options: [
+              for (final interval in SyncConfiguration.intervalOptions)
+                MobileChoiceOption(
+                  interval,
+                  '@minutes min'.tlParams({'minutes': '$interval'}),
+                ),
+            ],
+            onChanged: onIntervalChanged,
           ),
           const SizedBox(height: 12),
           Text(
@@ -83,6 +56,42 @@ class DataSyncScheduleFields extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _field<T extends Object>(
+    BuildContext context, {
+    required String label,
+    required T value,
+    required List<MobileChoiceOption<T>> options,
+    required ValueChanged<T> onChanged,
+  }) {
+    if (MobileUi.enabledOf(context)) {
+      return MobileChoiceFormField<T>(
+        label: label,
+        initialValue: value,
+        options: options,
+        onChanged: onChanged,
+      );
+    }
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          isExpanded: true,
+          value: value,
+          items: [
+            for (final option in options)
+              DropdownMenuItem(value: option.value, child: Text(option.label)),
+          ],
+          onChanged: (value) {
+            if (value != null) onChanged(value);
+          },
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:venera_next/foundation/app.dart';
+
+import 'mobile_ui.dart';
+
 import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/foundation/app_page_route.dart';
 import 'package:venera_next/foundation/context.dart';
@@ -155,6 +158,48 @@ class _PopUpWidgetScaffoldState extends State<PopUpWidgetScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    if (MobileUi.enabledOf(context)) {
+      return Material(
+        child: Column(
+          children: [
+            MobileToolbar(
+              title: Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              leading: MobileToolbarButton(
+                label: 'Back'.tl,
+                icon: const Icon(Icons.arrow_back),
+                onPressed:
+                    widget.onBack ??
+                    () =>
+                        context.canPop() ? context.pop() : appNavigation.pop(),
+              ),
+              shortcuts: widget.tailing ?? const [],
+            ),
+            Expanded(
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: widget.body,
+              ),
+            ),
+            // This owned popup route does not have a resizing Scaffold.
+            // Clear the IME; 500+ logical pixels uses a centered 90% panel.
+            SizedBox(
+              height:
+                  (MediaQuery.viewInsetsOf(context).bottom -
+                          (MediaQuery.sizeOf(context).width > 500
+                              ? MediaQuery.sizeOf(context).height * .05
+                              : 0))
+                      .clamp(0.0, double.infinity)
+                      .toDouble(),
+            ),
+          ],
+        ),
+      );
+    }
     return Material(
       child: Column(
         children: [

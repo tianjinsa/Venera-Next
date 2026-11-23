@@ -2,12 +2,18 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/snap_sheet.dart' as prism;
+import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 import 'package:venera_next/foundation/selection_operation.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/navigation_admission.dart';
+import 'package:venera_next/foundation/translations.dart';
+
+import 'mobile_choice.dart';
+import 'mobile_ui.dart';
 import 'window_selection_task.dart';
 import 'message.dart';
 
@@ -21,6 +27,7 @@ class Select extends StatelessWidget {
     required this.values,
     this.onTap,
     this.minWidth,
+    this.label,
     this.labels,
     this.menuBuilder,
     this.menuOwnerContext,
@@ -33,6 +40,8 @@ class Select extends StatelessWidget {
   final void Function(int index)? onTap;
 
   final double? minWidth;
+
+  final String? label;
 
   final Map<String, String>? labels;
   final Widget Function(BuildContext, ValueChanged<String>)? menuBuilder;
@@ -51,33 +60,61 @@ class Select extends StatelessWidget {
     try {
       await owner.run<void>((operation) async {
         operation.checkActive();
-        late final ResourceDialogRoute<String> route;
-        route = ResourceDialogRoute<String>(
-          context: context,
-          themes: InheritedTheme.capture(from: context, to: navigator.context),
-          barrierColor: Colors.black54,
-          onDispose: () {
-            if (!disposed.isCompleted) disposed.complete();
-          },
-          builder: (dialogContext) => AlertDialog(
-            contentPadding: const EdgeInsets.all(8),
-            content: SizedBox(
-              width: 360,
-              height: math.min(
-                480,
-                MediaQuery.sizeOf(dialogContext).height * 0.6,
+        late final PopupRoute<String> route;
+        void onDispose() {
+          if (!disposed.isCompleted) disposed.complete();
+        }
+
+        Widget menu(BuildContext dialogContext) =>
+            menuBuilder!(dialogContext, (value) {
+              if (context.mounted &&
+                  owner.active &&
+                  route.isCurrent &&
+                  values.contains(value)) {
+                navigator.pop(value);
+              }
+            });
+
+        if (MobileUi.enabledOf(context)) {
+          // Keep explicit route ownership: removing the owner window must
+          // remove this picker and must never apply a late destination.
+          route = _OwnedChoiceSheetRoute(
+            sheetBarrierColor: prism.Theme.of(context).colorScheme.modalScrim,
+            barrierLabel: 'Close'.tl,
+            onDispose: onDispose,
+            builder: (context, _) => Material(
+              type: MaterialType.transparency,
+              child: MobileChoiceSheetFrame(
+                title: label ?? 'Select'.tl,
+                onClose: () {
+                  if (route.isCurrent) navigator.pop();
+                },
+                child: Builder(builder: menu),
               ),
-              child: menuBuilder!(dialogContext, (value) {
-                if (context.mounted &&
-                    owner.active &&
-                    route.isCurrent &&
-                    values.contains(value)) {
-                  navigator.pop(value);
-                }
-              }),
             ),
-          ),
-        );
+          );
+        } else {
+          route = ResourceDialogRoute<String>(
+            context: context,
+            themes: InheritedTheme.capture(
+              from: context,
+              to: navigator.context,
+            ),
+            barrierColor: Colors.black54,
+            onDispose: onDispose,
+            builder: (dialogContext) => AlertDialog(
+              contentPadding: const EdgeInsets.all(8),
+              content: SizedBox(
+                width: 360,
+                height: math.min(
+                  480,
+                  MediaQuery.sizeOf(dialogContext).height * 0.6,
+                ),
+                child: menu(dialogContext),
+              ),
+            ),
+          );
+        }
         final release = owner.retainPresentation(() {
           try {
             if (navigator.mounted && route.isActive) {
@@ -116,6 +153,35 @@ class Select extends StatelessWidget {
     final naturalLimit = menuBuilder == null
         ? MediaQuery.sizeOf(context).width * 0.45
         : math.min(240.0, MediaQuery.sizeOf(context).width * 0.45);
+    if (MobileUi.enabledOf(context)) {
+      final selected = current == null ? -1 : values.indexOf(current!);
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: math.max(minWidth ?? 0, naturalLimit),
+        ),
+        child: menuBuilder != null
+            ? MobileChoiceButton(
+                value: labels?[current] ?? current ?? 'Select'.tl,
+                minWidth: minWidth ?? 64,
+                onPressed: onTap == null || values.isEmpty
+                    ? null
+                    : () => unawaited(_openCustomMenu(context)),
+              )
+            : MobileChoice<int>(
+                label: label,
+                minWidth: minWidth ?? 64,
+                value: selected == -1 ? null : selected,
+                placeholder: current == null
+                    ? null
+                    : labels?[current] ?? current,
+                options: [
+                  for (final (index, value) in values.indexed)
+                    MobileChoiceOption(index, labels?[value] ?? value),
+                ],
+                onChanged: onTap,
+              ),
+      );
+    }
     return Container(
       constraints: BoxConstraints(minHeight: App.isMobile ? 48 : 40),
       decoration: BoxDecoration(
@@ -193,6 +259,26 @@ class Select extends StatelessWidget {
         ).padding(const EdgeInsets.symmetric(horizontal: 12, vertical: 4)),
       ),
     );
+  }
+}
+
+class _OwnedChoiceSheetRoute extends prism.SnapSheetRoute<String> {
+  _OwnedChoiceSheetRoute({
+    required super.builder,
+    required super.sheetBarrierColor,
+    required super.barrierLabel,
+    required this.onDispose,
+  }) : super(detents: const [0.85], fitsContent: true);
+
+  final VoidCallback onDispose;
+
+  @override
+  void dispose() {
+    try {
+      onDispose();
+    } finally {
+      super.dispose();
+    }
   }
 }
 

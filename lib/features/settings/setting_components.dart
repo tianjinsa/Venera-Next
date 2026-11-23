@@ -1,10 +1,19 @@
+import 'mobile_setting_row.dart';
+
+import 'package:prism_ui/slider.dart' as prism;
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:venera_next/foundation/preferences.dart';
+
 import 'setting_field.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:venera_next/components/button.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
@@ -208,10 +217,16 @@ class _SwitchSettingState extends _SettingState<SwitchSetting, bool> {
   Widget build(BuildContext context) {
     final value = currentValue;
     return withSaveStatus(
-      ListTile(
+      SettingRow(
         title: Text(widget.title),
         subtitle: widget.subtitle == null ? null : Text(widget.subtitle!),
-        trailing: pendingControl(Switch(value: value!, onChanged: change)),
+        trailing: pendingControl(
+          SettingInlineSwitch(
+            label: widget.title,
+            value: value!,
+            onChanged: change,
+          ),
+        ),
       ),
     );
   }
@@ -399,8 +414,10 @@ class _DoubleLineSelectSettingsState
   Widget build(BuildContext context) {
     final target = field;
     final value = currentValue;
+    final mobile = MobileUi.enabledOf(context);
+    final mobileChoice = mobile && widget.selectorBuilder == null;
     return withSaveStatus(
-      ListTile(
+      SettingRow(
         title: Row(
           children: [
             Expanded(child: Text(widget.title)),
@@ -415,9 +432,9 @@ class _DoubleLineSelectSettingsState
                     builder: (context) {
                       return ContentDialog(
                         title: "Help".tl,
-                        content: Text(
-                          widget.help!,
-                        ).paddingHorizontal(16).fixWidth(double.infinity),
+                        content: Text(widget.help!)
+                            .paddingHorizontal(16)
+                            .fixWidth(double.infinity),
                         actions: [
                           Button.filled(
                             onPressed: context.pop,
@@ -440,11 +457,40 @@ class _DoubleLineSelectSettingsState
                 unawaited(change(selected));
               }
             }) ??
-            Text(widget.optionTranslation[value] ?? "None"),
-        trailing: widget.selectorBuilder == null
+            (mobileChoice
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: pendingControl(
+                        MobileChoice<String>(
+                          label: widget.title,
+                          value: value,
+                          options: [
+                            for (final entry
+                                in widget.optionTranslation.entries)
+                              MobileChoiceOption(entry.key, entry.value),
+                          ],
+                          onChanged: !acceptsSettingsChanges
+                              ? null
+                              : (selected) {
+                                  if (mounted &&
+                                      target.matches(field) &&
+                                      widget.optionTranslation.containsKey(
+                                        selected,
+                                      )) {
+                                    unawaited(change(selected));
+                                  }
+                                },
+                        ),
+                      ),
+                    ),
+                  )
+                : Text(widget.optionTranslation[value] ?? "None")),
+        trailing: widget.selectorBuilder == null && !mobileChoice
             ? pendingControl(const Icon(Icons.arrow_drop_down))
             : null,
-        onTap: widget.selectorBuilder != null
+        onTap: widget.selectorBuilder != null || mobileChoice
             ? null
             : () {
                 var renderBox = context.findRenderObject() as RenderBox;
@@ -543,8 +589,17 @@ class _EndSelectorSelectSettingState
     final options = Map<String, String>.of(widget.optionTranslation);
     final target = field;
     final value = currentValue;
+
+    void select(String selected) {
+      if (mounted &&
+          target.matches(field) &&
+          widget.optionTranslation.containsKey(selected)) {
+        unawaited(change(selected));
+      }
+    }
+
     return withSaveStatus(
-      ListTile(
+      SettingRow(
         title: Row(
           children: [
             Expanded(child: Text(widget.title)),
@@ -559,9 +614,9 @@ class _EndSelectorSelectSettingState
                     builder: (context) {
                       return ContentDialog(
                         title: "Help".tl,
-                        content: Text(
-                          widget.help!,
-                        ).paddingHorizontal(16).fixWidth(double.infinity),
+                        content: Text(widget.help!)
+                            .paddingHorizontal(16)
+                            .fixWidth(double.infinity),
                         actions: [
                           Button.filled(
                             onPressed: context.pop,
@@ -584,22 +639,31 @@ class _EndSelectorSelectSettingState
                   unawaited(change(selected));
                 }
               }) ??
-              Select(
-                current: options[value],
-                values: options.values.toList(),
-                minWidth: 64,
-                onTap: (index) {
-                  if (mounted &&
-                      target.matches(field) &&
-                      index >= 0 &&
-                      index < options.length) {
-                    final selected = options.keys.elementAt(index);
-                    if (widget.optionTranslation.containsKey(selected)) {
-                      unawaited(change(selected));
-                    }
-                  }
-                },
-              ),
+              (MobileUi.enabledOf(context)
+                  ? ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.sizeOf(context).width * 0.45,
+                      ),
+                      child: MobileChoice<String>(
+                        label: widget.title,
+                        value: value,
+                        options: [
+                          for (final entry in options.entries)
+                            MobileChoiceOption(entry.key, entry.value),
+                        ],
+                        onChanged: acceptsSettingsChanges ? select : null,
+                      ),
+                    )
+                  : Select(
+                      current: options[value],
+                      values: options.values.toList(),
+                      minWidth: 64,
+                      onTap: (index) {
+                        if (index >= 0 && index < options.length) {
+                          select(options.keys.elementAt(index));
+                        }
+                      },
+                    )),
         ),
       ),
     );
@@ -706,19 +770,30 @@ class _SliderSettingState extends _SettingState<SliderSetting, num> {
   Widget build(BuildContext context) {
     final value = currentValue!.toDouble();
     return withSaveStatus(
-      ListTile(
+      SettingRow(
         title: Text(widget.title, softWrap: true, maxLines: 2),
         trailing: Text(
           widget.valueFormatter?.call(value) ?? value.toString(),
           style: ts.s12,
         ),
-        subtitle: Slider(
-          value: value,
-          onChanged: change,
-          divisions: ((widget.max - widget.min) / widget.interval).toInt(),
-          min: widget.min,
-          max: widget.max,
-        ),
+        subtitle: MobileUi.enabledOf(context)
+            ? prism.Slider(
+                value: value,
+                min: widget.min,
+                max: widget.max,
+                divisions: ((widget.max - widget.min) / widget.interval)
+                    .toInt(),
+                label: widget.valueFormatter?.call(value) ?? value.toString(),
+                onChanged: change,
+              )
+            : Slider(
+                value: value,
+                onChanged: change,
+                divisions: ((widget.max - widget.min) / widget.interval)
+                    .toInt(),
+                min: widget.min,
+                max: widget.max,
+              ),
       ),
     );
   }
@@ -737,7 +812,7 @@ class PopupWindowSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    return SettingRow(
       title: Text(title),
       trailing: const Icon(Icons.arrow_right),
       onTap: () {
@@ -977,13 +1052,15 @@ class CallbackSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    return SettingRow(
       title: Text(title),
       subtitle: subtitle == null ? null : Text(subtitle!),
-      trailing: Button.normal(
-        onPressed: callback,
-        child: Text(actionTitle),
-      ).fixHeight(28),
+      trailing: MobileUi.enabledOf(context)
+          ? Text(actionTitle)
+          : Button.normal(
+              onPressed: callback,
+              child: Text(actionTitle),
+            ).fixHeight(28),
       onTap: callback,
     );
   }

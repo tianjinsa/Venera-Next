@@ -1,3 +1,5 @@
+import 'mobile_setting_row.dart';
+
 import 'package:venera_next/features/history/history_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
@@ -65,9 +67,9 @@ class _HistoryRetentionSettingState
   Widget build(BuildContext context) {
     final value =
         _preview ??
-        GlobalPreferenceStore(
-          appdata.settings,
-        ).read(AppPreferences.historyRetentionDays).toDouble();
+        GlobalPreferenceStore(appdata.settings)
+            .read(AppPreferences.historyRetentionDays)
+            .toDouble();
     final enabled =
         acceptsSettingsChanges && !savingSettings && !hasSettingsSaveError;
     return protectSettings(
@@ -75,7 +77,7 @@ class _HistoryRetentionSettingState
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ListTile(
+          SettingRow(
             title: Text('Auto Clear History'.tl, softWrap: true, maxLines: 2),
             trailing: Text(
               value.toString(),
@@ -137,9 +139,10 @@ class _CacheLimitDialog extends StatefulWidget {
 
 class _CacheLimitDialogState extends SettingsSaveState<_CacheLimitDialog> {
   late final _controller = TextEditingController(
-    text: GlobalPreferenceStore(
-      appdata.settings,
-    ).read(AppPreferences.cacheSize).toInt().toString(),
+    text: GlobalPreferenceStore(appdata.settings)
+        .read(AppPreferences.cacheSize)
+        .toInt()
+        .toString(),
   );
   String? _error;
 
@@ -256,21 +259,18 @@ class _AuthorizationRequiredSettingState
       () async {
         if (value) {
           // A retry reuses this request's completed read-only support check.
-          checked ??= Future<bool>.sync(checkSupport).catchError((
-            Object error,
-            StackTrace stack,
-          ) {
-            Log.error('Authorization support', error, stack);
-            return false;
-          });
+          checked ??= Future<bool>.sync(checkSupport)
+              .catchError((Object error, StackTrace stack) {
+                Log.error('Authorization support', error, stack);
+                return false;
+              });
           supported = await checked!;
         }
         if (request != _request) return;
         await appdata.updateSettings((draft) {
           if (request != _request) return;
-          GlobalPreferenceStore(
-            draft,
-          ).write(AppPreferences.authorizationRequired, value && supported);
+          GlobalPreferenceStore(draft)
+              .write(AppPreferences.authorizationRequired, value && supported);
         });
       },
       isCurrent: () => request == _request,
@@ -288,14 +288,13 @@ class _AuthorizationRequiredSettingState
   Widget build(BuildContext context) {
     final bool value =
         _preview ??
-        GlobalPreferenceStore(
-          appdata.settings,
-        ).read(AppPreferences.authorizationRequired);
+        GlobalPreferenceStore(appdata.settings)
+            .read(AppPreferences.authorizationRequired);
     return protectSettings(
       Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SwitchListTile(
+          SettingSwitchRow(
             title: Text('Authorization Required'.tl),
             subtitle: App.isHarmonyOS
                 ? Text(

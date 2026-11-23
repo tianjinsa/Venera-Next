@@ -1,10 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/dialog.dart' as prism;
+import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:venera_next/foundation/selection_operation.dart';
 import 'package:venera_next/foundation/translations.dart';
 
 import 'message.dart';
+import 'mobile_choice.dart';
+import 'mobile_ui.dart';
 import 'select.dart';
 import 'window_selection_task.dart';
 
@@ -20,7 +25,7 @@ Future<int?> showSelectDialog({
   final disposed = Completer<int?>();
   final removalFailed = Completer<int?>();
   removalFailed.future.ignore();
-  ResourceDialogRoute<void>? route;
+  PopupRoute<void>? route;
 
   void finish() {
     if (!disposed.isCompleted) disposed.complete(null);
@@ -32,37 +37,27 @@ Future<int?> showSelectDialog({
   try {
     return await task.run((operation) async {
       operation.checkActive();
-      final dialog = route = ResourceDialogRoute<void>(
-        context: context,
-        themes: InheritedTheme.capture(from: context, to: navigator.context),
-        barrierColor: DialogTheme.of(context).barrierColor ?? Colors.black54,
-        onDispose: finish,
-        builder: (_) => StatefulBuilder(
-          builder: (context, setState) {
-            return ContentDialog(
+      final PopupRoute<void> dialog;
+      if (MobileUi.enabledOf(context)) {
+        dialog = _OwnedSelectAlertRoute(
+          barrierColor: prism.Theme.of(context).colorScheme.alertScrim,
+          barrierLabel: 'Close'.tl,
+          onDispose: finish,
+          builder: (_) => StatefulBuilder(
+            builder: (context, setState) => prism.AlertDialog(
               title: title,
-              content: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Select(
-                      current: current == null ? "" : options[current!],
-                      values: options,
-                      minWidth: 156,
-                      onTap: (i) {
-                        if (!canAct()) return;
-                        setState(() => current = i);
-                      },
-                    ),
-                  ],
-                ),
+              child: MobileChoice<int>(
+                value: current,
+                options: [
+                  for (final (index, option) in options.indexed)
+                    MobileChoiceOption(index, option),
+                ],
+                onChanged: (index) {
+                  if (canAct()) setState(() => current = index);
+                },
               ),
               actions: [
-                TextButton(
+                prism.TextButton(
                   onPressed: () {
                     if (!canAct()) return;
                     current = null;
@@ -70,7 +65,7 @@ Future<int?> showSelectDialog({
                   },
                   child: Text('Cancel'.tl),
                 ),
-                FilledButton(
+                prism.TextButton(
                   onPressed: current == null
                       ? null
                       : () {
@@ -79,10 +74,63 @@ Future<int?> showSelectDialog({
                   child: Text('Confirm'.tl),
                 ),
               ],
-            );
-          },
-        ),
-      );
+            ),
+          ),
+        );
+      } else {
+        dialog = ResourceDialogRoute<void>(
+          context: context,
+          themes: InheritedTheme.capture(from: context, to: navigator.context),
+          barrierColor: DialogTheme.of(context).barrierColor ?? Colors.black54,
+          onDispose: finish,
+          builder: (_) => StatefulBuilder(
+            builder: (context, setState) {
+              return ContentDialog(
+                title: title,
+                content: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Select(
+                        current: current == null ? "" : options[current!],
+                        values: options,
+                        minWidth: 156,
+                        onTap: (i) {
+                          if (!canAct()) return;
+                          setState(() => current = i);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      if (!canAct()) return;
+                      current = null;
+                      navigator.pop();
+                    },
+                    child: Text('Cancel'.tl),
+                  ),
+                  FilledButton(
+                    onPressed: current == null
+                        ? null
+                        : () {
+                            if (canAct()) navigator.pop();
+                          },
+                    child: Text('Confirm'.tl),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      }
+      route = dialog;
       final release = task.retainPresentation(() {
         try {
           current = null;
@@ -113,5 +161,47 @@ Future<int?> showSelectDialog({
     return null;
   } finally {
     if (route?.navigator == null) finish();
+  }
+}
+
+// Prism's public alert motion with the explicit route ownership required when
+// a source's hosting page or window can disappear during selection.
+class _OwnedSelectAlertRoute extends PopupRoute<void>
+    with prism.AlertMotionRouteMixin<void>, prism.AlertHostRoute<void> {
+  _OwnedSelectAlertRoute({
+    required this.barrierColor,
+    required this.barrierLabel,
+    required this.onDispose,
+    required this.builder,
+  });
+
+  @override
+  final Color barrierColor;
+  @override
+  final String barrierLabel;
+  @override
+  bool get barrierDismissible => true;
+
+  final VoidCallback onDispose;
+  final WidgetBuilder builder;
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) => Semantics(
+    scopesRoute: true,
+    explicitChildNodes: true,
+    child: SafeArea(child: Builder(builder: builder)),
+  );
+
+  @override
+  void dispose() {
+    try {
+      onDispose();
+    } finally {
+      super.dispose();
+    }
   }
 }

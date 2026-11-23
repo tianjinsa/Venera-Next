@@ -1,19 +1,25 @@
 import 'source_failure_presentation.dart';
+
 import 'dart:async';
+
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/components/window_frame.dart';
 import 'package:venera_next/components/window_selection_task.dart';
 import 'package:venera_next/foundation/navigation_admission.dart';
 import 'package:venera_next/foundation/selection_operation.dart';
 import 'package:venera_next/foundation/js_engine.dart';
+
 import 'dart:convert';
 import 'dart:io' as io;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/button.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/app_data_operations.dart';
@@ -87,9 +93,8 @@ AppBar _sourceAppbar(BuildContext context, String title) => AppBar(
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
   ),
-  titleTextStyle: Theme.of(
-    context,
-  ).textTheme.titleLarge?.copyWith(fontSize: 20),
+  titleTextStyle: Theme.of(context).textTheme.titleLarge
+      ?.copyWith(fontSize: 20),
   toolbarHeight: (MediaQuery.textScalerOf(context).scale(20) * 1.5 + 16).clamp(
     56,
     double.infinity,
@@ -208,9 +213,8 @@ class _BodyState extends State<_Body> with SingleTickerProviderStateMixin {
                           child: SourceManagementEmptyState(
                             icon: Icons.extension_outlined,
                             title: 'No installed sources'.tl,
-                            description:
-                                'Add a source link or JS/JSON file, or browse your saved repositories.'
-                                    .tl,
+                            description: 'Add a source link or JS/JSON file, or browse your saved repositories.'
+                                .tl,
                           ),
                         ),
                       for (var source in sources)
@@ -792,15 +796,43 @@ class _SliverComicSourceState extends SettingsSaveState<_SliverComicSource> {
           final options = (item.value['options'] as List);
           final current =
               source.data['settings']?[key] ?? item.value['default'];
+          final title = (item.value['title'] as String).ts(target.key);
+          if (MobileUi.enabledOf(context)) {
+            // A source may legitimately use null as a value; an explicit
+            // record keeps it distinct from no current value or dismissal.
+            final choices = <MobileChoiceOption<(Object?,)>>[
+              for (final option in options)
+                MobileChoiceOption(
+                  (option['value'] as Object?,),
+                  (option['text'] ?? option['value']).toString().ts(target.key),
+                ),
+            ];
+            yield Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: MobileChoiceFormField<(Object?,)>(
+                key: ValueKey((key, current)),
+                label: title,
+                initialValue:
+                    choices.any((option) => option.value.$1 == current)
+                    ? (current as Object?,)
+                    : null,
+                options: choices,
+                onChanged: acceptsSettingsChanges
+                    ? (value) => unawaited(_saveValue(target, key, value.$1))
+                    : null,
+              ),
+            );
+            continue;
+          }
           yield Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text((item.value['title'] as String).ts(target.key)),
+                Text(title),
                 const SizedBox(height: 8),
                 Semantics(
-                  label: (item.value['title'] as String).ts(target.key),
+                  label: title,
                   child: DropdownButtonFormField<dynamic>(
                     key: ValueKey((key, current)),
                     initialValue:

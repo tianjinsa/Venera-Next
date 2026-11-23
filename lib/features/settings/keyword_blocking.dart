@@ -1,9 +1,13 @@
+import 'mobile_setting_row.dart';
+
 import 'package:venera_next/foundation/keyword_settings_store.dart';
 import 'package:venera_next/foundation/keyword_filter.dart';
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/keyword_match_preview.dart';
 import 'package:venera_next/components/keyword_rule_labels.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/components/window_selection_task.dart';
@@ -74,9 +78,8 @@ class _KeywordBlockingSettingsState
       await showKeywordFilterReview(
         context,
         comics: () => comics,
-        description:
-            'Favorites are always visible. Review matches here to improve your rules.'
-                .tl,
+        description: 'Favorites are always visible. Review matches here to improve your rules.'
+            .tl,
       );
     } on SelectionCancelled {
       // The settings page or its library was retired.
@@ -146,7 +149,7 @@ class _KeywordBlockingSettingsState
           itemCount: rules.length + (widget.comments ? 0 : 1),
           itemBuilder: (context, index) {
             if (!widget.comments && index == 0) {
-              return ListTile(
+              return SettingRow(
                 leading: const Icon(Icons.manage_search),
                 title: Text('Scan local favorites'.tl),
                 subtitle: Text(
@@ -164,7 +167,7 @@ class _KeywordBlockingSettingsState
             }
             if (!widget.comments) index--;
             final rule = rules[index];
-            return ListTile(
+            return SettingRow(
               title: Text(
                 rule.keyword.isEmpty ? 'Empty keyword'.tl : rule.keyword,
               ),
@@ -351,6 +354,11 @@ class _KeywordRuleEditorState extends SettingsSaveState<KeywordRuleEditor> {
     );
   }
 
+  void _chooseMode(KeywordMatchMode mode) => setState(() {
+    _modeChosen = true;
+    _mode = mode;
+  });
+
   @override
   Widget build(BuildContext context) => protectSettings(
     ContentDialog(
@@ -385,26 +393,33 @@ class _KeywordRuleEditorState extends SettingsSaveState<KeywordRuleEditor> {
                 onChanged: _wordChanged,
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<KeywordMatchMode>(
-                key: ValueKey(_mode),
-                initialValue: _mode,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  labelText: 'Matching method'.tl,
+              if (MobileUi.enabledOf(context))
+                MobileChoiceFormField<KeywordMatchMode>(
+                  label: 'Matching method'.tl,
+                  initialValue: _mode,
+                  options: [
+                    for (final mode in KeywordMatchMode.values)
+                      if (!_comments || mode != KeywordMatchMode.exactTag)
+                        MobileChoiceOption(mode, mode.label),
+                  ],
+                  onChanged: _editable ? _chooseMode : null,
+                )
+              else
+                DropdownButtonFormField<KeywordMatchMode>(
+                  key: ValueKey(_mode),
+                  initialValue: _mode,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    labelText: 'Matching method'.tl,
+                  ),
+                  items: [
+                    for (final mode in KeywordMatchMode.values)
+                      if (!_comments || mode != KeywordMatchMode.exactTag)
+                        DropdownMenuItem(value: mode, child: Text(mode.label)),
+                  ],
+                  onChanged: _editable ? (mode) => _chooseMode(mode!) : null,
                 ),
-                items: [
-                  for (final mode in KeywordMatchMode.values)
-                    if (!_comments || mode != KeywordMatchMode.exactTag)
-                      DropdownMenuItem(value: mode, child: Text(mode.label)),
-                ],
-                onChanged: _editable
-                    ? (mode) => setState(() {
-                        _modeChosen = true;
-                        _mode = mode!;
-                      })
-                    : null,
-              ),
               const SizedBox(height: 8),
               Text(
                 _comments && _mode == KeywordMatchMode.contains
@@ -421,7 +436,7 @@ class _KeywordRuleEditorState extends SettingsSaveState<KeywordRuleEditor> {
                             .tl,
                 ),
               ],
-              SwitchListTile(
+              SettingSwitchRow(
                 contentPadding: EdgeInsets.zero,
                 title: Text('Ignore case'.tl),
                 value: !_caseSensitive,

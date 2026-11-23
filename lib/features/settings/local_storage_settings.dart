@@ -1,3 +1,5 @@
+import 'mobile_setting_row.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:venera_next/features/local_comics/local.dart';
@@ -62,7 +64,7 @@ class _LocalStorageSettingsState extends State<LocalStorageSettings> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ListTile(
+        SettingRow(
           title: Text('Storage Path for local comics'.tl),
           subtitle: Semantics(
             liveRegion: recovering,
@@ -81,7 +83,7 @@ class _LocalStorageSettingsState extends State<LocalStorageSettings> {
                   },
           ),
         ),
-        ListTile(
+        SettingRow(
           enabled: recovering || canSetPath,
           title: Text(
             recovering ? 'Recover Local Storage'.tl : 'Set New Storage Path'.tl,

@@ -1,8 +1,12 @@
 import 'package:venera_next/components/file_save_task.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/popup.dart' as prism;
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/log.dart';
@@ -24,78 +28,126 @@ class _LogsPageState extends State<LogsPage> {
         ? Log.logs
         : Log.logs.where((log) => log.level.name == logLevelToShow).toList();
     return Scaffold(
-      appBar: Appbar(
-        title: Text("Logs".tl),
-        actions: [
-          IconButton(
-            onPressed: () => setState(() {
-              final RelativeRect position = RelativeRect.fromLTRB(
-                MediaQuery.of(context).size.width,
-                MediaQuery.of(context).padding.top + kToolbarHeight,
-                0.0,
-                0.0,
-              );
-              showMenu(
-                context: context,
-                position: position,
-                items: [
-                  PopupMenuItem(
-                    child: Text("All".tl),
-                    onTap: () => setState(() => logLevelToShow = "all"),
-                  ),
-                  PopupMenuItem(
-                    child: Text("Information".tl),
-                    onTap: () => setState(() => logLevelToShow = "info"),
-                  ),
-                  PopupMenuItem(
-                    child: Text("Warning".tl),
-                    onTap: () => setState(() => logLevelToShow = "warning"),
-                  ),
-                  PopupMenuItem(
-                    child: Text("Error".tl),
-                    onTap: () => setState(() => logLevelToShow = "error"),
+      appBar: MobileUi.enabledOf(context)
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(54),
+              child: MobileToolbar(
+                title: Text('Logs'.tl),
+                showBack: true,
+                shortcuts: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 140),
+                    child: MobileChoice<String>(
+                      label: 'Filter'.tl,
+                      value: logLevelToShow,
+                      options: [
+                        MobileChoiceOption('all', 'All'.tl),
+                        MobileChoiceOption('info', 'Information'.tl),
+                        MobileChoiceOption('warning', 'Warning'.tl),
+                        MobileChoiceOption('error', 'Error'.tl),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => logLevelToShow = value),
+                    ),
                   ),
                 ],
-              );
-            }),
-            icon: const Icon(Icons.filter_list_outlined),
-          ),
-          IconButton(
-            onPressed: () => setState(() {
-              final RelativeRect position = RelativeRect.fromLTRB(
-                MediaQuery.of(context).size.width,
-                MediaQuery.of(context).padding.top + kToolbarHeight,
-                0.0,
-                0.0,
-              );
-              showMenu(
-                context: context,
-                position: position,
-                items: [
-                  PopupMenuItem(
-                    child: Text("Clear".tl),
-                    onTap: () => setState(() => Log.clear()),
-                  ),
-                  PopupMenuItem(
-                    child: Text("Disable Length Limitation".tl),
-                    onTap: () {
-                      Log.ignoreLimitation = true;
-                      context.showMessage(
-                        message: "Only valid for this run".tl,
-                      );
-                    },
-                  ),
-                  PopupMenuItem(
-                    child: Text("Export".tl),
-                    onTap: () => saveLog(Log().toString()),
-                  ),
-                ],
-              );
-            }),
-            icon: const Icon(Icons.more_horiz),
-          ),
-        ],
-      ),
+                more: MobileMenuButton(
+                  items: [
+                    prism.PopupMenuItem(
+                      label: 'Clear'.tl,
+                      danger: true,
+                      onPressed: () => setState(() => Log.clear()),
+                    ),
+                    prism.PopupMenuItem(
+                      label: 'Disable Length Limitation'.tl,
+                      onPressed: () {
+                        Log.ignoreLimitation = true;
+                        context.showMessage(
+                          message: 'Only valid for this run'.tl,
+                        );
+                      },
+                    ),
+                    prism.PopupMenuItem(
+                      label: 'Export'.tl,
+                      onPressed: () => saveLog(Log().toString()),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Appbar(
+              title: Text("Logs".tl),
+              actions: [
+                IconButton(
+                  onPressed: () => setState(() {
+                    final RelativeRect position = RelativeRect.fromLTRB(
+                      MediaQuery.of(context).size.width,
+                      MediaQuery.of(context).padding.top + kToolbarHeight,
+                      0.0,
+                      0.0,
+                    );
+                    showMenu(
+                      context: context,
+                      position: position,
+                      items: [
+                        PopupMenuItem(
+                          child: Text("All".tl),
+                          onTap: () => setState(() => logLevelToShow = "all"),
+                        ),
+                        PopupMenuItem(
+                          child: Text("Information".tl),
+                          onTap: () => setState(() => logLevelToShow = "info"),
+                        ),
+                        PopupMenuItem(
+                          child: Text("Warning".tl),
+                          onTap: () =>
+                              setState(() => logLevelToShow = "warning"),
+                        ),
+                        PopupMenuItem(
+                          child: Text("Error".tl),
+                          onTap: () => setState(() => logLevelToShow = "error"),
+                        ),
+                      ],
+                    );
+                  }),
+                  icon: const Icon(Icons.filter_list_outlined),
+                ),
+                IconButton(
+                  onPressed: () => setState(() {
+                    final RelativeRect position = RelativeRect.fromLTRB(
+                      MediaQuery.of(context).size.width,
+                      MediaQuery.of(context).padding.top + kToolbarHeight,
+                      0.0,
+                      0.0,
+                    );
+                    showMenu(
+                      context: context,
+                      position: position,
+                      items: [
+                        PopupMenuItem(
+                          child: Text("Clear".tl),
+                          onTap: () => setState(() => Log.clear()),
+                        ),
+                        PopupMenuItem(
+                          child: Text("Disable Length Limitation".tl),
+                          onTap: () {
+                            Log.ignoreLimitation = true;
+                            context.showMessage(
+                              message: "Only valid for this run".tl,
+                            );
+                          },
+                        ),
+                        PopupMenuItem(
+                          child: Text("Export".tl),
+                          onTap: () => saveLog(Log().toString()),
+                        ),
+                      ],
+                    );
+                  }),
+                  icon: const Icon(Icons.more_horiz),
+                ),
+              ],
+            ),
       body: ListView.builder(
         reverse: true,
         controller: ScrollController(),
@@ -112,9 +164,9 @@ class _LogsPageState extends State<LogsPage> {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           borderRadius: const BorderRadius.all(
                             Radius.circular(16),
                           ),

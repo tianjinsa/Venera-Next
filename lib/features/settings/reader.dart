@@ -1,4 +1,6 @@
+import 'mobile_setting_row.dart';
 import 'reader_appearance.dart';
+
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/preferences.dart';
@@ -138,7 +140,7 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
   }
 
   Widget _modeSettings() => appdata.settings.tvLowMemoryEnabled
-      ? ListTile(
+      ? SettingRow(
           leading: const Icon(Icons.tv),
           title: Text('TV low-memory mode'.tl),
           subtitle: Text(
@@ -179,9 +181,8 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
           if (AppProfile.current.isTv)
             SwitchSetting.preference(
               title: 'TV low-memory mode'.tl,
-              subtitle:
-                  'Device-only: single page, one-page preloading, 64 MiB image cache and limited image decoding. Long strips and zoom may lose detail. Original files are not changed.'
-                      .tl,
+              subtitle: 'Device-only: single page, one-page preloading, 64 MiB image cache and limited image decoding. Long strips and zoom may lose detail. Original files are not changed.'
+                  .tl,
               preference: TvReaderPolicy.lowMemory,
               onChanged: () => widget.onChanged?.call('readerMode'),
             ).toSliver(),
@@ -189,7 +190,7 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
           if (comicId != null && sourceKey != null)
             SliverMainAxisGroup(
               slivers: [
-                SwitchListTile(
+                SettingSwitchRow(
                   title: Text('Customize other settings for this comic'.tl),
                   value: isEnabledSpecificSettings,
                   onChanged: (b) {
@@ -219,7 +220,7 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
           if (comicId == null)
             SliverMainAxisGroup(
               slivers: [
-                SwitchListTile(
+                SettingSwitchRow(
                   title: Text("Enable device specific settings".tl),
                   value: useDeviceSpecificSettings,
                   onChanged: (b) {
@@ -245,7 +246,7 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
               ],
             ),
           if (comicId == null) _modeSettings(),
-          ListTile(title: Text('Adjust picture'.tl)).toSliver(),
+          SettingRow(title: Text('Adjust picture'.tl)).toSliver(),
           ReaderBrightnessSetting(
             comicId: widget.comicId,
             sourceKey: widget.comicSource,
@@ -291,9 +292,8 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
           ).toSliver(),
           SwitchSetting.reader(
             title: "E-Ink display refresh".tl,
-            subtitle:
-                "Flash the screen after page changes to reduce ghosting on E-Ink displays. Only applies to Gallery modes."
-                    .tl,
+            subtitle: "Flash the screen after page changes to reduce ghosting on E-Ink displays. Only applies to Gallery modes."
+                .tl,
             preference: ReaderPreferences.eInkRefreshEnabled,
             onChanged: () {
               setState(() {});
@@ -424,9 +424,8 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
           ).toSliver(),
           SwitchSetting.reader(
             title: 'Skip unavailable images during automatic reading'.tl,
-            subtitle:
-                'Skip failed images at the normal pace; wait for loading images before continuing.'
-                    .tl,
+            subtitle: 'Skip failed images at the normal pace; wait for loading images before continuing.'
+                .tl,
             preference: ReaderPreferences.autoReadingSkipUnavailableImages,
             onChanged: () {
               setState(() {});
@@ -464,9 +463,8 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
           SliverAnimatedVisibility(
             visible: _usesMode((mode) => mode.startsWith('gallery')),
             child: SliderSetting.reader(
-              title:
-                  "The number of pic in screen for landscape (Only Gallery Mode)"
-                      .tl,
+              title: "The number of pic in screen for landscape (Only Gallery Mode)"
+                  .tl,
               preference: ReaderPreferences.readerScreenPicNumberForLandscape,
               onChanged: () {
                 setState(() {});
@@ -606,9 +604,8 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
             visible: _isVerticalFlowMode,
             child: SwitchSetting.reader(
               title: 'Crop white side borders'.tl,
-              subtitle:
-                  'Only changes Continuous and Waterfall display. Original images are kept.'
-                      .tl,
+              subtitle: 'Only changes Continuous and Waterfall display. Original images are kept.'
+                  .tl,
               preference: ReaderPreferences.cropWhiteBorders,
               onChanged: () => widget.onChanged?.call('cropWhiteBorders'),
               comicId: isEnabledSpecificSettings ? widget.comicId : null,
@@ -622,9 +619,8 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
             visible: _isVerticalFlowMode,
             child: SwitchSetting.reader(
               title: 'Split dual pages'.tl,
-              subtitle:
-                  'Only applies to Continuous and Waterfall (Top to Bottom) modes'
-                      .tl,
+              subtitle: 'Only applies to Continuous and Waterfall (Top to Bottom) modes'
+                  .tl,
               preference: ReaderPreferences.splitDualPage,
               onChanged: () {
                 setState(() {});
@@ -643,9 +639,8 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
                 _value(ReaderPreferences.splitDualPage) == true,
             child: SwitchSetting.reader(
               title: 'Swap split dual page order'.tl,
-              subtitle:
-                  'Turn this on when the split page order does not match the reading direction'
-                      .tl,
+              subtitle: 'Turn this on when the split page order does not match the reading direction'
+                  .tl,
               preference: ReaderPreferences.splitDualPageInvert,
               onChanged: () {
                 widget.onChanged?.call('splitDualPageInvert');
@@ -701,9 +696,8 @@ class _ReaderSettingsState extends SettingsSaveState<ReaderSettings> {
             onChanged: () {
               widget.onChanged?.call("quickCollectImage");
             },
-            help:
-                "On the image browsing page, you can quickly collect images by sliding horizontally or vertically according to your reading mode"
-                    .tl,
+            help: "On the image browsing page, you can quickly collect images by sliding horizontally or vertically according to your reading mode"
+                .tl,
             comicId: isEnabledSpecificSettings ? widget.comicId : null,
             comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
             useDeviceSettings: useDeviceSpecificSettings,
@@ -781,9 +775,8 @@ class __CustomImageProcessingState
   @override
   void initState() {
     super.initState();
-    current = GlobalPreferenceStore(
-      appdata.settings,
-    ).read(ImageProcessingPreferences.script);
+    current = GlobalPreferenceStore(appdata.settings)
+        .read(ImageProcessingPreferences.script);
   }
 
   void _saveCode(String value) {
@@ -792,9 +785,8 @@ class __CustomImageProcessingState
     saveSetting(
       ImageProcessingPreferences.script.key,
       () => appdata.updateSettings((draft) {
-        GlobalPreferenceStore(
-          draft,
-        ).write(ImageProcessingPreferences.script, value);
+        GlobalPreferenceStore(draft)
+            .write(ImageProcessingPreferences.script, value);
       }),
     );
   }

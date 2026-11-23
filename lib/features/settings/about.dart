@@ -1,5 +1,8 @@
+import 'mobile_setting_row.dart';
+
 import 'dart:async';
 import 'dart:math' as math;
+
 import 'package:venera_next/foundation/application_preferences.dart';
 
 import 'package:flutter/material.dart';
@@ -99,7 +102,7 @@ class _AboutSettingsState extends State<AboutSettings> {
             const SizedBox(height: 8),
           ],
         ).toSliver(),
-        ListTile(
+        SettingRow(
           title: Text("Check for updates".tl),
           trailing: FilledButton(
             onPressed: _checking == null ? _checkUpdate : null,
@@ -114,7 +117,7 @@ class _AboutSettingsState extends State<AboutSettings> {
                 : Text('Check'.tl),
           ),
         ).toSliver(),
-        ListTile(
+        SettingRow(
           title: Text("Changelog".tl),
           trailing: const Icon(Icons.keyboard_arrow_right),
           onTap: () {
@@ -126,7 +129,7 @@ class _AboutSettingsState extends State<AboutSettings> {
           preference: AppPreferences.checkUpdateOnStart,
         ).toSliver(),
         if (AppProfile.current.isTv)
-          ListTile(
+          SettingRow(
             leading: const Icon(Icons.tv),
             title: const Text('Android TV'),
             subtitle: Text(
@@ -134,14 +137,14 @@ class _AboutSettingsState extends State<AboutSettings> {
                   .tl,
             ),
           ).toSliver(),
-        ListTile(
+        SettingRow(
           title: const Text("Github"),
           trailing: const Icon(Icons.open_in_new),
           onTap: () {
             launchUrlString("https://github.com/CyrilPeng/venera-next");
           },
         ).toSliver(),
-        ListTile(
+        SettingRow(
           title: Text("Sponsors".tl),
           trailing: const Icon(Icons.keyboard_arrow_right),
           onTap: () {

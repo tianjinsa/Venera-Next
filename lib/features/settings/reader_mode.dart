@@ -1,3 +1,9 @@
+import 'mobile_setting_row.dart';
+
+import 'dart:async';
+
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/preferences.dart';
 import 'package:venera_next/foundation/reader_preferences.dart';
 import 'package:venera_next/foundation/reader_preference_store.dart';
@@ -117,28 +123,75 @@ class _ReaderModeSettingsState extends SettingsSaveState<ReaderModeSettings> {
     }
   }
 
+  Widget _modeField({
+    required String title,
+    required String value,
+    required Future<bool> Function(String) onSelected,
+    String? description,
+    bool allowDefault = false,
+  }) {
+    final options = {
+      if (allowDefault) 'default': 'Follow default'.tl,
+      ...readerModeLabels,
+    };
+    if (MobileUi.enabledOf(context)) {
+      final target = (widget.comicId, widget.sourceKey);
+      return SettingRow(
+        title: Text(title),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: MobileChoice<String>(
+                key: ValueKey((target, title)),
+                label: title,
+                value: value,
+                placeholder: value,
+                options: [
+                  for (final option in options.entries)
+                    MobileChoiceOption(option.key, option.value),
+                ],
+                onChanged: !acceptsSettingsChanges
+                    ? null
+                    : (selected) {
+                        if (mounted &&
+                            target == (widget.comicId, widget.sourceKey) &&
+                            acceptsSettingsChanges) {
+                          unawaited(onSelected(selected));
+                        }
+                      },
+              ),
+            ),
+            if (description != null) Text(description),
+          ],
+        ),
+      );
+    }
+    return SettingRow(
+      title: Text(title),
+      subtitle: Text([options[value] ?? value, ?description].join('\n')),
+      trailing: const Icon(Icons.expand_more),
+      onTap: () => _chooseMode(
+        title: title,
+        value: value,
+        onSelected: onSelected,
+        allowDefault: allowDefault,
+      ),
+    );
+  }
+
   Widget _preference(
     String title,
     Preference<String> preference, {
     String? description,
-  }) {
-    final value = _store.read(preference);
-    return ListTile(
-      title: Text(title.tl),
-      subtitle: Text(
-        [
-          readerModeLabels[value] ?? value,
-          if (description != null) description.tl,
-        ].join('\n'),
-      ),
-      trailing: const Icon(Icons.expand_more),
-      onTap: () => _chooseMode(
-        title: title.tl,
-        value: value,
-        onSelected: (value) => _setPreference(preference, value),
-      ),
-    );
-  }
+  }) => _modeField(
+    title: title.tl,
+    value: _store.read(preference),
+    description: description?.tl,
+    onSelected: (value) => _setPreference(preference, value),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +203,7 @@ class _ReaderModeSettingsState extends SettingsSaveState<ReaderModeSettings> {
       return Column(
         children: [
           settingsSaveStatus,
-          SwitchListTile(
+          SettingSwitchRow(
             title: Text('Choose reading mode automatically'.tl),
             subtitle: Text(
               'Recognize paged and long-strip comics from image proportions.'
@@ -192,40 +245,29 @@ class _ReaderModeSettingsState extends SettingsSaveState<ReaderModeSettings> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         settingsSaveStatus,
-        ListTile(
-          title: Text('Reading mode for this comic'.tl),
-          subtitle: Text(
-            [
-              override == null
-                  ? 'Follow default'.tl
-                  : readerModeLabels[override] ?? override,
-              'Currently using: @mode'.tlParams({
-                'mode': readerModeLabels[current] ?? current,
-              }),
-            ].join('\n'),
-          ),
-          trailing: const Icon(Icons.expand_more),
-          onTap: () => _chooseMode(
-            title: 'Reading mode for this comic'.tl,
-            value: override ?? 'default',
-            allowDefault: true,
-            onSelected: (value) => saveSetting(
-              (cid, source, 'readerMode'),
-              () => appdata.updateSettings((draft) {
-                draft.setComicReaderModeOverride(
-                  cid,
-                  source,
-                  value == 'default' ? null : value,
-                );
-              }),
-              onSaved: () => widget.onChanged?.call(),
-              isCurrent: () =>
-                  cid == widget.comicId && source == widget.sourceKey,
-            ),
+        _modeField(
+          title: 'Reading mode for this comic'.tl,
+          value: override ?? 'default',
+          description: 'Currently using: @mode'.tlParams({
+            'mode': readerModeLabels[current] ?? current,
+          }),
+          allowDefault: true,
+          onSelected: (value) => saveSetting(
+            (cid, source, 'readerMode'),
+            () => appdata.updateSettings((draft) {
+              draft.setComicReaderModeOverride(
+                cid,
+                source,
+                value == 'default' ? null : value,
+              );
+            }),
+            onSaved: () => widget.onChanged?.call(),
+            isCurrent: () =>
+                cid == widget.comicId && source == widget.sourceKey,
           ),
         ),
         if (auto) ...[
-          ListTile(
+          SettingRow(
             leading: Icon(switch (layout) {
               ComicLayout.paged => Icons.auto_stories_outlined,
               ComicLayout.longStrip => Icons.view_day_outlined,
