@@ -5,12 +5,16 @@ import 'package:prism_ui/list_row.dart' as prism show ListRow;
 import 'package:prism_ui/shape.dart' as prism show AppCorner;
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/mobile_ui.dart';
+import 'package:venera_next/components/mobile_search_route.dart';
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 
 import 'search_page.dart';
+
+void openGlobalSearch(BuildContext origin) =>
+    pushSearchFrom(origin, () => const SearchPage(focusOnArrival: true));
 
 class SearchEntry extends StatelessWidget {
   const SearchEntry({super.key});
@@ -22,13 +26,15 @@ class SearchEntry extends StatelessWidget {
       return SliverPadding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         sliver: SliverToBoxAdapter(
-          child: prism.Card(
-            radius: prism.AppCorner.full,
-            onPressed: openSearch,
-            child: prism.ListRow(
-              leading: const prism.GlyphIcon(prism.Glyphs.search, size: 20),
-              title: Text('Search'.tl),
-              minHeight: 50,
+          child: Builder(
+            builder: (origin) => prism.Card(
+              radius: prism.AppCorner.full,
+              onPressed: () => openGlobalSearch(origin),
+              child: prism.ListRow(
+                leading: const prism.GlyphIcon(prism.Glyphs.search, size: 20),
+                title: Text('Search'.tl),
+                minHeight: 50,
+              ),
             ),
           ),
         ),

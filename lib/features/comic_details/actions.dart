@@ -390,9 +390,9 @@ abstract mixin class ComicPageActions {
     }
   }
 
-  void onTapTag(String tag, String namespace) {
+  void onTapTag(String tag, String namespace, [BuildContext? origin]) {
     var target = searchTargetForTag(tag, namespace);
-    target?.jump(context);
+    target?.jump(context, searchOrigin: origin);
   }
 
   PageJumpTarget? searchTargetForTag(String tag, String namespace) {

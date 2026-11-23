@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/comic_details/actions.dart';
 import 'package:venera_next/features/comic_source/models.dart';
 import 'package:venera_next/features/comic_widgets/comic_tile.dart';
@@ -37,9 +38,12 @@ class _Details extends StatelessWidget {
       children: [
         const Text('Comic details'),
         for (final namespace in ['tag', 'author'])
-          TextButton(
-            onPressed: () => _Actions(context).onTapTag('sample', namespace),
-            child: Text('Search $namespace'),
+          Builder(
+            builder: (origin) => TextButton(
+              onPressed: () =>
+                  _Actions(context).onTapTag('sample', namespace, origin),
+              child: Text('Search $namespace'),
+            ),
           ),
         const SizedBox(
           width: 120,
@@ -65,10 +69,21 @@ class _Details extends StatelessWidget {
 }
 
 void main() {
-  for (final review in [false, true]) {
+  for (final (review, phone) in [
+    (false, false),
+    (true, false),
+    (false, true),
+    (true, true),
+  ]) {
     testWidgets(
-      'tag and author use the visible detail navigator: review=$review',
+      'tag and author use the visible detail navigator: review=$review phone=$phone',
       (tester) async {
+        if (phone) {
+          tester.view
+            ..devicePixelRatio = 1
+            ..physicalSize = const Size(390, 750);
+          addTearDown(tester.view.reset);
+        }
         final oldMain = appNavigation.mainNavigatorKey;
         final oldLanguage = appdata.settings['language'];
         final oldWords = appdata.settings['blockedWords'];
@@ -111,6 +126,10 @@ void main() {
         );
         await tester.pumpWidget(
           MaterialApp(
+            builder: phone
+                ? (_, child) => MobileUiTheme(glass: 'off', child: child!)
+                : null,
+            localizationsDelegates: const [MobileUiLocalizations.delegate],
             navigatorKey: root,
             navigatorObservers: [rootRoutes],
             home: Navigator(
@@ -161,11 +180,9 @@ void main() {
           expect(route.navigator, same(owner.currentState));
           expect(route, isA<AppPageRoute>());
           // Inspect the real search destination before mounting its data services.
-          final search =
-              (route as AppPageRoute).builder(
-                    tester.element(find.text('Comic details')),
-                  )
-                  as SearchResultPage;
+          final search = (route as AppPageRoute).builder(
+            tester.element(find.text('Comic details')),
+          ) as SearchResultPage;
           expect(search.text, '$namespace:sample');
           expect(search.sourceKey, 'tags');
           expect(search.options, ['all']);

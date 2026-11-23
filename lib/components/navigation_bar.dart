@@ -52,11 +52,15 @@ class PaneActionEntry {
   VoidCallback onTap;
   final bool inMobileMenu;
 
+  /// Compact shortcut actions can navigate from their actual rendered button.
+  final ValueChanged<BuildContext>? onMobileTapFrom;
+
   PaneActionEntry({
     required this.label,
     required this.icon,
     required this.onTap,
     this.inMobileMenu = false,
+    this.onMobileTapFrom,
   });
 }
 
@@ -331,10 +335,14 @@ class NaviPaneState extends State<NaviPane>
         shortcuts: [
           for (final action in widget.paneActions)
             if (!action.inMobileMenu)
-              MobileToolbarButton(
-                label: action.label,
-                icon: Icon(action.icon),
-                onPressed: action.onTap,
+              Builder(
+                builder: (origin) => MobileToolbarButton(
+                  label: action.label,
+                  icon: Icon(action.icon),
+                  onPressed: action.onMobileTapFrom == null
+                      ? action.onTap
+                      : () => action.onMobileTapFrom!(origin),
+                ),
               ),
         ],
         more: switch (menu.toList()) {

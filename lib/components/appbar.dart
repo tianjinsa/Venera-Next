@@ -9,6 +9,8 @@ import 'package:venera_next/foundation/widget_utils.dart';
 import 'effects.dart';
 import 'gesture.dart';
 import 'mobile_ui.dart';
+import 'mobile_global_search_bar.dart';
+import 'mobile_collection_ui.dart';
 import 'scroll.dart';
 
 class Appbar extends StatefulWidget implements PreferredSizeWidget {
@@ -151,6 +153,7 @@ class SliverAppbar extends StatelessWidget {
     this.leading,
     this.actions,
     this.mobileMore,
+    this.mobileSearch,
     this.radius = 0,
     this.style = AppbarStyle.blur,
   });
@@ -161,6 +164,7 @@ class SliverAppbar extends StatelessWidget {
 
   final List<Widget>? actions;
   final Widget? mobileMore;
+  final CollectionBarSearch? mobileSearch;
 
   final double radius;
 
@@ -175,6 +179,7 @@ class SliverAppbar extends StatelessWidget {
         title: title,
         actions: actions,
         mobileMore: mobileMore,
+        mobileSearch: mobileSearch,
         topPadding: MediaQuery.of(context).padding.top,
         radius: radius,
         style: style,
@@ -192,6 +197,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   final List<Widget>? actions;
   final Widget? mobileMore;
+  final CollectionBarSearch? mobileSearch;
 
   final double topPadding;
 
@@ -204,6 +210,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     required this.title,
     this.actions,
     this.mobileMore,
+    this.mobileSearch,
     required this.topPadding,
     this.radius = 0,
     this.style = AppbarStyle.blur,
@@ -216,14 +223,18 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     if (MobileUi.enabledOf(context)) {
-      return MobileToolbar(
+      Widget toolbar(Widget? searchButton) => MobileToolbar(
         title: title,
         leading: leading,
         showBack: Navigator.of(context).canPop(),
-        shortcuts: actions ?? const [],
+        shortcuts: [?searchButton, ...?actions],
         more: mobileMore,
         height: _kAppBarHeight,
       );
+      final search = mobileSearch;
+      return search == null
+          ? toolbar(null)
+          : MobileCollectionSearchToolbar(search: search, toolbar: toolbar);
     }
     var body = Row(
       children: [
@@ -289,6 +300,7 @@ class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
         title != oldDelegate.title ||
         actions != oldDelegate.actions ||
         mobileMore != oldDelegate.mobileMore ||
+        mobileSearch != oldDelegate.mobileSearch ||
         topPadding != oldDelegate.topPadding ||
         radius != oldDelegate.radius ||
         style != oldDelegate.style;
@@ -921,6 +933,16 @@ class _SliverSearchBarDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    if (MobileUi.enabledOf(context)) {
+      return MobileGlobalSearchBar(
+        editing: editingController,
+        topPadding: topPadding,
+        onSubmit: controller.onSearch,
+        onChanged: onChanged,
+        focusNode: focusNode,
+        action: action,
+      );
+    }
     return Container(
       height: _kAppBarHeight + topPadding,
       width: double.infinity,
@@ -1012,7 +1034,15 @@ class _SearchBarState extends State<AppSearchBar>
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
+    final topPadding = MediaQuery.paddingOf(context).top;
+    if (MobileUi.enabledOf(context)) {
+      return MobileGlobalSearchBar(
+        editing: _editingController,
+        topPadding: topPadding,
+        onSubmit: _controller.onSearch,
+        action: widget.action,
+      );
+    }
     return Container(
       height: _kAppBarHeight + topPadding,
       width: double.infinity,

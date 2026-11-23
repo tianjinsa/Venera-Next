@@ -1,10 +1,14 @@
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_large_sheet.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/select.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/foundation/app_locale.dart';
@@ -115,9 +119,8 @@ class _SearchResultPageState extends State<SearchResultPage> {
     return applySearchLanguageFilter(
       text,
       sourceKey: sourceKey,
-      setting: GlobalPreferenceStore(
-        appdata.settings,
-      ).read(DiscoveryPreferences.autoAddLanguageFilter),
+      setting: GlobalPreferenceStore(appdata.settings)
+          .read(DiscoveryPreferences.autoAddLanguageFilter),
     );
   }
 
@@ -183,13 +186,31 @@ class _SearchResultPageState extends State<SearchResultPage> {
 
           var previousOptions = List<String>.from(options);
           var previousSourceKey = sourceKey;
-          await showDialog(
-            context: context,
-            useRootNavigator: true,
-            builder: (context) {
-              return _SearchSettingsDialog(state: this);
-            },
-          );
+          if (MobileUi.enabledOf(context)) {
+            FocusManager.instance.primaryFocus?.unfocus();
+            final result = await Navigator.of(context, rootNavigator: true)
+                .push(
+                  mobileLargeSheetRoute<_SearchFilters>(
+                    context: context,
+                    builder: (_) =>
+                        _SearchSettingsDialog(state: this, mobile: true),
+                  ),
+                );
+            if (!mounted ||
+                result == null ||
+                ComicSource.find(result.source)?.searchPageData == null) {
+              return;
+            }
+            sourceKey = result.source;
+            options = result.options;
+          } else {
+            await showDialog<void>(
+              context: context,
+              useRootNavigator: true,
+              builder: (_) => _SearchSettingsDialog(state: this),
+            );
+            if (!mounted) return;
+          }
           if (!previousOptions.isEqualTo(options) ||
               previousSourceKey != sourceKey) {
             text = _applyConfiguredLanguageFilter(controller.text);
@@ -411,8 +432,12 @@ class _SuggestionsState extends State<_Suggestions> {
   }
 }
 
+typedef _SearchFilters = ({String source, List<String> options});
+
 class _SearchSettingsDialog extends StatefulWidget {
-  const _SearchSettingsDialog({required this.state});
+  const _SearchSettingsDialog({required this.state, this.mobile = false});
+
+  final bool mobile;
 
   final _SearchResultPageState state;
 
@@ -428,11 +453,14 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
   @override
   void initState() {
     searchTarget = widget.state.sourceKey;
-    options = widget.state.options;
+    options = List.of(widget.state.options);
     super.initState();
   }
 
   void onChanged() {
+    // The phone sheet is dismissible by dragging: apply only its confirmed
+    // result. Preserve the existing desktop dialog's live selection.
+    if (widget.mobile) return;
     widget.state.sourceKey = searchTarget;
     widget.state.options = options;
   }
@@ -441,54 +469,88 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
   Widget build(BuildContext context) {
     var sources = ComicSource.all();
     var enabled =
-        GlobalPreferenceStore(
-          appdata.settings,
-        ).read(DiscoveryPreferences.searchSources) ??
+        GlobalPreferenceStore(appdata.settings)
+            .read(DiscoveryPreferences.searchSources) ??
         const <String>[];
-    sources.removeWhere((e) {
-      return !enabled.contains(e.key);
-    });
-    return ContentDialog(
-      title: "Settings".tl,
-      content: Column(
-        children: [
+    sources = sources
+        .where((e) => enabled.contains(e.key) && e.searchPageData != null)
+        .toList(growable: false);
+    void pickSource(String key) {
+      final page = ComicSource.find(key)?.searchPageData;
+      if (page == null) return;
+      setState(() {
+        searchTarget = key;
+        final searchOptions = page.searchOptions ?? <SearchOptions>[];
+        options = searchOptions.map((e) => e.defaultValue).toList();
+        onChanged();
+      });
+    }
+
+    final body = Column(
+      children: [
+        if (widget.mobile)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: MobileChoiceRow(
+              title: Text('Search in'.tl),
+              choice: MobileChoice<String>(
+                label: 'Search in'.tl,
+                value: searchTarget,
+                options: [
+                  for (final source in sources)
+                    MobileChoiceOption(source.key, source.name.tl),
+                ],
+                onChanged: pickSource,
+              ),
+            ),
+          )
+        else ...[
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            title: Text("Search in".tl),
+            title: Text('Search in'.tl),
           ),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: sources.map((e) {
-              return OptionChip(
-                text: e.name.tl,
-                isSelected: searchTarget == e.key,
-                onTap: () {
-                  setState(() {
-                    searchTarget = e.key;
-                    options.clear();
-                    final searchOptions =
-                        ComicSource.find(
-                          searchTarget,
-                        )!.searchPageData!.searchOptions ??
-                        <SearchOptions>[];
-                    options = searchOptions.map((e) => e.defaultValue).toList();
-                    onChanged();
-                  });
-                },
-              );
-            }).toList(),
+            children: [
+              for (final source in sources)
+                OptionChip(
+                  text: source.name.tl,
+                  isSelected: searchTarget == source.key,
+                  onTap: () => pickSource(source.key),
+                ),
+            ],
           ).fixWidth(double.infinity).paddingHorizontal(16),
-          buildSearchOptions(),
-          const SizedBox(height: 24),
-          FilledButton(
-            child: Text("Confirm".tl),
-            onPressed: () {
-              context.pop();
-            },
-          ),
         ],
-      ).fixWidth(double.infinity),
+        buildSearchOptions(),
+        const SizedBox(height: 24),
+        FilledButton(
+          child: Text("Confirm".tl),
+          onPressed: () {
+            if (widget.mobile) {
+              if (ModalRoute.of(context)?.isCurrent != true) return;
+              Navigator.pop<_SearchFilters>(context, (
+                source: searchTarget,
+                options: List.of(options),
+              ));
+            } else {
+              context.pop();
+            }
+          },
+        ),
+      ],
+    ).fixWidth(double.infinity);
+    if (!widget.mobile) {
+      return ContentDialog(title: 'Settings'.tl, content: body);
+    }
+    return MobileChoiceSheetFrame(
+      title: 'Settings'.tl,
+      onClose: () => Navigator.pop(context),
+      child: SingleChildScrollView(
+        primary: true,
+        padding: const EdgeInsets.only(bottom: 16),
+        child: body,
+      ),
     );
   }
 
@@ -496,7 +558,7 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
     var children = <Widget>[];
 
     final searchOptions =
-        ComicSource.find(searchTarget)!.searchPageData!.searchOptions ??
+        ComicSource.find(searchTarget)?.searchPageData?.searchOptions ??
         <SearchOptions>[];
     if (searchOptions.length != options.length) {
       options = searchOptions.map((e) => e.defaultValue).toList();
@@ -513,6 +575,7 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
           onChanged: (value) {
             setState(() {
               options[i] = value;
+              onChanged();
             });
           },
           sourceKey: searchTarget,

@@ -1,5 +1,6 @@
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,8 @@ import 'package:venera_next/components/flyout.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/menu.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/components/select.dart';
@@ -27,12 +30,16 @@ import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 
 import 'package:venera_next/features/comic_details/comic_details.dart';
+
 import 'aggregated_search_page.dart';
 import 'search_result_page.dart';
 import 'search_shortcuts.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+  const SearchPage({super.key, this.focusOnArrival = false});
+
+  /// Global entry only. Results opened from a tag are for reading, not editing.
+  final bool focusOnArrival;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -50,7 +57,38 @@ class _SearchPageState extends State<SearchPage> {
 
   bool aggregatedSearch = false;
 
-  var focusNode = FocusNode();
+  final focusNode = FocusNode();
+  Animation<double>? _arrival;
+  bool _requestedFocus = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!widget.focusOnArrival || _requestedFocus) return;
+    final next = ModalRoute.of(context)?.animation;
+    if (_arrival != next) {
+      _arrival?.removeStatusListener(_onArrival);
+      _arrival = next;
+      next?.addStatusListener(_onArrival);
+    }
+    _onArrival(next?.status ?? AnimationStatus.completed);
+  }
+
+  void _onArrival(AnimationStatus status) {
+    if (_requestedFocus || status != AnimationStatus.completed) return;
+    _requestedFocus = true;
+    _arrival?.removeStatusListener(_onArrival);
+    // Do not make keyboard insets resize the expanding page, or request
+    // input/a11y focus if the push was cancelled or there is no search field.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          searchSources.isNotEmpty &&
+          !MediaQuery.accessibleNavigationOf(context) &&
+          ModalRoute.isCurrentOf(context) == true) {
+        focusNode.requestFocus();
+      }
+    });
+  }
 
   var options = <String>[];
 
@@ -158,9 +196,8 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     findSearchSources();
-    var defaultSearchTarget = GlobalPreferenceStore(
-      appdata.settings,
-    ).read(DiscoveryPreferences.defaultSearchTarget);
+    var defaultSearchTarget = GlobalPreferenceStore(appdata.settings)
+        .read(DiscoveryPreferences.defaultSearchTarget);
     if (defaultSearchTarget == "_aggregated_") {
       aggregatedSearch = true;
     } else if (defaultSearchTarget != null &&
@@ -174,6 +211,7 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   void dispose() {
+    _arrival?.removeStatusListener(_onArrival);
     focusNode.dispose();
     appdata.settings.removeListener(updateSearchSourcesIfNeeded);
     super.dispose();
@@ -185,9 +223,8 @@ class _SearchPageState extends State<SearchPage> {
         .map((e) => e.key)
         .toList();
     var settings =
-        GlobalPreferenceStore(
-          appdata.settings,
-        ).read(DiscoveryPreferences.searchSources) ??
+        GlobalPreferenceStore(appdata.settings)
+            .read(DiscoveryPreferences.searchSources) ??
         const <String>[];
     var sources = <String>[];
     for (var source in settings) {
@@ -530,6 +567,26 @@ class SearchOptionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MobileUi.enabledOf(context) &&
+        (option.type == 'select' || option.type == 'dropdown')) {
+      final label = option.label.ts(sourceKey);
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: MobileChoiceRow(
+          title: Text(label),
+          choice: MobileChoice<String>(
+            key: ValueKey((sourceKey, option.label)),
+            label: label,
+            value: value,
+            options: [
+              for (final entry in option.options.entries)
+                MobileChoiceOption(entry.key, entry.value.ts(sourceKey)),
+            ],
+            onChanged: onChanged,
+          ),
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

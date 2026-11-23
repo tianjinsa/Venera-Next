@@ -11,7 +11,9 @@ import 'package:venera_next/foundation/translations.dart';
 
 import '../components/navigation_bar.dart';
 import '../components/mobile_ui.dart';
+
 import 'package:venera_next/routing/app_navigation.dart';
+
 import '../foundation/context.dart';
 import 'home_page.dart';
 
@@ -42,9 +44,8 @@ class _MainPageState extends State<MainPage> {
     _navigatorKey = GlobalKey();
     appNavigation.mainNavigatorKey = _navigatorKey;
     index = agentInitialPage(
-      GlobalPreferenceStore(
-        appdata.settings,
-      ).read(DiscoveryPreferences.initialPage),
+      GlobalPreferenceStore(appdata.settings)
+          .read(DiscoveryPreferences.initialPage),
     );
     super.initState();
   }
@@ -115,6 +116,7 @@ class _MainPageState extends State<MainPage> {
           PaneActionEntry(
             icon: Icons.search,
             label: "Search".tl,
+            onMobileTapFrom: openGlobalSearch,
             onTap: () {
               to(() => const SearchPage(), preventDuplicate: true);
             },

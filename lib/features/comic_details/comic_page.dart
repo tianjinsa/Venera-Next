@@ -632,7 +632,7 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
 
     Widget buildTag({
       required String text,
-      VoidCallback? onTap,
+      ValueChanged<BuildContext>? onTap,
       void Function(BuildContext context)? onLongPress,
       bool isTitle = false,
     }) {
@@ -667,7 +667,7 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
               borderRadius: borderRadius,
               child: ClickInkWell(
                 borderRadius: borderRadius,
-                onTap: onTap,
+                onTap: () => onTap(tagContext),
                 onLongPress: () {
                   if (onLongPress != null) {
                     onLongPress(tagContext);
@@ -681,7 +681,7 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
                     MenuEntry(
                       icon: Icons.remove_red_eye,
                       text: "View".tl,
-                      onClick: onTap,
+                      onClick: () => onTap(tagContext),
                     ),
                     MenuEntry(
                       icon: Icons.copy,
@@ -765,7 +765,7 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
                         : tag,
                     onTap: isReadOnlyComicInfoNamespace(e.key)
                         ? null
-                        : () => onTapTag(tag, e.key),
+                        : (origin) => onTapTag(tag, e.key, origin),
                     onLongPress: isReadOnlyComicInfoNamespace(e.key)
                         ? null
                         : (tagContext) =>
