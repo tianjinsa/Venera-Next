@@ -9,8 +9,8 @@
     {
       "path": "android/build.gradle",
       "origin": "project",
-      "sha256": "72e410b4c86c83998e48d228d013767219efe29918af6ae74cf035958817f792",
-      "local_sha256": "72e410b4c86c83998e48d228d013767219efe29918af6ae74cf035958817f792"
+      "sha256": "0d9ee635c03a8c3ab496517d767cb3c1ad60077533ed5e0686db5078745d6486",
+      "local_sha256": "0d9ee635c03a8c3ab496517d767cb3c1ad60077533ed5e0686db5078745d6486"
     },
     {
       "path": "android/consumer-rules.pro",

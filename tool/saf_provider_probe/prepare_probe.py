@@ -31,9 +31,23 @@ def write(path, value):
 def prepare(output, flutter, sdk):
     consumer = output / "consumer"
     provider = output / "provider"
+    consumer_android = consumer / "android"
     if not (consumer / ".metadata").is_file():
         run([flutter, "create", "--empty", "--platforms", "android", "--no-pub",
              "--project-name", "venera_saf_probe", "--org", "com.cyrilpeng", consumer])
+    # Exercise the same toolchain as the app, independently of Flutter's templates.
+    app_android = ROOT / "android"
+    settings = app_android / "settings.gradle"
+    app_plugins = [
+        line for line in settings.read_text(encoding="utf-8").splitlines()
+        if line.lstrip().startswith(('id "com.android.application" ', 'id "org.jetbrains.kotlin.android" '))
+    ]
+    if len(app_plugins) != 2:
+        raise ValueError("Expected Android application and Kotlin plugins in android/settings.gradle")
+    shutil.copyfile(settings, consumer_android / "settings.gradle")
+    (consumer_android / "settings.gradle.kts").unlink(missing_ok=True)
+    wrapper_properties = "gradle/wrapper/gradle-wrapper.properties"
+    shutil.copyfile(app_android / wrapper_properties, consumer_android / wrapper_properties)
     write(consumer / "pubspec.yaml", f"""name: venera_saf_probe
 publish_to: none
 version: 1.0.0+1
@@ -69,7 +83,7 @@ flutter:
     manifest.write(application_manifest, encoding="utf-8", xml_declaration=False)
     write(consumer / "android/app/build.gradle.kts", """plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 android {
@@ -77,7 +91,6 @@ android {
     compileSdk = 36
     ndkVersion = "28.0.13004108"
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = "17" }
     defaultConfig {
         applicationId = "com.cyrilpeng.venera_saf_probe"
         minSdk = 24
@@ -95,12 +108,17 @@ android {
         }
     }
 }
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
 flutter { source = "../.." }
 """)
+    provider_plugins = "\n".join(app_plugins)
     write(provider / "settings.gradle", """pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
 plugins {
-    id 'com.android.application' version '8.12.3' apply false
-    id 'org.jetbrains.kotlin.android' version '2.1.0' apply false
+""" + provider_plugins + """
 }
 dependencyResolutionManagement { repositories { google(); mavenCentral() } }
 rootProject.name = 'VeneraSafProbeProvider'
@@ -114,7 +132,11 @@ android {
     compileSdk 36
     defaultConfig { applicationId 'com.cyrilpeng.venera_saf_probe_provider'; minSdk 24; targetSdk 36; versionCode 1; versionName '1.0.0' }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = '17' }
+}
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 """)
     write(provider / "app/src/main/kotlin/com/cyrilpeng/venera_saf_probe_provider/Provider.kt",
@@ -134,12 +156,10 @@ android {
   </application>
 </manifest>
 """)
-    for relative in ("gradlew", "gradlew.bat", "gradle/wrapper/gradle-wrapper.jar", "gradle/wrapper/gradle-wrapper.properties"):
+    for relative in ("gradlew", "gradlew.bat", "gradle/wrapper/gradle-wrapper.jar", wrapper_properties):
         target = provider / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        original = ROOT / "android" / relative
-        if not original.is_file(): original = consumer / "android" / relative
-        shutil.copyfile(original, target)
+        shutil.copyfile(consumer_android / relative, target)
     if os.name != "nt": (provider / "gradlew").chmod(0o755)
     return consumer, provider
 

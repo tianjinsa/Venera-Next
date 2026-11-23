@@ -5,8 +5,8 @@ version = '1.0.0'
 buildscript {
     repositories { google(); mavenCentral() }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.0'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0'
+        classpath 'com.android.tools.build:gradle:8.13.2'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.21'
     }
 }
 apply plugin: 'com.android.library'
@@ -24,7 +24,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = '17' }
     externalNativeBuild {
         cmake {
             path = '../src/CMakeLists.txt'
@@ -32,4 +31,10 @@ android {
         }
     }
     sourceSets { main { assets.srcDirs = ['../notices'] } }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }

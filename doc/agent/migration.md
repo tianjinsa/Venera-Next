@@ -390,3 +390,9 @@
 - 玻璃偏好经现有类型化设置队列持久化，默认标准档，关闭时保留动效。宽屏、桌面、TV 保留原有界面，阅读器入口沿用现有全屏路由。鸿蒙从此分支同源码打包的兼容适配另处理。
 - 固定 Prism 官方 Git 主分支提交和 Flutter 3.47.9。直接导入所用公开模块可避开 Flutter 3.50 才有的滚动 API。PDF 引擎跟进 0.4.6。应用严格分析保留警告和信息门禁，两个复制的上游插件路径交给依赖来源与补丁审计。[依赖与回退记录](../development/dependencies.zh.md#手机界面)
 - Windows 本地使用 Flutter 3.47.9 和 Git 锁定提交运行 22 个相关测试文件，247 项通过，20 项按测试条件跳过。覆盖滑选提交与取消、子菜单分层返回、设置写入、模型面板拖动、会话键盘避让、TV 和阅读会话。严格静态分析、Dart 格式、依赖来源、架构边界和版本同步检查通过。全量 Actions、安装包与 Android/iOS 真机 shader 尚待验证。
+
+## Android 与 SAF 构建兼容（2026-11-23）
+
+- 基线 `d5f913b9f5cc1db288537139f2d8d308d19e5ebb`。手机 Release 在 Gradle 配置阶段被 Flutter 3.47.9 拒绝，现有 Kotlin 2.1.0 低于 2.2.20 门槛。[Android 构建记录](https://github.com/tianjinsa/Venera-Next/actions/runs/45145679502)
+- SAF 回归由 Flutter 新工程模板生成 AGP 9.1 配置，探针随后写入旧 Kotlin 插件与 `android.kotlinOptions`，导致 Release 脚本编译失败。探针的消费者和测试 Provider 现使用应用的插件版本和 Gradle wrapper。应用与自管 SAF 插件使用 Kotlin 2.3.21、AGP 8.13.2 及 JVM 17 编译选项。AGP 8.13.2 自带的 R8 支持 Kotlin 2.3 元数据，应用和探针保留 Release 压缩校验。[SAF 回归记录](https://github.com/tianjinsa/Venera-Next/actions/runs/45145697932) · [AGP 8.13.2](https://developer.android.com/build/releases/agp-8-13-0-release-notes#8-13-2)
+- Windows 本地针对 Android 签名、构建计划、SAF 产物及工作流运行 52 项检查，47 项通过，5 项按条件跳过。Flutter 3.47.9 生成及复用探针目录时，消费者和 Provider 的插件版本、wrapper 和 JVM 17 设置一致，旧模板配置被替换。依赖审计和版本同步检查通过。
