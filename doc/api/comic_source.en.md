@@ -156,7 +156,7 @@ Update tracking calls `comic.loadInfo` and uses `updateTime`. If absent, it look
 
 Return `YYYY-MM-DD`; a date followed by a space and time is also accepted. Timestamps, relative dates, and ISO strings with a `T` separator are unsuitable. Comparison currently uses the date only, so different times on the same day cannot distinguish updates. Do not substitute the request time for the real update date. Omit an unavailable date; chapter-count changes are not an automatic fallback.
 
-Recognized author namespaces include `author`, `authors`, `artist`, `artists`, `作者`, and `画师`. With `comic.onClickTag`, users can save author/tag searches as shortcuts.
+Recognized author namespaces include `author`, `authors`, `artist`, `artists`, `作者`, `画师`/`畫師`, and `绘师`/`繪師`. With `comic.onClickTag`, users can save author/tag searches as shortcuts.
 
 ## 3. Search, exploration, and categories
 

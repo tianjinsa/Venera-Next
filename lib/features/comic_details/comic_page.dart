@@ -19,6 +19,7 @@ import 'package:venera_next/components/image.dart';
 import 'package:venera_next/components/layout.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/menu.dart';
+import 'package:venera_next/components/mobile_search_route.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
@@ -125,8 +126,9 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
 
   @override
   void onReadEnd() {
-    history ??= HistoryScope.read(context)
-        .find(widget.id, ComicType(widget.sourceKey.hashCode));
+    history ??= HistoryScope.read(
+      context,
+    ).find(widget.id, ComicType(widget.sourceKey.hashCode));
     update();
   }
 
@@ -302,10 +304,12 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
     if (comicSource == null) {
       return const Res.error('Comic source not found');
     }
-    isAddToLocalFav = FavoritesScope.read(context)
-        .isExist(widget.id, ComicType(widget.sourceKey.hashCode));
-    history = HistoryScope.read(context)
-        .find(widget.id, ComicType(widget.sourceKey.hashCode));
+    isAddToLocalFav = FavoritesScope.read(
+      context,
+    ).isExist(widget.id, ComicType(widget.sourceKey.hashCode));
+    history = HistoryScope.read(
+      context,
+    ).find(widget.id, ComicType(widget.sourceKey.hashCode));
     return comicSource.loadComicInfo!(widget.id);
   }
 
@@ -412,8 +416,9 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
 
   Widget buildActions() {
     bool hasHistory = history != null && (history!.ep > 1 || history!.page > 1);
-    bool hasUpdate = FavoritesScope.read(context)
-        .hasNewUpdate(comic.id, comic.comicType);
+    bool hasUpdate = FavoritesScope.read(
+      context,
+    ).hasNewUpdate(comic.id, comic.comicType);
 
     Widget buildMainButtonChild(IconData icon, String text) {
       return Row(
@@ -660,7 +665,7 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
       const padding = EdgeInsets.symmetric(horizontal: 16, vertical: 6);
 
       if (onTap != null) {
-        return Builder(
+        return MobileSearchAnchor(
           builder: (tagContext) {
             return Material(
               color: color,
@@ -710,13 +715,13 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
       if (int.tryParse(time) != null) {
         var t = int.tryParse(time);
         if (t! > 1000000000000) {
-          return DateTime.fromMillisecondsSinceEpoch(t)
-              .toString()
-              .substring(0, 19);
+          return DateTime.fromMillisecondsSinceEpoch(
+            t,
+          ).toString().substring(0, 19);
         } else {
-          return DateTime.fromMillisecondsSinceEpoch(t * 1000)
-              .toString()
-              .substring(0, 19);
+          return DateTime.fromMillisecondsSinceEpoch(
+            t * 1000,
+          ).toString().substring(0, 19);
         }
       }
       if (time.contains('T') || time.contains('Z')) {
@@ -1014,9 +1019,9 @@ class _ComicPageLoadingPlaceHolder extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 8),
           Center(
-            child: CircularProgressIndicator(strokeWidth: 2.4)
-                .fixHeight(24)
-                .fixWidth(24),
+            child: CircularProgressIndicator(
+              strokeWidth: 2.4,
+            ).fixHeight(24).fixWidth(24),
           ),
         ],
       ),

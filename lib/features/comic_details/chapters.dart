@@ -36,21 +36,27 @@ class ComicChaptersView extends StatefulWidget {
 class _ComicChaptersViewState extends SettingsSaveState<ComicChaptersView> {
   bool? _preview;
   int _request = 0;
+  late bool _committed;
 
-  bool get reverse =>
-      _preview ??
-      GlobalPreferenceStore(
-        appdata.settings,
-      ).read(AppPreferences.reverseChapterOrder);
+  bool get reverse => _preview ?? _committed;
+
+  bool _readOrder() =>
+      GlobalPreferenceStore(appdata.settings)
+          .read(AppPreferences.reverseChapterOrder);
 
   @override
   void initState() {
     super.initState();
+    _committed = _readOrder();
     appdata.settings.addListener(_refresh);
   }
 
   void _refresh() {
-    if (mounted) setState(() {});
+    final saved = _readOrder();
+    if (!mounted || saved == _committed) return;
+    final previous = reverse;
+    _committed = saved;
+    if (reverse != previous) setState(() {});
   }
 
   void _setReverse(bool value) {
@@ -60,9 +66,8 @@ class _ComicChaptersViewState extends SettingsSaveState<ComicChaptersView> {
     saveSetting(
       AppPreferences.reverseChapterOrder.key,
       () => appdata.updateSettings((draft) {
-        GlobalPreferenceStore(
-          draft,
-        ).write(AppPreferences.reverseChapterOrder, value);
+        GlobalPreferenceStore(draft)
+            .write(AppPreferences.reverseChapterOrder, value);
       }),
       onSaved: () {
         if (request == _request) setState(() => _preview = null);
@@ -72,30 +77,57 @@ class _ComicChaptersViewState extends SettingsSaveState<ComicChaptersView> {
 
   @override
   Widget build(BuildContext context) {
-    final orderControl = protectSettings(
-      Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          settingsSaveStatus,
-          _ChapterOrderSegment(reverse: reverse, onChanged: _setReverse),
-        ],
+    return _ChapterBody(
+      chapters: widget.chapters,
+      history: widget.history,
+      readChapter: widget.readChapter,
+      reverse: reverse,
+      header: protectSettings(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    "Chapters".tl,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  _ChapterOrderSegment(
+                    reverse: reverse,
+                    onChanged: _setReverse,
+                  ),
+                ],
+              ),
+              // A pending save used to insert a 42px spinner alongside the
+              // segments. At phone widths it wrapped the entire header and
+              // moved every visible chapter twice on one tap.
+              SizedBox(
+                height: 2,
+                child: savingSettings
+                    ? LinearProgressIndicator(semanticsLabel: 'Save'.tl)
+                    : null,
+              ),
+              if (hasSettingsSaveError)
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton(
+                    onPressed: acceptsSettingsChanges
+                        ? retrySettingsSave
+                        : null,
+                    child: Text('Retry'.tl),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
-    return widget.chapters.isGrouped
-        ? _GroupedComicChapters(
-            chapters: widget.chapters,
-            history: widget.history,
-            readChapter: widget.readChapter,
-            reverse: reverse,
-            orderControl: orderControl,
-          )
-        : _NormalComicChapters(
-            chapters: widget.chapters,
-            history: widget.history,
-            readChapter: widget.readChapter,
-            reverse: reverse,
-            orderControl: orderControl,
-          );
   }
 
   @override
@@ -105,358 +137,215 @@ class _ComicChaptersViewState extends SettingsSaveState<ComicChaptersView> {
   }
 }
 
-class _NormalComicChapters extends StatefulWidget {
-  const _NormalComicChapters({
+/// The same grid, extent, group tab and scroll position survive an order
+/// reversal. Identity is (group, source chapter ID), not a display slot or
+/// flattened reader index. IDs in different groups need not be unique.
+class _ChapterBody extends StatefulWidget {
+  const _ChapterBody({
     required this.chapters,
-    this.history,
+    required this.history,
     required this.readChapter,
     required this.reverse,
-    required this.orderControl,
+    required this.header,
   });
-
   final ComicChapters chapters;
-  final bool reverse;
-  final Widget orderControl;
-
   final History? history;
-
-  final void Function(int chapter) readChapter;
-
-  @override
-  State<_NormalComicChapters> createState() => _NormalComicChaptersState();
-}
-
-class _NormalComicChaptersState extends State<_NormalComicChapters> {
-  bool showAll = false;
-
-  late History? history;
-
-  @override
-  void initState() {
-    super.initState();
-    history = widget.history;
-  }
-
-  @override
-  void didUpdateWidget(covariant _NormalComicChapters oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    setState(() {
-      history = widget.history;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final chapters = widget.chapters;
-    return SliverLayoutBuilder(
-      builder: (context, constrains) {
-        int length = chapters.length;
-        bool canShowAll = showAll;
-        if (!showAll) {
-          var width = constrains.crossAxisExtent - 16;
-          var crossItems = width ~/ 200;
-          if (width % 200 != 0) {
-            crossItems += 1;
-          }
-          length = math.min(length, crossItems * 8);
-          if (length == chapters.length) {
-            canShowAll = true;
-          }
-        }
-
-        return SliverMainAxisGroup(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      "Chapters".tl,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    widget.orderControl,
-                  ],
-                ),
-              ),
-            ),
-            SliverGrid(
-              delegate: SliverChildBuilderDelegate((context, i) {
-                if (widget.reverse) {
-                  i = chapters.length - i - 1;
-                }
-                var key = chapters.ids.elementAt(i);
-                var value = chapters[key]!;
-                bool visited =
-                    history?.readEpisode.contains((i + 1).toString()) ?? false;
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
-                  child: Material(
-                    color: context.colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(16),
-                    child: ClickInkWell(
-                      onTap: () => widget.readChapter(i + 1),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Center(
-                          child: Text(
-                            value,
-                            maxLines: 1,
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: visited
-                                  ? context.colorScheme.outline
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }, childCount: length),
-              gridDelegate: const SliverGridDelegateWithFixedHeight(
-                maxCrossAxisExtent: 250,
-                itemHeight: 48,
-              ),
-            ).sliverPadding(const EdgeInsets.symmetric(horizontal: 8)),
-            if (!canShowAll)
-              SliverToBoxAdapter(
-                child: Align(
-                  alignment: Alignment.center,
-                  child: TextButton.icon(
-                    icon: const Icon(Icons.arrow_drop_down),
-                    onPressed: () {
-                      setState(() {
-                        showAll = true;
-                      });
-                    },
-                    label: Text("${"Show all".tl} (${chapters.length})"),
-                  ).paddingTop(12),
-                ),
-              ),
-            const SliverToBoxAdapter(child: Divider()),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _GroupedComicChapters extends StatefulWidget {
-  const _GroupedComicChapters({
-    required this.chapters,
-    this.history,
-    required this.readChapter,
-    required this.reverse,
-    required this.orderControl,
-  });
-
-  final ComicChapters chapters;
+  final ValueChanged<int> readChapter;
   final bool reverse;
-  final Widget orderControl;
-
-  final History? history;
-
-  final void Function(int chapter) readChapter;
+  final Widget header;
 
   @override
-  State<_GroupedComicChapters> createState() => _GroupedComicChaptersState();
+  State<_ChapterBody> createState() => _ChapterBodyState();
 }
 
-class _GroupedComicChaptersState extends State<_GroupedComicChapters>
+class _ChapterKey extends ValueKey<(String?, String)> {
+  const _ChapterKey(super.value);
+}
+
+class _ChapterBodyState extends State<_ChapterBody>
     with TickerProviderStateMixin {
-  bool showAll = false;
+  TabController? _tabs;
+  List<String> _groups = const [];
+  int _groupIndex = 0;
+  final _expanded = <String?>{};
+  late Map<String, String> _entries;
+  late List<String> _ids;
+  late Map<String, int> _sourceIndex;
+  late int _groupOffset;
 
-  late History? history;
-
-  late TabController tabController;
-
-  late int index;
-  late List<String> _groups;
+  String? get _group => _groups.elementAtOrNull(_groupIndex);
 
   @override
   void initState() {
     super.initState();
-    history = widget.history;
-    _groups = widget.chapters.groups.toList();
-    index = ((history?.group ?? 1) - 1).clamp(
-      0,
-      math.max(0, _groups.length - 1),
-    );
-    _createTabs();
+    _loadTabs(initial: true);
+    _loadGroup();
   }
 
-  void _createTabs() {
-    tabController = TabController(
-      initialIndex: index,
-      length: _groups.length,
-      vsync: this,
-    );
-    tabController.addListener(onTabChange);
-  }
-
-  void onTabChange() {
-    if (index != tabController.index) {
-      setState(() {
-        index = tabController.index;
-      });
+  @override
+  void didUpdateWidget(covariant _ChapterBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.chapters, widget.chapters)) {
+      _loadTabs();
+      _loadGroup();
     }
   }
 
-  @override
-  void didUpdateWidget(covariant _GroupedComicChapters oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final groups = widget.chapters.groups.toList();
-    final previousGroup = _groups.elementAtOrNull(index);
-    history = widget.history;
-    if (!listEquals(groups, _groups)) {
-      tabController.removeListener(onTabChange);
-      tabController.dispose();
-      _groups = groups;
-      index = math.max(0, groups.indexOf(previousGroup ?? ''));
-      showAll = false;
-      _createTabs();
+  void _loadTabs({bool initial = false}) {
+    final names = widget.chapters.groups.toList(growable: false);
+    if (!initial && listEquals(_groups, names)) return;
+    final previous = _group;
+    _tabs?.removeListener(_onTab);
+    _tabs?.dispose();
+    _groups = names;
+    _expanded.removeWhere((name) => name != null && !names.contains(name));
+    _groupIndex = initial
+        ? ((widget.history?.group ?? 1) - 1).clamp(
+            0,
+            math.max(0, names.length - 1),
+          )
+        : math.max(0, names.indexOf(previous ?? ''));
+    // An empty grouped source has no valid tab; don't create a zero-length
+    // AppTabBar or ask the source for its first group.
+    _tabs = names.isEmpty
+        ? null
+        : (TabController(
+            vsync: this,
+            length: names.length,
+            initialIndex: _groupIndex,
+          )..addListener(_onTab));
+  }
+
+  void _onTab() {
+    final next = _tabs?.index;
+    if (next == null || next == _groupIndex) return;
+    setState(() {
+      _groupIndex = next;
+      _loadGroup();
+    });
+  }
+
+  // Make the selected group's source order indexable once, not by walking
+  // a linked map and counting preceding groups for every visible cell.
+  void _loadGroup() {
+    final group = _group;
+    final chapters = widget.chapters;
+    _entries = group != null
+        ? chapters.getGroup(group)
+        : chapters.isGrouped
+        ? const {}
+        : chapters.allChapters;
+    _ids = _entries.keys.toList(growable: false);
+    _sourceIndex = {for (var i = 0; i < _ids.length; i++) _ids[i]: i};
+    _groupOffset = 0;
+    for (var i = 0; i < _groupIndex; i++) {
+      _groupOffset += chapters.getGroup(_groups[i]).length;
     }
   }
 
   @override
   void dispose() {
-    tabController.removeListener(onTabChange);
-    tabController.dispose();
+    _tabs?.removeListener(_onTab);
+    _tabs?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final chapters = widget.chapters;
+    final group = _group;
+    final visited = widget.history?.readEpisode;
+    final grouped = group != null;
+    final count = _ids.length;
+    final radius = BorderRadius.circular(grouped ? 12 : 16);
     return SliverLayoutBuilder(
-      builder: (context, constrains) {
-        var group = _groups.isEmpty
-            ? const <String, String>{}
-            : chapters.getGroupByIndex(index);
-        int length = group.length;
-        bool canShowAll = showAll;
-        if (!showAll) {
-          var width = constrains.crossAxisExtent - 16;
-          var crossItems = width ~/ 200;
-          if (width % 200 != 0) {
-            crossItems += 1;
-          }
-          length = math.min(length, crossItems * 8);
-          if (length == group.length) {
-            canShowAll = true;
-          }
-        }
-
+      builder: (context, constraints) {
+        final slots = math.max(
+          1,
+          ((constraints.crossAxisExtent - 16) / 200).ceil(),
+        );
+        final length = _expanded.contains(group)
+            ? count
+            : math.min(count, slots * 8);
+        int reorder(int i) => widget.reverse ? count - 1 - i : i;
         return SliverMainAxisGroup(
           slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      "Chapters".tl,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    widget.orderControl,
-                  ],
+            SliverToBoxAdapter(child: widget.header),
+            if (_tabs case final tabs?) ...[
+              SliverToBoxAdapter(
+                child: AppTabBar(
+                  withUnderLine: false,
+                  controller: tabs,
+                  tabs: [for (final name in _groups) Tab(text: name)],
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: AppTabBar(
-                withUnderLine: false,
-                controller: tabController,
-                tabs: chapters.groups.map((e) => Tab(text: e)).toList(),
-              ),
-            ),
-            SliverPadding(padding: const EdgeInsets.only(top: 8)),
+              const SliverPadding(padding: EdgeInsets.only(top: 8)),
+            ],
             SliverGrid(
-              delegate: SliverChildBuilderDelegate((context, i) {
-                if (widget.reverse) {
-                  i = group.length - i - 1;
-                }
-                var key = group.keys.elementAt(i);
-                var value = group[key]!;
-                var chapterIndex = 0;
-                for (var j = 0; j < chapters.groupCount; j++) {
-                  if (j == index) {
-                    chapterIndex += i;
-                    break;
-                  }
-                  chapterIndex += chapters.getGroupByIndex(j).length;
-                }
-                String rawIndex = (chapterIndex + 1).toString();
-                String groupedIndex = "${index + 1}-${i + 1}";
-                bool visited = false;
-                if (history != null) {
-                  visited =
-                      history!.readEpisode.contains(groupedIndex) ||
-                      history!.readEpisode.contains(rawIndex);
-                }
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
-                  child: Material(
-                    color: context.colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
-                    child: ClickInkWell(
-                      onTap: () => widget.readChapter(chapterIndex + 1),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Center(
-                          child: Text(
-                            value,
-                            maxLines: 1,
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: visited
-                                  ? context.colorScheme.outline
-                                  : null,
+              delegate: SliverChildBuilderDelegate(
+                (context, i) {
+                  final source = reorder(i);
+                  final id = _ids[source];
+                  final readerIndex = _groupOffset + source + 1;
+                  final read =
+                      visited != null &&
+                      (visited.contains('$readerIndex') ||
+                          (grouped &&
+                              visited.contains(
+                                '${_groupIndex + 1}-${source + 1}',
+                              )));
+                  return Padding(
+                    key: _ChapterKey((group, id)),
+                    padding: const EdgeInsets.all(4),
+                    child: Material(
+                      color: grouped
+                          ? context.colorScheme.surfaceContainerLow
+                          : context.colorScheme.surfaceContainer,
+                      borderRadius: radius,
+                      child: ClickInkWell(
+                        onTap: () => widget.readChapter(readerIndex),
+                        borderRadius: radius,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Center(
+                            child: Text(
+                              _entries[id]!,
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: read
+                                    ? context.colorScheme.outline
+                                    : null,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              }, childCount: length),
+                  );
+                },
+                childCount: length,
+                findChildIndexCallback: (key) {
+                  if (key is! _ChapterKey || key.value.$1 != group) return null;
+                  final source = _sourceIndex[key.value.$2];
+                  if (source == null) return null;
+                  final display = reorder(source);
+                  return display < length ? display : null;
+                },
+              ),
               gridDelegate: const SliverGridDelegateWithFixedHeight(
                 maxCrossAxisExtent: 250,
                 itemHeight: 48,
               ),
             ).sliverPadding(const EdgeInsets.symmetric(horizontal: 8)),
-            if (!canShowAll)
+            if (length < count)
               SliverToBoxAdapter(
                 child: Align(
                   alignment: Alignment.center,
                   child: TextButton.icon(
                     icon: const Icon(Icons.arrow_drop_down),
-                    onPressed: () {
-                      setState(() {
-                        showAll = true;
-                      });
-                    },
-                    label: Text("${"Show all".tl} (${group.length})"),
+                    onPressed: () => setState(() => _expanded.add(group)),
+                    label: Text("${"Show all".tl} ($count)"),
                   ).paddingTop(12),
                 ),
               ),

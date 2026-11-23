@@ -147,11 +147,93 @@ void main() {
           await tester.pump(const Duration(milliseconds: 10));
         }
         expect(exits, 1);
-        final saved =
-            jsonDecode(File('${root.path}/appdata.json').readAsStringSync())
-                as Map;
+        final saved = jsonDecode(
+          File('${root.path}/appdata.json').readAsStringSync(),
+        ) as Map;
         expect((saved['settings'] as Map)['reverseChapterOrder'], isTrue);
         await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
+
+  for (final grouped in [false, true]) {
+    testWidgets(
+      'sort keeps header, group, chapter element and scroll still while a real save waits: grouped=$grouped',
+      (tester) async {
+        _prepare(tester);
+        tester.view
+          ..physicalSize = const Size(348, 740)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final scroll = ScrollController(initialScrollOffset: 40);
+        addTearDown(scroll.dispose);
+        final chosen = <int>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: CustomScrollView(
+                controller: scroll,
+                slivers: [
+                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                  ComicChaptersView(
+                    chapters: grouped
+                        ? const ComicChapters.grouped({
+                            'Volume A': {'same': 'One'},
+                            'Volume B': {
+                              'same': 'Two',
+                              'b': 'Three',
+                              'c': 'Four',
+                            },
+                          })
+                        : const ComicChapters({
+                            'same': 'Two',
+                            'b': 'Three',
+                            'c': 'Four',
+                          }),
+                    readChapter: chosen.add,
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 900)),
+                ],
+              ),
+            ),
+          ),
+        );
+        if (grouped) {
+          await tester.tap(find.text('Volume B'));
+          await tester.pumpAndSettle();
+        }
+        final header = tester.getRect(find.text('Descending'));
+        final firstSlot = tester.getRect(find.text('Two')).center;
+        final element = tester.element(find.text('Two'));
+        final originalOffset = scroll.offset;
+        final gate = Completer<void>();
+        _gates.add(gate);
+        final exclusive = AppDataOperations.instance.run(() => gate.future);
+        await tester.tap(find.text('Descending'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 32));
+        expect(find.byType(LinearProgressIndicator), findsOneWidget);
+        expect(tester.getRect(find.text('Descending')), header);
+        expect(scroll.offset, originalOffset);
+        expect(tester.element(find.text('Two')), same(element));
+        expect(tester.getRect(find.text('Four')).center.dy, firstSlot.dy);
+        expect(chosen, isEmpty);
+        expect(appdata.settings['reverseChapterOrder'], isFalse);
+        final owner = tester.state<SettingsSaveState>(
+          find.byType(ComicChaptersView),
+        );
+        gate.complete();
+        await _flush(
+          tester,
+          Future.wait([exclusive, owner.waitForSettingsSave()]),
+        );
+        expect(tester.getRect(find.text('Descending')), header);
+        expect(scroll.offset, originalOffset);
+        expect(tester.element(find.text('Two')), same(element));
+        if (grouped) expect(find.text('One'), findsNothing);
+        await tester.tap(find.text('Four'));
+        expect(chosen, [grouped ? 4 : 3]); // source order, not display slot
+        expect(tester.takeException(), isNull);
       },
     );
   }
@@ -168,9 +250,8 @@ void main() {
         MaterialApp(
           theme: ThemeData.dark(),
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: const TextScaler.linear(1.8)),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(1.8)),
             child: child!,
           ),
           home: Scaffold(

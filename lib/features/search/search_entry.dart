@@ -26,7 +26,7 @@ class SearchEntry extends StatelessWidget {
       return SliverPadding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         sliver: SliverToBoxAdapter(
-          child: Builder(
+          child: MobileSearchAnchor(
             builder: (origin) => prism.Card(
               radius: prism.AppCorner.full,
               onPressed: () => openGlobalSearch(origin),

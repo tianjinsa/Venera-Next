@@ -140,8 +140,9 @@ abstract mixin class ComicPageActions {
 
   Future<void> quickFavorite() async {
     if (_addingQuickFavorite != null) return;
-    var folder = GlobalPreferenceStore(appdata.settings)
-        .read(FavoritePreferences.quickFavorite);
+    var folder = GlobalPreferenceStore(
+      appdata.settings,
+    ).read(FavoritePreferences.quickFavorite);
     if (folder == null) {
       return;
     }
@@ -179,8 +180,9 @@ abstract mixin class ComicPageActions {
   Widget buildReadLaterAction() => ReadLaterButton(
     comic: _toFavoriteItem(),
     onChanged: () {
-      isAddToLocalFav = FavoritesScope.read(context)
-          .isExist(comic.id, comic.comicType);
+      isAddToLocalFav = FavoritesScope.read(
+        context,
+      ).isExist(comic.id, comic.comicType);
       update();
     },
   );
@@ -392,7 +394,11 @@ abstract mixin class ComicPageActions {
 
   void onTapTag(String tag, String namespace, [BuildContext? origin]) {
     var target = searchTargetForTag(tag, namespace);
-    target?.jump(context, searchOrigin: origin);
+    target?.jump(
+      context,
+      searchOrigin: origin,
+      authorLookup: isAuthorNamespace(namespace),
+    );
   }
 
   PageJumpTarget? searchTargetForTag(String tag, String namespace) {

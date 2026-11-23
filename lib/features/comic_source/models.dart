@@ -315,6 +315,9 @@ bool isAuthorNamespace(String namespace) {
     'artists',
     '作者',
     '画师',
+    '畫師',
+    '绘师',
+    '繪師',
   };
   return authorNamespaces.contains(namespace.trim().toLowerCase());
 }

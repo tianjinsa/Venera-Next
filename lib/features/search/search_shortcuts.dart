@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/menu.dart';
+import 'package:venera_next/components/mobile_search_route.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/context.dart';
@@ -24,7 +25,7 @@ void openSearchShortcut(BuildContext context, SearchShortcut shortcut) {
     context.showMessage(message: 'Search shortcut unavailable'.tl);
     return;
   }
-  target.jump(context);
+  target.jump(context, searchOrigin: context, authorLookup: shortcut.isAuthor);
 }
 
 void showSearchShortcutMenu({
@@ -175,25 +176,27 @@ class _SearchShortcutsSliverState extends State<SearchShortcutsSliver> {
           );
         }
 
-        return ClickInkWell(
-          onTap: () => openSearchShortcut(itemContext, shortcut),
-          onLongPress: () => showShortcutMenu(),
-          onSecondaryTapUp: (details) =>
-              showShortcutMenu(details.globalPosition),
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              shortcut.isAuthor ? Icons.person_outline : Icons.label_outline,
-            ),
-            title: Text(
-              shortcut.value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+        return MobileSearchAnchor(
+          builder: (origin) => ClickInkWell(
+            onTap: () => openSearchShortcut(origin, shortcut),
+            onLongPress: () => showShortcutMenu(),
+            onSecondaryTapUp: (details) =>
+                showShortcutMenu(details.globalPosition),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                shortcut.isAuthor ? Icons.person_outline : Icons.label_outline,
+              ),
+              title: Text(
+                shortcut.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         );

@@ -17,6 +17,7 @@ import 'package:venera_next/foundation/widget_utils.dart';
 import 'consts.dart';
 import 'gesture.dart';
 import 'mobile_dock_inset.dart';
+import 'mobile_search_route.dart';
 import 'mobile_ui.dart';
 import 'tv_navigation.dart';
 
@@ -335,7 +336,7 @@ class NaviPaneState extends State<NaviPane>
         shortcuts: [
           for (final action in widget.paneActions)
             if (!action.inMobileMenu)
-              Builder(
+              MobileSearchAnchor(
                 builder: (origin) => MobileToolbarButton(
                   label: action.label,
                   icon: Icon(action.icon),

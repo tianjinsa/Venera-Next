@@ -7,32 +7,40 @@ import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/log.dart';
 
 extension PageJumpTargetNavigation on PageJumpTarget {
-  void jump(BuildContext context, {BuildContext? searchOrigin}) {
-    if (page == "search") {
-      SearchResultPage destination() => SearchResultPage(
-        text: attributes?["text"] ?? attributes?["keyword"] ?? "",
-        sourceKey: sourceKey,
-        options: List.from(attributes?["options"] ?? []),
-      );
-      if (searchOrigin == null) {
-        context.to(destination);
-      } else {
-        pushSearchFrom(searchOrigin, destination);
-      }
-    } else if (page == "category") {
-      var key = ComicSource.find(sourceKey)!.categoryData!.key;
-      context.to(
-        () => CategoryComicsPage(
+  void jump(
+    BuildContext context, {
+    BuildContext? searchOrigin,
+    bool authorLookup = false,
+  }) {
+    // The source owns the destination and its payload. A list of one author's
+    // works can be a category with an opaque param, not a keyword search.
+    final Widget Function() destination;
+    switch (page) {
+      case 'search':
+        destination = () => SearchResultPage(
+          text: attributes?['text'] ?? attributes?['keyword'] ?? '',
+          sourceKey: sourceKey,
+          options: List.from(attributes?['options'] ?? []),
+        );
+      case 'category':
+        final key = ComicSource.find(sourceKey)!.categoryData!.key;
+        destination = () => CategoryComicsPage(
           categoryKey: key,
           category:
-              attributes?["category"] ??
-              (throw ArgumentError("Category name is required")),
-          options: List.from(attributes?["options"] ?? []),
-          param: attributes?["param"],
-        ),
-      );
+              attributes?['category'] ??
+              (throw ArgumentError('Category name is required')),
+          options: List.from(attributes?['options'] ?? []),
+          param: attributes?['param'],
+        );
+      default:
+        Log.error('Page Jump', 'Unknown page: $page');
+        return;
+    }
+
+    if (searchOrigin != null && (page == 'search' || authorLookup)) {
+      pushSearchFrom(searchOrigin, destination);
     } else {
-      Log.error("Page Jump", "Unknown page: $page");
+      context.to(destination);
     }
   }
 }

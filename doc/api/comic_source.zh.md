@@ -155,7 +155,7 @@ for (const chapter of [...apiChapters].reverse()) {
 
 日期请返回 `YYYY-MM-DD`，也接受日期后接空格与时间；不要返回时间戳、相对时间或带 `T` 的 ISO 时间字符串。当前逻辑按日期比较，因此同一天内多次更新不能靠不同时间区分。不要用“本次请求时间”伪造更新日期；没有可靠日期时省略，单纯章节数量变化不会自动代替日期判断。
 
-作者标签可使用 `author`、`authors`、`artist`、`artists`、`作者` 或 `画师`。配合 `comic.onClickTag`，用户可把作者/标签搜索保存为快捷方式。
+作者标签可使用 `author`、`authors`、`artist`、`artists`、`作者`、`画师`／`畫師` 或 `绘师`／`繪師`。配合 `comic.onClickTag`，用户可把作者/标签搜索保存为快捷方式。
 
 ## 3. 搜索、探索与分类
 

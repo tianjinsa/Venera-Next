@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:prism_ui/liquid_glass.dart' as prism;
 import 'package:venera_next/components/mobile_global_search_bar.dart';
 import 'package:venera_next/components/mobile_search_route.dart';
 import 'package:venera_next/components/mobile_ui.dart';
@@ -25,7 +24,7 @@ Widget _app(Widget home, {String glass = 'off', bool reduce = false}) =>
 Rect _clip(WidgetTester tester) {
   final findClip = find.byKey(const ValueKey('search-route-reveal'));
   return tester
-      .widget<ClipRRect>(findClip)
+      .widget<ClipRSuperellipse>(findClip)
       .clipper!
       .getClip(tester.getSize(findClip))
       .outerRect;
@@ -50,7 +49,7 @@ void main() {
             children: [
               Positioned.fromRect(
                 rect: entry.rect,
-                child: Builder(
+                child: MobileSearchAnchor(
                   builder: (origin) => TextButton(
                     onPressed: () {
                       owner = Navigator.of(origin);
@@ -77,27 +76,33 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
-      final start = _clip(tester);
+      final surface = find.byType(SearchMorphSurface);
+      final first = tester.widget<SearchMorphSurface>(surface);
+      final start = first.frame.outline().getBounds();
       expect(start.left, closeTo(entry.rect.left, 1));
       expect(start.top, closeTo(entry.rect.top, 1));
       expect(start.right, closeTo(entry.rect.right, 1));
       expect(start.bottom, closeTo(entry.rect.bottom, 1));
-      expect(find.byType(prism.LiquidGlass), findsWidgets);
-      await tester.pump(const Duration(milliseconds: 90));
+      expect(first.glass, isNotNull);
+      // During release the destination platter travels away from the
+      // residual. It must not enclose the whole trigger like a rect tween.
+      await tester.pump(const Duration(milliseconds: 135));
+      final release = tester.widget<SearchMorphSurface>(surface).frame;
+      expect(release.platter.contains(release.droplet!.center), isFalse);
+      expect(release.droplet!.size.width, lessThan(start.width));
+      await tester.pump(const Duration(milliseconds: 140));
       final middle = _clip(tester);
-      expect(middle.left, lessThan(entry.rect.left));
-      expect(middle.top, lessThan(entry.rect.top));
-      expect(middle.right, greaterThan(entry.rect.right));
-      expect(middle.bottom, greaterThan(entry.rect.bottom));
+      expect(middle.width, greaterThan(release.platter.width));
+      expect(middle.height, greaterThan(release.platter.height));
       expect(tester.getSize(find.byKey(destination)), const Size(390, 750));
       await tester.pumpAndSettle();
       expect(_clip(tester), const Rect.fromLTWH(0, 0, 390, 750));
-      expect(find.byType(prism.LiquidGlass), findsNothing);
+      expect(surface, findsNothing);
       expect(builds, 1);
       owner.pop();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 170));
-      expect(_clip(tester).width, inExclusiveRange(entry.rect.width, 390.0));
+      expect(_clip(tester).width, inExclusiveRange(0.0, 390.0));
       await tester.pumpAndSettle();
       expect(find.text(entry.name).hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
