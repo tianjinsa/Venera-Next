@@ -214,14 +214,87 @@ class MobileMenuButton extends StatelessWidget {
   final Widget icon;
 
   @override
-  Widget build(BuildContext context) => prism.PopupAnchor(
+  Widget build(BuildContext context) => MobilePopupAnchor(
     targetBuilder: (open) => MobileToolbarButton(
       label: label ?? 'More'.tl,
       icon: icon,
       onPressed: open,
     ),
-    popupBuilder: (_) => prism.PopupMenu(items: items),
+    items: items,
   );
+}
+
+/// Keeps Prism's source snapshot, spring, nested levels and drag recognizers.
+/// In the pinned Prism release, ordinary leaves wait for route.completed.
+/// Its public keepsOpen callback instead fires on the committed row (including
+/// keyboard activation), not on pointer down / hover. Start the same reverse
+/// transition there, then run the action with the source route already current.
+class MobilePopupAnchor extends StatelessWidget {
+  const MobilePopupAnchor({
+    super.key,
+    required this.targetBuilder,
+    required this.items,
+  });
+
+  final Widget Function(VoidCallback open) targetBuilder;
+  final List<prism.PopupMenuItem> items;
+
+  @override
+  Widget build(BuildContext owner) => prism.PopupAnchor(
+    targetBuilder: targetBuilder,
+    popupBuilder: (_) => _CommittedPopup(owner: owner, items: items),
+  );
+}
+
+class _CommittedPopup extends StatefulWidget {
+  const _CommittedPopup({required this.owner, required this.items});
+
+  final BuildContext owner;
+  final List<prism.PopupMenuItem> items;
+
+  @override
+  State<_CommittedPopup> createState() => _CommittedPopupState();
+}
+
+class _CommittedPopupState extends State<_CommittedPopup> {
+  bool _committed = false;
+  late var _items = widget.items.map(_wrap).toList(growable: false);
+
+  @override
+  void didUpdateWidget(_CommittedPopup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.items, oldWidget.items)) {
+      _items = widget.items.map(_wrap).toList(growable: false);
+    }
+  }
+
+  prism.PopupMenuItem _wrap(prism.PopupMenuItem item) {
+    final action = item.onPressed;
+    final branch = item.subItems.isNotEmpty;
+    if (!branch && (action == null || item.keepsOpen)) return item;
+    return prism.PopupMenuItem(
+      label: item.label,
+      subtitle: item.subtitle,
+      glyph: item.glyph,
+      danger: item.danger,
+      checked: item.checked,
+      section: item.section,
+      subItems: item.subItems.map(_wrap).toList(growable: false),
+      keepsOpen: branch ? item.keepsOpen : true,
+      onPressed: branch
+          ? item.onPressed
+          : () {
+              final route = ModalRoute.of(context);
+              if (_committed || route == null || !route.isCurrent) return;
+              _committed = true;
+              route.navigator!.pop();
+              if (widget.owner.mounted) action!();
+            },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => prism.PopupMenu(items: _items);
 }
 
 /// NavigationDock accepts glyphs. These match the five Venera destinations.
