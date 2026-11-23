@@ -24,7 +24,9 @@ import 'package:venera_next/components/window_hotkey_scope.dart';
 import 'package:venera_next/foundation/global_preference_store.dart';
 import 'package:venera_next/foundation/application_preferences.dart';
 import 'package:venera_next/foundation/translations.dart';
+
 import 'dart:async';
+
 import 'package:venera_next/app_runtime/sync_window_binding.dart';
 import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:dynamic_color/dynamic_color.dart';
@@ -37,6 +39,7 @@ import 'package:venera_next/app_shell/app_shell.dart';
 import 'package:venera_next/app_shell/startup_failure.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/file_interaction.dart';
+
 import 'components/gesture.dart';
 import 'components/tv_navigation.dart';
 import 'components/js_ui.dart';
@@ -46,7 +49,9 @@ import 'components/window_frame.dart';
 import 'components/window_selection_task.dart';
 import 'foundation/app.dart';
 import 'foundation/app_profile.dart';
+
 import 'package:venera_next/routing/app_navigation.dart';
+
 import 'foundation/app_locale.dart';
 import 'foundation/appdata.dart';
 import 'foundation/context.dart';
@@ -286,9 +291,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _library.source.synchronizer.checkForAutomaticSync();
     }
     if (!App.isMobile ||
-        !GlobalPreferenceStore(
-          appdata.settings,
-        ).read(AppPreferences.authorizationRequired)) {
+        !GlobalPreferenceStore(appdata.settings)
+            .read(AppPreferences.authorizationRequired)) {
       return;
     }
     if (state == AppLifecycleState.inactive && hideContentOverlay == null) {
@@ -421,9 +425,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
     }
     Widget home;
-    if (GlobalPreferenceStore(
-      appdata.settings,
-    ).read(AppPreferences.authorizationRequired)) {
+    if (GlobalPreferenceStore(appdata.settings)
+        .read(AppPreferences.authorizationRequired)) {
       home = AuthPage(
         onSuccessfulAuth: () {
           appNavigation.rootContext.toReplacement(() => const MainPage());
@@ -452,9 +455,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           theme: getTheme(primary, secondary, tertiary, Brightness.light),
           navigatorKey: appNavigation.rootNavigatorKey,
           darkTheme: getTheme(primary, secondary, tertiary, Brightness.dark),
-          themeMode: switch (GlobalPreferenceStore(
-            appdata.settings,
-          ).appearance.themeMode) {
+          themeMode: switch (GlobalPreferenceStore(appdata.settings)
+              .appearance
+              .themeMode) {
             'light' => ThemeMode.light,
             'dark' => ThemeMode.dark,
             _ => ThemeMode.system,
@@ -607,12 +610,14 @@ class _SystemUiProvider extends StatelessWidget {
       systemUiStyle = SystemUiOverlayStyle.dark.copyWith(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
         systemNavigationBarIconBrightness: Brightness.dark,
       );
     } else {
       systemUiStyle = SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
         systemNavigationBarIconBrightness: Brightness.light,
       );
     }

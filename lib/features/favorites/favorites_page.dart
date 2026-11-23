@@ -1,9 +1,11 @@
 import 'package:venera_next/features/favorites/favorites_scope.dart';
+
 import 'dart:math';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/context.dart';
@@ -212,16 +214,22 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
       return CustomScrollView(
         slivers: [
           SliverAppbar(
-            leading: Tooltip(
-              message: "Folders".tl,
-              child: context.width <= favoritesTwoPanelChangeWidth
-                  ? IconButton(
-                      icon: const Icon(Icons.menu),
-                      color: context.colorScheme.primary,
-                      onPressed: showFolderSelector,
-                    )
-                  : null,
-            ),
+            leading: MobileUi.enabledOf(context)
+                ? MobileToolbarButton(
+                    label: 'Folders'.tl,
+                    icon: const Icon(Icons.folder_open),
+                    onPressed: showFolderSelector,
+                  )
+                : Tooltip(
+                    message: "Folders".tl,
+                    child: context.width <= favoritesTwoPanelChangeWidth
+                        ? IconButton(
+                            icon: const Icon(Icons.menu),
+                            color: context.colorScheme.primary,
+                            onPressed: showFolderSelector,
+                          )
+                        : null,
+                  ),
             title: GestureDetector(
               onTap: context.width < favoritesTwoPanelChangeWidth
                   ? showFolderSelector

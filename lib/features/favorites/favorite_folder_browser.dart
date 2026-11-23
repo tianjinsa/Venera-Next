@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_dock_inset.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/search_field.dart' as prism;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/select.dart';
 import 'package:venera_next/components/tv_navigation.dart';
 import 'package:venera_next/foundation/translations.dart';
@@ -24,6 +27,7 @@ class FavoriteFolderBrowser extends StatefulWidget {
     this.footers = const [],
     this.padding = EdgeInsets.zero,
     this.shrinkWrap = false,
+    this.primary = false,
   });
 
   final FavoriteFolderTree tree;
@@ -39,6 +43,7 @@ class FavoriteFolderBrowser extends StatefulWidget {
   final List<Widget> footers;
   final EdgeInsetsGeometry padding;
   final bool shrinkWrap;
+  final bool primary;
 
   @override
   State<FavoriteFolderBrowser> createState() => _FavoriteFolderBrowserState();
@@ -82,6 +87,15 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
   }
 
   Widget _buildSearch(BuildContext context) {
+    if (MobileUi.enabledOf(context) && widget.enabled) {
+      return prism.SearchField(
+        key: const ValueKey('favorite-folder-search'),
+        controller: _search,
+        hintText: 'Search local folders'.tl,
+        onChanged: (value) =>
+            setState(() => _query = value.trim().toLowerCase()),
+      );
+    }
     final field = TextField(
       key: const ValueKey('favorite-folder-search'),
       controller: _search,
@@ -150,7 +164,7 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
       }
     }
     return CustomScrollView(
-      primary: false,
+      primary: widget.primary,
       shrinkWrap: widget.shrinkWrap,
       slivers: [
         SliverPadding(
@@ -288,6 +302,10 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
                 },
               ),
               SliverList.list(children: widget.footers),
+              if (MobileDockInset.of(context) > 0)
+                SliverToBoxAdapter(
+                  child: SizedBox(height: MobileDockInset.of(context)),
+                ),
             ],
           ),
         ),
@@ -326,6 +344,7 @@ class FavoriteFolderSelect extends StatelessWidget {
     ];
     return Select(
       menuOwnerContext: menuOwnerContext,
+      label: 'Local Favorites'.tl,
       current: current ?? (allowRoot ? '' : null),
       values: names,
       labels: {
@@ -343,6 +362,7 @@ class FavoriteFolderSelect extends StatelessWidget {
               }
             },
       menuBuilder: (context, select) => FavoriteFolderBrowser(
+        primary: MobileUi.enabledOf(context),
         tree: choices,
         selected: {?current},
         disabled: disabled,

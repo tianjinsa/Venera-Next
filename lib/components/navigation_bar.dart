@@ -16,6 +16,7 @@ import 'package:venera_next/foundation/widget_utils.dart';
 
 import 'consts.dart';
 import 'gesture.dart';
+import 'mobile_dock_inset.dart';
 import 'mobile_ui.dart';
 import 'tv_navigation.dart';
 
@@ -336,17 +337,23 @@ class NaviPaneState extends State<NaviPane>
                 onPressed: action.onTap,
               ),
         ],
-        more: menu.isEmpty
-            ? null
-            : MobileMenuButton(
-                items: [
-                  for (final action in menu)
-                    prism.PopupMenuItem(
-                      label: action.label,
-                      onPressed: action.onTap,
-                    ),
-                ],
-              ),
+        more: switch (menu.toList()) {
+          [] => null,
+          [final only] => MobileToolbarButton(
+            label: only.label,
+            icon: Icon(only.icon),
+            onPressed: only.onTap,
+          ),
+          final actions => MobileMenuButton(
+            items: [
+              for (final action in actions)
+                prism.PopupMenuItem(
+                  label: action.label,
+                  onPressed: action.onTap,
+                ),
+            ],
+          ),
+        },
       );
     }
     return Material(
@@ -890,54 +897,69 @@ class _NaviMainViewState extends State<_NaviMainView> {
         state.widget.paneItems.every((item) => item.mobileGlyph != null);
     final keepBottomBar =
         state.widget.paneItems[state.currentPage].keepBottomBarWithKeyboard;
-    final content = AnimatedSwitcher(
-      duration: fastAnimationDuration,
-      child: state.buildMainViewContent(),
+    final media = MediaQuery.of(context);
+    final showBottom =
+        shouldShowAppBar && (keepBottomBar || media.viewInsets.bottom == 0);
+    final content = MediaQuery.removePadding(
+      context: context,
+      removeTop: shouldShowAppBar,
+      child: AnimatedSwitcher(
+        duration: fastAnimationDuration,
+        child: state.buildMainViewContent(),
+      ),
     );
+    // Only the capsule intercepts touches. The viewport and its background
+    // reach the physical bottom, including the strip below the capsule.
+    Widget body = content;
+    if (useMobileDock) {
+      final dockMedia = keepBottomBar
+          ? media.copyWith(
+              padding: media.padding.copyWith(bottom: media.viewPadding.bottom),
+            )
+          : media;
+      body = MediaQuery(
+        data: dockMedia,
+        child: Builder(
+          builder: (dockContext) => Stack(
+            fit: StackFit.expand,
+            children: [
+              MobileDockInset(
+                clearance: showBottom
+                    ? prism.NavigationDock.insetOf(dockContext) + 8
+                    : 0,
+                child: content,
+              ),
+              if (showBottom)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: KeyedSubtree(
+                    key: const ValueKey('navi-bottom-bar'),
+                    child: state.buildMobileDock(dockContext),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
     return Column(
       children: [
         if (shouldShowAppBar)
           mobile
               ? state.buildTop()
               : state.buildTop().paddingTop(context.padding.top),
-        Expanded(
-          child: Builder(
-            builder: (context) => MediaQuery.removePadding(
-              context: context,
-              removeTop: shouldShowAppBar,
-              child: content,
+        Expanded(child: body),
+        if (showBottom && !useMobileDock)
+          Padding(
+            key: const ValueKey('navi-bottom-bar'),
+            padding: EdgeInsets.only(
+              bottom: keepBottomBar
+                  ? media.viewPadding.bottom
+                  : media.padding.bottom,
             ),
-          ),
-        ),
-        // Resizing pages release this space; floating-input pages retain it.
-        if (shouldShowAppBar)
-          Builder(
-            builder: (context) {
-              if (!keepBottomBar &&
-                  MediaQuery.viewInsetsOf(context).bottom > 0) {
-                return const SizedBox.shrink();
-              }
-              if (useMobileDock) {
-                final media = MediaQuery.of(context);
-                final padding = keepBottomBar
-                    ? media.padding.copyWith(bottom: media.viewPadding.bottom)
-                    : media.padding;
-                return MediaQuery(
-                  key: const ValueKey('navi-bottom-bar'),
-                  data: media.copyWith(padding: padding),
-                  child: Builder(builder: state.buildMobileDock),
-                );
-              }
-              return Padding(
-                key: const ValueKey('navi-bottom-bar'),
-                padding: EdgeInsets.only(
-                  bottom: keepBottomBar
-                      ? MediaQuery.viewPaddingOf(context).bottom
-                      : context.padding.bottom,
-                ),
-                child: state.buildBottom(),
-              );
-            },
+            child: state.buildBottom(),
           ),
       ],
     );

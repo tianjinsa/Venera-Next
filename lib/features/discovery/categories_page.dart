@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/loading.dart';
+import 'package:venera_next/components/mobile_dock_inset.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/foundation/app_locale.dart';
@@ -34,9 +35,8 @@ class _CategoriesPageState extends State<CategoriesPage>
   late TabController controller;
 
   void onSettingsChanged() {
-    var categories = GlobalPreferenceStore(
-      appdata.settings,
-    ).read(DiscoveryPreferences.categoryPages);
+    var categories = GlobalPreferenceStore(appdata.settings)
+        .read(DiscoveryPreferences.categoryPages);
     var allCategories = ComicSource.all()
         .map((e) => e.categoryData?.key)
         .where((element) => element != null)
@@ -56,9 +56,8 @@ class _CategoriesPageState extends State<CategoriesPage>
   @override
   void initState() {
     super.initState();
-    var categories = GlobalPreferenceStore(
-      appdata.settings,
-    ).read(DiscoveryPreferences.categoryPages);
+    var categories = GlobalPreferenceStore(appdata.settings)
+        .read(DiscoveryPreferences.categoryPages);
     var allCategories = ComicSource.all()
         .map((e) => e.categoryData?.key)
         .where((element) => element != null)
@@ -197,6 +196,7 @@ class _CategoryPage extends StatelessWidget {
       }
     }
     return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: MobileDockInset.of(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: children,

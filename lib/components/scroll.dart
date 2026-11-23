@@ -8,6 +8,7 @@ import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 
 import 'consts.dart';
+import 'mobile_dock_inset.dart';
 
 class SmoothCustomScrollView extends StatelessWidget {
   const SmoothCustomScrollView({
@@ -31,7 +32,11 @@ class SmoothCustomScrollView extends StatelessWidget {
           slivers: [
             ...slivers,
             SliverPadding(
-              padding: EdgeInsets.only(bottom: context.padding.bottom),
+              padding: EdgeInsets.only(
+                bottom: MobileDockInset.of(context) > 0
+                    ? MobileDockInset.of(context)
+                    : context.padding.bottom,
+              ),
             ),
           ],
         );
@@ -494,9 +499,9 @@ class _AppScrollBarState extends State<AppScrollBar> {
                         child: Text(
                           label,
                           style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onInverseSurface,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onInverseSurface,
                           ),
                         ),
                       ),
