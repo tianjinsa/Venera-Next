@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prism_ui/popup.dart' as prism;
-import 'package:prism_ui/list.dart' as prism;
+import 'package:venera_next/components/mobile_setting_row.dart';
 import 'package:venera_next/features/settings/reader_mode.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/mobile_choice.dart';
@@ -144,12 +144,10 @@ void main() {
       );
       final row = find.ancestor(
         of: find.byType(MobileChoiceButton),
-        matching: find.byType(prism.DecorationListItem),
+        matching: find.byType(SettingRow),
       );
       expect(row, findsOneWidget);
-      await tester.tap(
-        find.byWidget(tester.widget<prism.DecorationListItem>(row).title),
-      );
+      await tester.tap(find.byWidget(tester.widget<SettingRow>(row).title));
       await tester.pumpAndSettle();
       final menu = tester.widget<prism.PopupMenu>(find.byType(prism.PopupMenu));
       expect(menu.items.length, 8); // seven reading modes plus follow-default

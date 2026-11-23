@@ -49,8 +49,6 @@ void main() {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = size;
       addTearDown(tester.view.reset);
-      final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
       final calls = <String>[];
       Widget action(String label, IconData icon) => ReaderChromeAction(
         usePrism: true,

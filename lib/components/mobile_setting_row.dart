@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/card.dart' as prism;
 import 'package:prism_ui/context.dart' as prism;
+import 'package:prism_ui/divider.dart' as prism;
 import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/inherited.dart' as prism;
 import 'package:prism_ui/item_position.dart' as prism;
-import 'package:prism_ui/list.dart' as prism;
+import 'package:prism_ui/list_row.dart' as prism;
 import 'package:prism_ui/metrics.dart' as prism;
+import 'package:prism_ui/shape.dart' as prism;
 import 'package:prism_ui/typography.dart' as prism;
 import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:prism_ui/surface.dart' as prism;
@@ -46,16 +49,59 @@ class SettingRow extends StatelessWidget {
       );
     }
     final position = prism.ItemPositionProvider.of(context)?.position;
-    final row = prism.DecorationListItem(
-      title: title,
-      leading: leading,
-      subtitle: subtitle,
-      trailing: trailing,
-      contentPadding: EdgeInsetsDirectional.only(
-        start: prism.ListInsets.of(context).leading,
-        end: trailing == null ? prism.ListInsets.of(context).leading : 8,
+    final begins =
+        position == null ||
+        position == prism.ItemPosition.start ||
+        position == prism.ItemPosition.startAndEnd;
+    final ends =
+        position == null ||
+        position == prism.ItemPosition.end ||
+        position == prism.ItemPosition.startAndEnd;
+    final insets = prism.ListInsets.of(context);
+    final padding =
+        contentPadding ??
+        EdgeInsetsDirectional.only(
+          start: insets.leading,
+          end: trailing == null ? insets.leading : 8,
+        );
+    // Do not import Prism's list.dart barrel here. It also pulls the virtual
+    // list's newer Flutter ScrollCacheExtent API into the pinned SDK build.
+    final row = prism.Card(
+      shape: prism.AppShape.vertical(
+        top: begins ? prism.AppCorner.listGroup : 0,
+        bottom: ends ? prism.AppCorner.listGroup : 0,
       ),
+      padding: EdgeInsets.zero,
+      inert: enabled && onTap == null,
       onPressed: enabled ? onTap : null,
+      child: prism.ListRow(
+        title: title,
+        leading: leading,
+        subtitle: subtitle,
+        trailing: trailing,
+        padding: padding,
+      ),
+    );
+    // Keep the card's Element when a neighbor appears/disappears and
+    // changes this row from the last cell to an interior cell.
+    final card = Stack(
+      children: [
+        row,
+        if (!ends)
+          PositionedDirectional(
+            start:
+                insets.leading +
+                (leading == null ? 0 : prism.listLeadingSlotWidth + 16),
+            end: insets.leading,
+            bottom: 0,
+            child: IgnorePointer(
+              child: SizedBox(
+                height: 1 / MediaQuery.devicePixelRatioOf(context),
+                child: ColoredBox(color: prism.Divider.colorOf(context)),
+              ),
+            ),
+          ),
+      ],
     );
     // Only this row's paint gets the content tone. The popup is pushed onto
     // the surrounding navigator; its floating material and accent stay intact.
@@ -70,7 +116,7 @@ class SettingRow extends StatelessWidget {
             surfaceBright: fill,
           ),
         ),
-        child: row,
+        child: card,
       ),
     );
     return Padding(
@@ -78,12 +124,7 @@ class SettingRow extends StatelessWidget {
         horizontal: prism.ListInsets.of(context).margin,
         vertical: position == null ? 4 : 0,
       ),
-      child: position == null
-          ? prism.ItemPositionProvider(
-              position: prism.ItemPosition.startAndEnd,
-              child: surface,
-            )
-          : surface,
+      child: surface,
     );
   }
 }
@@ -116,7 +157,7 @@ List<Widget> settingGroup(
 
 Widget settingSectionGap(BuildContext context) => SliverToBoxAdapter(
   child: MobileUi.enabledOf(context)
-      ? const prism.ListSectionGap()
+      ? SizedBox(height: prism.listHeaderPaddingOf(context).top)
       : const SizedBox.shrink(),
 );
 
@@ -188,12 +229,25 @@ class SettingFootnote extends StatelessWidget {
   const SettingFootnote(this.text, {super.key});
   final String text;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.symmetric(
-      horizontal: prism.ListInsets.of(context).margin,
-    ),
-    child: prism.ListFooter(text: text, last: true),
-  );
+  Widget build(BuildContext context) {
+    final insets = prism.ListInsets.of(context);
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: insets.margin),
+      child: Container(
+        alignment: AlignmentDirectional.centerStart,
+        padding: EdgeInsetsDirectional.fromSTEB(
+          insets.leading,
+          6.5,
+          insets.leading,
+          0,
+        ),
+        child: Text(
+          text,
+          style: prism.BuildContextExtension(context).listCaptionStyle,
+        ),
+      ),
+    );
+  }
 }
 
 /// The whole row toggles once; the real Prism switch still owns its drag.

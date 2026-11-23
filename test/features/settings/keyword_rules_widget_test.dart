@@ -294,7 +294,7 @@ void main() {
       expect(opens, ['alpha 1']);
       expect(edits, ['alpha']);
       expect(find.text('Review detail'), findsOneWidget);
-      await tester.pageBack();
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(sheet, findsOneWidget);
       await tester.dragFrom(

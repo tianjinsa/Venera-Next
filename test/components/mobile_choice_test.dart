@@ -5,7 +5,8 @@ import 'package:prism_ui/common_button.dart' as prism;
 import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/item_position.dart' as prism;
 import 'package:prism_ui/inherited.dart' as prism;
-import 'package:prism_ui/list.dart' as prism;
+import 'package:prism_ui/card.dart' as prism;
+import 'package:prism_ui/shape.dart' as prism;
 import 'package:venera_next/components/mobile_setting_row.dart';
 import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:prism_ui/search_field.dart' as prism;
@@ -156,7 +157,7 @@ void main() {
           ),
         ),
       );
-      final rows = find.byType(prism.DecorationListItem);
+      final rows = find.byType(prism.Card);
       expect(rows, findsNWidgets(3));
       expect(
         rows.evaluate().map((e) => prism.ItemPositionProvider.of(e)!.position),
@@ -164,6 +165,19 @@ void main() {
           prism.ItemPosition.start,
           prism.ItemPosition.middle,
           prism.ItemPosition.end,
+        ],
+      );
+      const groupedCorner = Radius.circular(prism.AppCorner.listGroup);
+      expect(
+        tester
+            .widgetList<prism.Card>(rows)
+            .map(
+              (card) => (card.shape! as RoundedSuperellipseBorder).borderRadius,
+            ),
+        [
+          const BorderRadius.vertical(top: groupedCorner),
+          BorderRadius.zero,
+          const BorderRadius.vertical(bottom: groupedCorner),
         ],
       );
       expect(
