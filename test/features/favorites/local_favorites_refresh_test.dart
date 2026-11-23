@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/components/button.dart';
+import 'package:venera_next/components/mobile_ui.dart';
+import 'package:prism_ui/search_field.dart' as prism;
 import 'package:venera_next/features/comic_details/comic_details.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
 import 'package:venera_next/features/favorites/favorite_models.dart';
@@ -52,12 +54,13 @@ class _Fixture {
   double textScale = 1;
   bool dark = false;
 
-  Widget host({String folder = 'B'}) => FavoritesScope(
+  Widget host({String folder = 'B', bool phone = false}) => FavoritesScope(
     manager: manager,
     child: HistoryScope(
       manager: history,
       child: MaterialApp(
         navigatorKey: navigator,
+        localizationsDelegates: const [MobileUiLocalizations.delegate],
         theme: dark ? ThemeData.dark() : ThemeData.light(),
         builder: (context, child) => Shortcuts(
           shortcuts: {
@@ -70,7 +73,7 @@ class _Fixture {
               textScaler: TextScaler.linear(textScale),
               disableAnimations: true,
             ),
-            child: child!,
+            child: phone ? MobileUiTheme(glass: 'off', child: child!) : child!,
           ),
         ),
         home: Scaffold(
@@ -204,6 +207,52 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   App.dataPath = Directory.systemTemp.path;
   App.cachePath = Directory.systemTemp.path;
+
+  testWidgets(
+    'compact favorites enters batch only from More and restores the filtered search on back',
+    (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+      final fixture = await _prepare(tester, 3);
+      await tester.pumpWidget(fixture.host(phone: true));
+      await _settle(tester);
+      Finder button(String label) => find
+          .byWidgetPredicate(
+            (w) => w is MobileToolbarButton && w.label == label,
+          )
+          .hitTestable();
+      expect(button('Select comics'), findsNothing);
+      expect(_tile('seed-0'), findsOneWidget);
+      await tester.tap(button('Search'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(EditableText), 'Existing 2');
+      await _settle(tester);
+      expect(_tile('seed-2'), findsOneWidget);
+      expect(_tile('seed-0'), findsNothing);
+      await tester.tap(button('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select comics'));
+      await tester.pumpAndSettle();
+      expect(find.byType(prism.SearchField), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('favorites-select-all')));
+      await tester.pumpAndSettle();
+      expect(find.text('Selected 1 comics'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await _settle(tester);
+      expect(
+        tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+        'Existing 2',
+      );
+      expect(_tile('seed-0'), findsNothing);
+      await tester.binding.handlePopRoute();
+      await _settle(tester);
+      expect(find.byType(prism.SearchField), findsNothing);
+      expect(_tile('seed-0'), findsOneWidget);
+      expect(button('Search'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'wide selection toolbar exposes common actions and Escape exits local modes',

@@ -346,42 +346,40 @@ class _LocalComicsPageState extends SettingsSaveState<LocalComicsPage> {
             SliverAppbar(
               leading: collectionShortcut(
                 context,
-                label: multiSelectMode || searchMode ? 'Cancel'.tl : 'Back'.tl,
-                icon: multiSelectMode || searchMode
+                label: multiSelectMode ? 'Cancel'.tl : 'Back'.tl,
+                icon: multiSelectMode
                     ? const Icon(Icons.close)
                     : const prism.GlyphIcon(prism.Glyphs.chevronBack),
                 onPressed: back,
               ),
-              title: multiSelectMode
-                  ? Text(selectedComics.length.toString())
-                  : searchMode
-                  ? MobileCollectionSearchField(
+              mobileSearch: multiSelectMode
+                  ? null
+                  : CollectionBarSearch(
+                      open: searchMode,
                       controller: _mobileSearchController,
+                      onOpen: () {
+                        _mobileSearchController.clear();
+                        setState(() => searchMode = true);
+                      },
+                      onClose: back,
                       onChanged: (value) {
                         keyword = value;
                         update();
                       },
-                    )
+                      more: MobileMenuButton(
+                        items: [
+                          collectionSelectionEntry(
+                            visibleComics.isEmpty ? null : enterSelection,
+                          ),
+                        ],
+                      ),
+                    ),
+              title: multiSelectMode
+                  ? Text(selectedComics.length.toString())
                   : Text('Local'.tl),
               actions: [
                 if (!multiSelectMode) ...[
-                  if (!searchMode) const PdfImportTasksButton(),
-                  if (!searchMode)
-                    collectionShortcut(
-                      context,
-                      label: 'Search'.tl,
-                      icon: const Icon(Icons.search),
-                      onPressed: () {
-                        _mobileSearchController.clear();
-                        setState(() => searchMode = true);
-                      },
-                    ),
-                  collectionShortcut(
-                    context,
-                    label: 'Multi-Select'.tl,
-                    icon: const Icon(Icons.checklist),
-                    onPressed: visibleComics.isEmpty ? null : enterSelection,
-                  ),
+                  const PdfImportTasksButton(),
                 ] else ...[
                   collectionShortcut(
                     context,
@@ -397,7 +395,13 @@ class _LocalComicsPageState extends SettingsSaveState<LocalComicsPage> {
                   ),
                 ],
               ],
-              mobileMore: multiSelectMode
+              mobileMore: multiSelectMode && selectionEntries.isEmpty
+                  ? MobileToolbarButton(
+                      label: 'Deselect'.tl,
+                      icon: const Icon(Icons.deselect),
+                      onPressed: deSelect,
+                    )
+                  : multiSelectMode
                   ? MobileMenuButton(
                       key: ValueKey(Object.hashAll(selectedComics.keys)),
                       items: [
@@ -409,8 +413,6 @@ class _LocalComicsPageState extends SettingsSaveState<LocalComicsPage> {
                           collectionMenuAction(context, entry),
                       ],
                     )
-                  : searchMode
-                  ? null
                   : savingSettings || hasSettingsSaveError
                   ? MobileToolbarButton(
                       icon: const Icon(Icons.refresh),
@@ -419,6 +421,9 @@ class _LocalComicsPageState extends SettingsSaveState<LocalComicsPage> {
                     )
                   : MobileMenuButton(
                       items: [
+                        collectionSelectionEntry(
+                          visibleComics.isEmpty ? null : enterSelection,
+                        ),
                         prism.PopupMenuItem(
                           label: 'Sort'.tl,
                           glyph: prism.Glyphs.sort,

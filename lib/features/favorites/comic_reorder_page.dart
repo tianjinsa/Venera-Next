@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:venera_next/components/appbar.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/layout.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
@@ -185,6 +186,7 @@ class _ComicReorderPageState extends SettingsSaveState<_ComicReorderPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = MobileUi.enabledOf(context);
     final gallery =
         GlobalPreferenceStore(
           appdata.settings,
@@ -228,7 +230,7 @@ class _ComicReorderPageState extends SettingsSaveState<_ComicReorderPage> {
             ),
           ),
           actions: [
-            settingsSaveStatus,
+            if (!mobile) settingsSaveStatus,
             Tooltip(
               message: "Information".tl,
               child: IconButton(
@@ -250,6 +252,8 @@ class _ComicReorderPageState extends SettingsSaveState<_ComicReorderPage> {
                 onPressed: () => _reorder((items) => items.reversed.toList()),
               ),
             ),
+            if (mobile && (savingSettings || hasSettingsSaveError))
+              settingsSaveStatus,
           ],
         ),
         body: ReorderableBuilder<FavoriteItem>(

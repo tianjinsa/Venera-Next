@@ -3,6 +3,7 @@ import 'package:venera_next/features/favorites/favorites_scope.dart';
 import 'favorite_models.dart';
 
 import 'package:flutter/material.dart';
+import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/mobile_ui.dart';
@@ -72,15 +73,7 @@ class ReadLaterSummary extends StatelessWidget {
         final folder = manager.readLaterFolder;
         final count = folder == null ? 0 : manager.count(folder);
         return SliverToBoxAdapter(
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant,
-                width: 0.6,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
+          child: MobileContentSurface.summary(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

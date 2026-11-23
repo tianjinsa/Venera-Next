@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/select.dart';
 import 'package:venera_next/features/history/history.dart';
 import 'package:venera_next/features/image_favorites/image_favorites_page.dart';
@@ -65,17 +67,21 @@ void main() {
     Widget? body,
     double scale = 1,
     bool dark = false,
+    bool phoneSheet = false,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
         navigatorKey: navigator,
+        localizationsDelegates: const [MobileUiLocalizations.delegate],
         theme: dark ? ThemeData.dark() : ThemeData.light(),
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(scale),
             disableAnimations: dark,
           ),
-          child: child!,
+          child: phoneSheet
+              ? MobileUiTheme(glass: 'off', child: child!)
+              : child!,
         ),
         home: Scaffold(body: body ?? ImageFavoritesPage(manager: imageManager)),
       ),
@@ -126,11 +132,9 @@ void main() {
       await tester.pumpAndSettle();
       await _flushWrites(tester);
       await tester.runAsync(() async {
-        appdata.implicitData =
-            jsonDecode(
-                  File('${root.path}/implicitData.json').readAsStringSync(),
-                )
-                as Map<String, dynamic>;
+        appdata.implicitData = jsonDecode(
+          File('${root.path}/implicitData.json').readAsStringSync(),
+        ) as Map<String, dynamic>;
       });
       expect(TimeRange.fromString(appdata.implicitData[_timeKey]), range);
       await tester.pumpWidget(const SizedBox());
@@ -144,6 +148,42 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
   }
+
+  testWidgets('phone filter stages a range and writes only on confirm', (
+    tester,
+  ) async {
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+    await prepare(tester, TimeRange.all.toString());
+    await showPage(tester, phoneSheet: true);
+    Future<void> chooseWeek() async {
+      await tester.tap(find.byType(MobileMenuButton).hitTestable().first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Filter').hitTestable());
+      await tester.pumpAndSettle();
+      expect(find.byType(MobileChoiceSheetFrame), findsOneWidget);
+      expect(find.byType(TabBar), findsNothing);
+      await tester.tap(find.byType(MobileChoice<TimeRangeType>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Last Week').hitTestable());
+      await tester.pumpAndSettle();
+      expect(appdata.implicitData[_timeKey], TimeRange.all.toString());
+    }
+
+    await chooseWeek();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appdata.implicitData[_timeKey], TimeRange.all.toString());
+    await chooseWeek();
+    await tester.tap(confirm());
+    await tester.pumpAndSettle();
+    expect(appdata.implicitData[_timeKey], TimeRange.lastWeek.toString());
+    expect(find.byType(MobileChoiceSheetFrame), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('custom range cannot save until both dates are selected', (
     tester,

@@ -1,6 +1,8 @@
 import 'package:venera_next/features/history/history_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/appbar.dart';
+import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/image.dart';
 import 'package:venera_next/foundation/log.dart';
@@ -172,6 +174,43 @@ class _ImageFavoritesGalleryPageState extends State<ImageFavoritesGalleryPage> {
     final imgList = _unavailable ? <ImageFavorite>[] : images;
 
     Widget buildSliverAppBar() {
+      if (MobileUi.enabledOf(context)) {
+        if (!multiSelectMode) {
+          return SliverAppbar(
+            title: Text(comic.title),
+            mobileMore: MobileMenuButton(
+              items: [
+                collectionSelectionEntry(
+                  imgList.isEmpty
+                      ? null
+                      : () => setState(() => multiSelectMode = true),
+                ),
+              ],
+            ),
+          );
+        }
+        return SliverAppbar(
+          title: Text(selectedImages.length.toString()),
+          leading: MobileToolbarButton(
+            label: 'Cancel'.tl,
+            icon: const Icon(Icons.close),
+            onPressed: deselectAll,
+          ),
+          actions: [
+            MobileToolbarButton(
+              label: 'Select All'.tl,
+              icon: const Icon(Icons.select_all),
+              onPressed: selectAll,
+            ),
+            if (selectedImages.isNotEmpty)
+              MobileToolbarButton(
+                label: 'Delete'.tl,
+                icon: const Icon(Icons.delete_outline),
+                onPressed: _deleting ? null : deleteSelected,
+              ),
+          ],
+        );
+      }
       if (multiSelectMode) {
         return SliverAppbar(
           leading: Tooltip(

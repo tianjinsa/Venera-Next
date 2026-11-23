@@ -2,6 +2,8 @@ import 'package:venera_next/features/history/history_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:prism_ui/popup.dart' as prism;
 import 'package:venera_next/components/mobile_collection_ui.dart';
+import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_large_sheet.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:intl/intl.dart';
@@ -272,11 +274,37 @@ class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
       buildMultiSelectMenu(),
     ];
 
+    void closeSearch() {
+      controller.clear();
+      setState(() => searchMode = false);
+      updateImageFavorites();
+    }
+
+    prism.PopupMenuItem selectEntry() => collectionSelectionEntry(
+      comics.isEmpty || _loading || _deleting
+          ? null
+          : () {
+              if (mounted && !_loading && !_deleting && comics.isNotEmpty) {
+                setState(() => multiSelectMode = true);
+              }
+            },
+    );
+
     var scrollWidget = SmoothCustomScrollView(
       controller: scrollController,
       slivers: [
-        if (!searchMode && !multiSelectMode)
+        if (!multiSelectMode && (mobile || !searchMode))
           SliverAppbar(
+            mobileSearch: mobile
+                ? CollectionBarSearch(
+                    open: searchMode,
+                    controller: controller,
+                    onOpen: () => setState(() => searchMode = true),
+                    onClose: closeSearch,
+                    onChanged: (_) => updateImageFavorites(),
+                    more: MobileMenuButton(items: [selectEntry()]),
+                  )
+                : null,
             title: Text("Image Favorites".tl),
             mobileMore: !mobile
                 ? null
@@ -288,6 +316,7 @@ class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
                   )
                 : MobileMenuButton(
                     items: [
+                      selectEntry(),
                       prism.PopupMenuItem(
                         label: 'Sort'.tl,
                         subItems: [
@@ -307,24 +336,7 @@ class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
                     ],
                   ),
             actions: mobile
-                ? [
-                    collectionShortcut(
-                      context,
-                      label: 'Search'.tl,
-                      icon: const Icon(Icons.search),
-                      onPressed: () => setState(() => searchMode = true),
-                    ),
-                    collectionShortcut(
-                      context,
-                      label: 'Multi-Select'.tl,
-                      icon: const Icon(Icons.checklist),
-                      onPressed: comics.isEmpty
-                          ? null
-                          : () {
-                              setState(() => multiSelectMode = true);
-                            },
-                    ),
-                  ]
+                ? null
                 : [
                     Tooltip(
                       message: "Search".tl,
@@ -378,14 +390,10 @@ class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
             ),
             title: Text(selectedImageFavorites.length.toString()),
             mobileMore: mobile && selectedImageFavorites.isNotEmpty
-                ? MobileMenuButton(
-                    items: [
-                      prism.PopupMenuItem(
-                        label: 'Delete'.tl,
-                        danger: true,
-                        onPressed: _deleting ? null : deleteSelected,
-                      ),
-                    ],
+                ? MobileToolbarButton(
+                    label: 'Delete'.tl,
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: _deleting ? null : deleteSelected,
                   )
                 : null,
             actions: mobile
@@ -411,32 +419,20 @@ class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
               message: "Cancel".tl,
               child: IconButton(
                 icon: const Icon(Icons.close),
-                onPressed: () {
-                  controller.clear();
-                  setState(() {
-                    searchMode = false;
-                    controller.clear();
-                    updateImageFavorites();
-                  });
-                },
+                onPressed: closeSearch,
               ),
             ),
-            title: mobile
-                ? MobileCollectionSearchField(
-                    controller: controller,
-                    onChanged: (_) => updateImageFavorites(),
-                  )
-                : TextField(
-                    autofocus: true,
-                    controller: controller,
-                    decoration: InputDecoration(
-                      hintText: "Search".tl,
-                      border: InputBorder.none,
-                    ),
-                    onChanged: (v) {
-                      updateImageFavorites();
-                    },
-                  ),
+            title: TextField(
+              autofocus: true,
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: "Search".tl,
+                border: InputBorder.none,
+              ),
+              onChanged: (v) {
+                updateImageFavorites();
+              },
+            ),
           ),
         if (_loading || _deleting)
           const SliverToBoxAdapter(child: LinearProgressIndicator()),
@@ -477,15 +473,14 @@ class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
     return PopScope(
       canPop: !multiSelectMode && !searchMode,
       onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
         if (multiSelectMode) {
           setState(() {
             multiSelectMode = false;
             selectedImageFavorites.clear();
           });
         } else if (searchMode) {
-          controller.clear();
-          searchMode = false;
-          updateImageFavorites();
+          closeSearch();
         }
       },
       child: body,
@@ -493,26 +488,33 @@ class _ImageFavoritesPageState extends SettingsSaveState<ImageFavoritesPage> {
   }
 
   void sort({bool filterOnly = false}) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return _ImageFavoritesDialog(
-          initSortType: sortType,
-          filterOnly: filterOnly,
-          initTimeFilterSelect: timeFilterSelect,
-          initNumFilterSelect: numFilterSelect,
-          updateConfig: (sortType, timeFilter, numFilter) {
-            if (!mounted) return;
-            setState(() {
-              this.sortType = sortType;
-              timeFilterSelect = timeFilter;
-              numFilterSelect = numFilter;
-              sortImageFavorites();
-            });
-          },
-        );
+    // The phone menu exposes sorting separately; its filter form needs only
+    // one scroll owner, not a single tab in a two-tab dialog.
+    final sheet = filterOnly && MobileUi.enabledOf(context);
+    Widget form(BuildContext _) => _ImageFavoritesDialog(
+      initSortType: sortType,
+      filterOnly: filterOnly,
+      mobileSheet: sheet,
+      initTimeFilterSelect: timeFilterSelect,
+      initNumFilterSelect: numFilterSelect,
+      updateConfig: (sort, range, number) {
+        if (!mounted) return;
+        setState(() {
+          sortType = sort;
+          timeFilterSelect = range;
+          numFilterSelect = number;
+          sortImageFavorites();
+        });
       },
     );
+    if (sheet) {
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(mobileLargeSheetRoute<void>(context: context, builder: form));
+    } else {
+      showDialog<void>(context: context, builder: form);
+    }
   }
 }
 
@@ -520,6 +522,7 @@ class _ImageFavoritesDialog extends StatefulWidget {
   const _ImageFavoritesDialog({
     required this.initSortType,
     this.filterOnly = false,
+    this.mobileSheet = false,
     required this.initTimeFilterSelect,
     required this.initNumFilterSelect,
     required this.updateConfig,
@@ -527,9 +530,10 @@ class _ImageFavoritesDialog extends StatefulWidget {
 
   final ImageFavoriteSortType initSortType;
   final bool filterOnly;
+  final bool mobileSheet;
   final TimeRange initTimeFilterSelect;
   final int initNumFilterSelect;
-  final Function updateConfig;
+  final void Function(ImageFavoriteSortType, TimeRange, int) updateConfig;
 
   @override
   State<_ImageFavoritesDialog> createState() => _ImageFavoritesDialogState();
@@ -585,6 +589,160 @@ class _ImageFavoritesDialogState extends State<_ImageFavoritesDialog> {
   @override
   Widget build(BuildContext context) {
     final selectedRange = _selectedTimeRange;
+    final filters = Column(
+      children: [
+        if (widget.mobileSheet)
+          MobileChoiceRow(
+            title: Text('Time Filter'.tl),
+            choice: MobileChoice<TimeRangeType>(
+              label: 'Time Filter'.tl,
+              value: timeRangeType,
+              options: [
+                for (final e in TimeRangeType.values)
+                  MobileChoiceOption(e, e.value.tl),
+              ],
+              onChanged: (value) => setState(() => timeRangeType = value),
+            ),
+          )
+        else
+          ListTile(
+            title: Text("Time Filter".tl),
+            trailing: Select(
+              current: timeRangeType.value.tl,
+              values: TimeRangeType.values.map((e) => e.value.tl).toList(),
+              minWidth: 64,
+              onTap: (index) {
+                setState(() {
+                  timeRangeType = TimeRangeType.values[index];
+                });
+              },
+            ),
+          ),
+        if (timeRangeType == TimeRangeType.custom)
+          Column(
+            children: [
+              ListTile(
+                title: Text("Start Time".tl),
+                trailing: TextButton(
+                  onPressed: () async {
+                    final last = end ?? DateTime.now();
+                    final initial = start ?? last;
+                    final minimum = DateTime(2000);
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: initial,
+                      firstDate: initial.isBefore(minimum) ? initial : minimum,
+                      lastDate: last,
+                    );
+                    if (date != null &&
+                        mounted &&
+                        timeRangeType == TimeRangeType.custom) {
+                      setState(() {
+                        _unchangedRollingRange = null;
+                        start = date;
+                      });
+                    }
+                  },
+                  child: Text(
+                    start == null
+                        ? "Select Date".tl
+                        : DateFormat("yyyy-MM-dd").format(start!),
+                  ),
+                ),
+              ),
+              ListTile(
+                title: Text("End Time".tl),
+                trailing: TextButton(
+                  onPressed: () async {
+                    final initial = end ?? start ?? DateTime.now();
+                    final minimum = start ?? DateTime(2000);
+                    final today = DateTime.now();
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: initial,
+                      firstDate: initial.isBefore(minimum) ? initial : minimum,
+                      lastDate: initial.isAfter(today) ? initial : today,
+                    );
+                    if (date != null &&
+                        mounted &&
+                        timeRangeType == TimeRangeType.custom) {
+                      setState(() {
+                        _unchangedRollingRange = null;
+                        end = date;
+                      });
+                    }
+                  },
+                  child: Text(
+                    end == null
+                        ? "Select Date".tl
+                        : DateFormat("yyyy-MM-dd").format(end!),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        if (widget.mobileSheet)
+          MobileChoiceRow(
+            title: Text('Image Favorites Greater Than'.tl),
+            choice: MobileChoice<int>(
+              label: 'Image Favorites Greater Than'.tl,
+              value: numFilter,
+              options: [
+                for (final e in numFilterList)
+                  MobileChoiceOption(e, e.toString()),
+              ],
+              onChanged: (value) => setState(() => numFilter = value),
+            ),
+          )
+        else
+          ListTile(
+            title: Text("Image Favorites Greater Than".tl),
+            trailing: Select(
+              current: numFilter.toString(),
+              values: numFilterList.map((e) => e.toString()).toList(),
+              minWidth: 64,
+              onTap: (index) {
+                setState(() {
+                  numFilter = numFilterList[index];
+                });
+              },
+            ),
+          ),
+      ],
+    );
+    final confirm = FilledButton(
+      onPressed: selectedRange == null
+          ? null
+          : () {
+              if (ModalRoute.of(context)?.isCurrent != true) return;
+              appdata.implicitData["image_favorites_sort"] = sortType.value;
+              final timeRange = selectedRange;
+              appdata.implicitData["image_favorites_time_filter"] = timeRange
+                  .toString();
+              appdata.implicitData["image_favorites_number_filter"] = numFilter;
+              appdata.writeImplicitData();
+              if (mounted) {
+                Navigator.pop(context);
+                widget.updateConfig(sortType, timeRange, numFilter);
+              }
+            },
+      child: Text("Confirm".tl),
+    );
+    if (widget.mobileSheet) {
+      return MobileChoiceSheetFrame(
+        title: 'Filter'.tl,
+        onClose: () => Navigator.pop(context),
+        child: ListView(
+          primary: true,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          children: [
+            filters,
+            const SizedBox(height: 12),
+            Align(alignment: AlignmentDirectional.centerEnd, child: confirm),
+          ],
+        ),
+      );
+    }
     Widget tabBar = Material(
       borderRadius: BorderRadius.circular(8),
       child: AppTabBar(
@@ -594,7 +752,7 @@ class _ImageFavoritesDialogState extends State<_ImageFavoritesDialog> {
     ).paddingTop(context.padding.top);
     return ContentDialog(
       content: DefaultTabController(
-        length: 2,
+        length: optionTypes.length,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -620,132 +778,13 @@ class _ImageFavoritesDialogState extends State<_ImageFavoritesDialog> {
                           .toList(),
                     ),
                   ),
-                Column(
-                  children: [
-                    ListTile(
-                      title: Text("Time Filter".tl),
-                      trailing: Select(
-                        current: timeRangeType.value.tl,
-                        values: TimeRangeType.values
-                            .map((e) => e.value.tl)
-                            .toList(),
-                        minWidth: 64,
-                        onTap: (index) {
-                          setState(() {
-                            timeRangeType = TimeRangeType.values[index];
-                          });
-                        },
-                      ),
-                    ),
-                    if (timeRangeType == TimeRangeType.custom)
-                      Column(
-                        children: [
-                          ListTile(
-                            title: Text("Start Time".tl),
-                            trailing: TextButton(
-                              onPressed: () async {
-                                final last = end ?? DateTime.now();
-                                final initial = start ?? last;
-                                final minimum = DateTime(2000);
-                                final date = await showDatePicker(
-                                  context: context,
-                                  initialDate: initial,
-                                  firstDate: initial.isBefore(minimum)
-                                      ? initial
-                                      : minimum,
-                                  lastDate: last,
-                                );
-                                if (date != null &&
-                                    mounted &&
-                                    timeRangeType == TimeRangeType.custom) {
-                                  setState(() {
-                                    _unchangedRollingRange = null;
-                                    start = date;
-                                  });
-                                }
-                              },
-                              child: Text(
-                                start == null
-                                    ? "Select Date".tl
-                                    : DateFormat("yyyy-MM-dd").format(start!),
-                              ),
-                            ),
-                          ),
-                          ListTile(
-                            title: Text("End Time".tl),
-                            trailing: TextButton(
-                              onPressed: () async {
-                                final initial = end ?? start ?? DateTime.now();
-                                final minimum = start ?? DateTime(2000);
-                                final today = DateTime.now();
-                                final date = await showDatePicker(
-                                  context: context,
-                                  initialDate: initial,
-                                  firstDate: initial.isBefore(minimum)
-                                      ? initial
-                                      : minimum,
-                                  lastDate: initial.isAfter(today)
-                                      ? initial
-                                      : today,
-                                );
-                                if (date != null &&
-                                    mounted &&
-                                    timeRangeType == TimeRangeType.custom) {
-                                  setState(() {
-                                    _unchangedRollingRange = null;
-                                    end = date;
-                                  });
-                                }
-                              },
-                              child: Text(
-                                end == null
-                                    ? "Select Date".tl
-                                    : DateFormat("yyyy-MM-dd").format(end!),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ListTile(
-                      title: Text("Image Favorites Greater Than".tl),
-                      trailing: Select(
-                        current: numFilter.toString(),
-                        values: numFilterList.map((e) => e.toString()).toList(),
-                        minWidth: 64,
-                        onTap: (index) {
-                          setState(() {
-                            numFilter = numFilterList[index];
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                filters,
               ],
             ),
           ],
         ),
       ),
-      actions: [
-        FilledButton(
-          onPressed: selectedRange == null
-              ? null
-              : () {
-                  appdata.implicitData["image_favorites_sort"] = sortType.value;
-                  final timeRange = selectedRange;
-                  appdata.implicitData["image_favorites_time_filter"] =
-                      timeRange.toString();
-                  appdata.implicitData["image_favorites_number_filter"] =
-                      numFilter;
-                  appdata.writeImplicitData();
-                  if (mounted) {
-                    Navigator.pop(context);
-                    widget.updateConfig(sortType, timeRange, numFilter);
-                  }
-                },
-          child: Text("Confirm".tl),
-        ),
-      ],
+      actions: [confirm],
     );
   }
 }

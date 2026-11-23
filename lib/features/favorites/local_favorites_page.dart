@@ -729,6 +729,12 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
         : const <MenuEntry>[];
     final batchEntries = multiSelectMode
         ? <MenuEntry>[
+            if (mobile)
+              MenuEntry(
+                icon: Icons.deselect,
+                text: 'Deselect'.tl,
+                onClick: _cancel,
+              ),
             if (!isAllFolder && selectedItems.isNotEmpty)
               MenuEntry(
                 icon: Icons.drive_file_move,
@@ -870,6 +876,11 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
       updateSearchResult();
     }
 
+    prism.PopupMenuItem selectEntry() => collectionSelectionEntry(
+      canSelect ? enterSelection : null,
+      label: 'Select comics'.tl,
+    );
+
     Widget folderButton() => collectionShortcut(
       context,
       label: "Folders".tl,
@@ -880,8 +891,18 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     Widget body = SmoothCustomScrollView(
       controller: scrollController,
       slivers: [
-        if (!searchMode && !multiSelectMode)
+        if (!multiSelectMode && (mobile || !searchMode))
           SliverAppbar(
+            mobileSearch: mobile
+                ? CollectionBarSearch(
+                    open: searchMode,
+                    controller: _mobileSearchController,
+                    onOpen: openSearch,
+                    onClose: _dismissLocalMode,
+                    onChanged: applySearch,
+                    more: MobileMenuButton(items: [selectEntry()]),
+                  )
+                : null,
             style: context.width < changePoint
                 ? AppbarStyle.shadow
                 : AppbarStyle.blur,
@@ -923,6 +944,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                       updateComics();
                     },
                     mobileItems: [
+                      selectEntry(),
                       if (folderEntries.isNotEmpty)
                         prism.PopupMenuItem(
                           label: 'Folders'.tl,
@@ -1032,13 +1054,14 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     },
                   ),
                 ),
-              collectionShortcut(
-                context,
-                label: "Search".tl,
-                icon: const Icon(Icons.search),
-                onPressed: openSearch,
-              ),
-              if (mobile || !compactActions)
+              if (!mobile)
+                collectionShortcut(
+                  context,
+                  label: "Search".tl,
+                  icon: const Icon(Icons.search),
+                  onPressed: openSearch,
+                ),
+              if (!mobile && !compactActions)
                 collectionShortcut(
                   context,
                   label: 'Select comics'.tl,
@@ -1080,7 +1103,13 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
             title: Text(
               "Selected @c comics".tlParams({"c": selectedComics.length}),
             ),
-            mobileMore: mobile && batchEntries.isNotEmpty
+            mobileMore: mobile && batchEntries.length == 1
+                ? MobileToolbarButton(
+                    label: batchEntries.single.text,
+                    icon: Icon(batchEntries.single.icon),
+                    onPressed: batchEntries.single.onClick,
+                  )
+                : mobile && batchEntries.isNotEmpty
                 ? MobileMenuButton(
                     key: ValueKey(Object.hashAll(selection)),
                     items: [
@@ -1105,13 +1134,14 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                   icon: const Icon(Icons.flip),
                   onPressed: canSelect ? invertSelection : null,
                 ),
-                collectionShortcut(
-                  context,
-                  key: const ValueKey('favorites-deselect'),
-                  label: 'Deselect'.tl,
-                  icon: const Icon(Icons.deselect),
-                  onPressed: _cancel,
-                ),
+                if (!mobile)
+                  collectionShortcut(
+                    context,
+                    key: const ValueKey('favorites-deselect'),
+                    label: 'Deselect'.tl,
+                    icon: const Icon(Icons.deselect),
+                    onPressed: _cancel,
+                  ),
               ],
               if (!mobile)
                 MenuButton(
@@ -1134,33 +1164,16 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
               context,
               label: "Cancel".tl,
               icon: const Icon(Icons.close),
-              onPressed: mobile
-                  ? _dismissLocalMode
-                  : () => setState(() => searchMode = false),
+              onPressed: () => setState(() => searchMode = false),
             ),
-            actions: mobile
-                ? [
-                    collectionShortcut(
-                      context,
-                      label: 'Select comics'.tl,
-                      icon: const Icon(Icons.checklist_rounded),
-                      onPressed: canSelect ? enterSelection : null,
-                    ),
-                  ]
-                : null,
-            title: mobile
-                ? MobileCollectionSearchField(
-                    controller: _mobileSearchController,
-                    onChanged: applySearch,
-                  )
-                : TextField(
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: "Search".tl,
-                      border: UnderlineInputBorder(),
-                    ),
-                    onChanged: applySearch,
-                  ).paddingBottom(8).paddingRight(8),
+            title: TextField(
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: "Search".tl,
+                border: UnderlineInputBorder(),
+              ),
+              onChanged: applySearch,
+            ).paddingBottom(8).paddingRight(8),
           ),
         if (!searchMode && !multiSelectMode && childFolders.isNotEmpty) ...[
           SliverToBoxAdapter(
@@ -1308,8 +1321,9 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                     context.showMessage(message: "Download started".tl);
                   },
                 ),
-                if (GlobalPreferenceStore(appdata.settings)
-                        .read(FavoritePreferences.onClickFavorite) ==
+                if (GlobalPreferenceStore(
+                      appdata.settings,
+                    ).read(FavoritePreferences.onClickFavorite) ==
                     "viewDetail")
                   MenuEntry(
                     icon: Icons.menu_book_outlined,
@@ -1335,8 +1349,9 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
                   }
                   lastSelectedIndex = _visibleComics.indexOf(c);
                 });
-              } else if (GlobalPreferenceStore(appdata.settings)
-                      .read(FavoritePreferences.onClickFavorite) ==
+              } else if (GlobalPreferenceStore(
+                    appdata.settings,
+                  ).read(FavoritePreferences.onClickFavorite) ==
                   "viewDetail") {
                 context.to(
                   () => ComicPage(

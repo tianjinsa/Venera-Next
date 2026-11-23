@@ -291,12 +291,13 @@ class _HistoryPageState extends State<HistoryPage> {
       }
       if (mounted && !cancelled) {
         context.showMessage(
-          message: 'Refresh Completed: Success @success, Failed @failed, Skipped @skipped'
-              .tlParams({
-                'success': success,
-                'failed': failed,
-                'skipped': skipped,
-              }),
+          message:
+              'Refresh Completed: Success @success, Failed @failed, Skipped @skipped'
+                  .tlParams({
+                    'success': success,
+                    'failed': failed,
+                    'skipped': skipped,
+                  }),
         );
       }
     } catch (error, stack) {
@@ -394,21 +395,9 @@ class _HistoryPageState extends State<HistoryPage> {
         ? [
             collectionShortcut(
               context,
-              label: 'Search'.tl,
-              icon: const Icon(Icons.search),
-              onPressed: openSearch,
-            ),
-            collectionShortcut(
-              context,
               label: 'Refresh All Histories'.tl,
               icon: const Icon(Icons.refresh),
               onPressed: _refreshAllHistories,
-            ),
-            collectionShortcut(
-              context,
-              label: 'Multi-Select'.tl,
-              icon: const Icon(Icons.checklist),
-              onPressed: _enterMultiSelect,
             ),
           ]
         : [
@@ -504,7 +493,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 SliverAppbar(
                   leading: collectionShortcut(
                     context,
-                    label: multiSelectMode || searchMode
+                    label: multiSelectMode || (!mobile && searchMode)
                         ? 'Cancel'.tl
                         : 'Back'.tl,
                     onPressed: () {
@@ -516,30 +505,45 @@ class _HistoryPageState extends State<HistoryPage> {
                         context.pop();
                       }
                     },
-                    icon: multiSelectMode || searchMode
+                    icon: multiSelectMode || (!mobile && searchMode)
                         ? const Icon(Icons.close)
                         : const Icon(Icons.arrow_back),
                   ),
+                  mobileSearch: mobile && !multiSelectMode
+                      ? CollectionBarSearch(
+                          open: searchMode,
+                          controller: searchController,
+                          onOpen: openSearch,
+                          onClose: _closeSearch,
+                          onChanged: _search,
+                          more: MobileMenuButton(
+                            items: [
+                              collectionSelectionEntry(_enterMultiSelect),
+                            ],
+                          ),
+                        )
+                      : null,
                   title: multiSelectMode
                       ? Text(selectedComics.length.toString())
-                      : searchMode
-                      ? mobile
-                            ? MobileCollectionSearchField(
-                                controller: searchController,
-                                onChanged: _search,
-                              )
-                            : TextField(
-                                controller: searchController,
-                                autofocus: true,
-                                decoration: InputDecoration(
-                                  hintText: 'Search'.tl,
-                                  border: InputBorder.none,
-                                ),
-                                onChanged: _search,
-                              )
+                      : !mobile && searchMode
+                      ? TextField(
+                          controller: searchController,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            hintText: 'Search'.tl,
+                            border: InputBorder.none,
+                          ),
+                          onChanged: _search,
+                        )
                       : Text('History'.tl),
-                  mobileMore: !mobile || (!multiSelectMode && searchMode)
+                  mobileMore: !mobile
                       ? null
+                      : multiSelectMode && !canDelete
+                      ? MobileToolbarButton(
+                          label: 'Deselect'.tl,
+                          icon: const Icon(Icons.deselect),
+                          onPressed: deSelect,
+                        )
                       : MobileMenuButton(
                           items: multiSelectMode
                               ? [
@@ -555,6 +559,7 @@ class _HistoryPageState extends State<HistoryPage> {
                                     ),
                                 ]
                               : [
+                                  collectionSelectionEntry(_enterMultiSelect),
                                   prism.PopupMenuItem(
                                     label: 'Reading statistics'.tl,
                                     onPressed: openStatistics,
@@ -586,7 +591,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         ),
                   actions: multiSelectMode
                       ? selectActions
-                      : searchMode
+                      : !mobile && searchMode
                       ? searchActions
                       : normalActions,
                 ),

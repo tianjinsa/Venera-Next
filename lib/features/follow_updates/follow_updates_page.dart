@@ -11,7 +11,7 @@ import 'follow_updates_runtime.dart';
 import 'follow_updates_scope.dart';
 
 import 'package:flutter/material.dart';
-import 'package:prism_ui/popup.dart' as prism;
+import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:venera_next/components/mobile_collection_ui.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/appbar.dart';
@@ -70,9 +70,9 @@ class _FollowUpdatesWidgetState extends SettingsSaveState<FollowUpdatesWidget> {
 
   List<FavoriteItemWithUpdateInfo> previewComics = [];
 
-  String? get folder =>
-      GlobalPreferenceStore(appdata.settings)
-          .read(FavoritePreferences.followUpdatesFolder);
+  String? get folder => GlobalPreferenceStore(
+    appdata.settings,
+  ).read(FavoritePreferences.followUpdatesFolder);
 
   void updatePreviewData() {
     if (folder == null) {
@@ -128,16 +128,12 @@ class _FollowUpdatesWidgetState extends SettingsSaveState<FollowUpdatesWidget> {
   @override
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 0.6,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: MobileContentSurface.summary(
         child: ClickInkWell(
+          customBorder: MobileContentSurface.inkShapeOf(
+            context,
+            MobileContentStyle.summary,
+          ),
           borderRadius: BorderRadius.circular(8),
           onTap: () {
             context.to(() => FollowUpdatesPage());
@@ -238,9 +234,9 @@ class _FollowUpdatesPageState extends State<FollowUpdatesPage> {
     updateComics();
   }
 
-  String? get folder =>
-      GlobalPreferenceStore(appdata.settings)
-          .read(FavoritePreferences.followUpdatesFolder);
+  String? get folder => GlobalPreferenceStore(
+    appdata.settings,
+  ).read(FavoritePreferences.followUpdatesFolder);
 
   var updatedComics = <FavoriteItemWithUpdateInfo>[];
   var allComics = <FavoriteItemWithUpdateInfo>[];
@@ -288,24 +284,21 @@ class _FollowUpdatesPageState extends State<FollowUpdatesPage> {
           SliverAppbar(
             title: Text('Follow Updates'.tl),
             actions: [
-              if (mobile && folder != null)
+              if (mobile && folder != null) ...[
                 collectionShortcut(
                   context,
                   icon: const Icon(Icons.refresh),
                   label: 'Check Now'.tl,
                   onPressed: checkNow,
                 ),
+                collectionShortcut(
+                  context,
+                  icon: const Icon(Icons.folder_open),
+                  label: 'Change Folder'.tl,
+                  onPressed: showSelector,
+                ),
+              ],
             ],
-            mobileMore: mobile && folder != null
-                ? MobileMenuButton(
-                    items: [
-                      prism.PopupMenuItem(
-                        label: 'Change Folder'.tl,
-                        onPressed: showSelector,
-                      ),
-                    ],
-                  )
-                : null,
           ),
           if (folder == null)
             buildNotConfigured(context)
