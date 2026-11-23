@@ -414,3 +414,9 @@
 - 基线 `8e98d9fce8272add2213f397dea4162c50a73f6a` 的 AAR 检查在 `zip_flutter` 失败。锁定的 23 个 Android 插件中，`zip_flutter` 和 `rhttp` 声明 API 33，`super_native_extensions` 和 `irondash_engine_context` 声明 API 31。Flutter embedding 引入的 AndroidX AAR 要求至少 API 34。[失败日志](https://github.com/tianjinsa/Venera-Next/actions/runs/45157079573/job/137633504757)
 - Android 根工程在 AGP 的 `finalizeDsl` 阶段为 `com.android.library` 子模块应用 `:app` 的编译 SDK 下限，当前为 API 36。插件声明更高 API 时继续使用自己的值。
 - Windows 使用 Flutter 3.47.9、Gradle 8.14 和 AGP 8.13.2 配置真实 Android 依赖图，确认应用与 23 个插件的实际编译 SDK 均为 API 36。23 个插件与手机／TV 两个变体的 25 项 Release AAR 元数据任务全部通过。Android、SAF 和工作流脚本定向检查 47 项通过、5 项按条件跳过，结构、架构和版本同步检查通过。验证范围为 AAR 和脚本检查。
+
+## 手机交互整改（2026-11-23）
+
+- 从 `d75a8d88b07d4972aa7086f4ee2a9e2e072c7bbc` 在本分支分阶段实施，产品代码 `7d813c1dc3e998af351d48751a7905e5ee1d7036`。用户要求继续使用所锁 Prism，不更新 SDK 或库。本次没有推送、PR、CI、构建或发版。
+- [逐项范围、仍保留的原生控件和设备验收](../development/mobile_ui_remediation_20261123.zh.md)。三种玻璃及底栏手势、返回所有权、设定持久化和阅读/收藏性能约束仍是后续整合的检查入口。
+- 实际：固定 Flutter/Prism 隔离控件 32/32；离线差分检查没有新增诊断（不是完整分析）；导入边界、架构清单与差异检查通过。完整应用 pub 锁定解析未完成；尚无本次 Android/iOS 真机、整包构建或分页帧耗时证据。
