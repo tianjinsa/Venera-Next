@@ -73,7 +73,11 @@ class MobileFolderSheetSection extends StatelessWidget {
     final theme = Theme.of(context);
     return LayoutBuilder(
       builder: (context, box) {
-        final compact = box.maxWidth < 155;
+        // Reclaim the decoration's slot before squeezing a short title or
+        // the real menu. Larger type is still allowed to wrap naturally.
+        final compact =
+            box.maxWidth < 176 ||
+            MediaQuery.textScalerOf(context).scale(14) > 21;
         final inset = compact ? 4.0 : 10.0;
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: inset, vertical: 4),

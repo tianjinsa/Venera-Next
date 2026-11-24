@@ -10,6 +10,60 @@ import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/favorites/mobile_folder_sheet_widgets.dart';
 
 void main() {
+  testWidgets(
+    'compact network section drops decoration before its label or action',
+    (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(390, 680);
+      addTearDown(tester.view.reset);
+      final width = ValueNotifier(165.0);
+      addTearDown(width.dispose);
+      var activations = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [MobileUiLocalizations.delegate],
+          builder: (_, child) => MobileUiTheme(glass: 'off', child: child!),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: ValueListenableBuilder<double>(
+                valueListenable: width,
+                builder: (_, value, _) => SizedBox(
+                  width: value,
+                  child: MobileFolderSheetSection(
+                    label: 'Network',
+                    icon: Icons.cloud_outlined,
+                    action: TextButton(
+                      onPressed: () => activations++,
+                      child: const Text('…'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final label = find.text('Network');
+      final action = find.byType(TextButton);
+      final compactLabel = tester.getRect(label);
+      final compactAction = tester.getCenter(action);
+      expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+      expect(label, findsOneWidget);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      width.value = 240;
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.cloud_outlined), findsOneWidget);
+      expect(tester.getTopLeft(label).dx, greaterThan(compactLabel.left));
+      expect(tester.getCenter(action).dx, greaterThan(compactAction.dx));
+      await tester.tap(action);
+      expect(activations, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final direction in TextDirection.values) {
     testWidgets(
       'ordinary row grows its rounded clip while left content stays fixed: $direction',
