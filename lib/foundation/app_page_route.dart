@@ -51,10 +51,12 @@ class AppPageRoute<T> extends PageRoute<T> with _AppRouteTransitionMixin<T> {
     required WidgetBuilder builder,
     required RouteTransitionsBuilder reveal,
     required bool reduceMotion,
+    Duration openingDuration = const Duration(milliseconds: 450),
   }) => _AnchorPageRoute<T>(
     builder: builder,
     reveal: reveal,
     reduceMotion: reduceMotion,
+    openingDuration: openingDuration,
   );
 
   AppPageRoute._({
@@ -107,20 +109,22 @@ class _AnchorPageRoute<T> extends AppPageRoute<T> {
     required super.builder,
     required this.reveal,
     required this.reduceMotion,
+    required this.openingDuration,
   }) : super._(allowSnapshotting: false);
 
   final RouteTransitionsBuilder reveal;
   final bool reduceMotion;
+  final Duration openingDuration;
 
   @override
   Duration get transitionDuration =>
-      reduceMotion ? Duration.zero : const Duration(milliseconds: 450);
+      reduceMotion ? Duration.zero : openingDuration;
 
   @override
   Duration get reverseTransitionDuration =>
       reduceMotion ? Duration.zero : const Duration(milliseconds: 340);
 
-  // The entry must not slide away underneath its expanding glass.
+  // The entry must not slide away underneath its expanding reveal.
   @override
   bool canTransitionFrom(TransitionRoute<dynamic> previousRoute) => false;
 

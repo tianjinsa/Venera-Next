@@ -108,6 +108,19 @@ void main() {
       expect(find.text('results').hitTestable(), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 80));
+      // 341 ms: the old 315 ms geometry already faded, but this slower
+      // opening still keeps the destination hidden behind a growing circle.
+      expect(_opacity(tester), 0);
+      expect(_surface, findsOneWidget);
+      expect(_backing, findsNothing);
+      final route = ModalRoute.of(tester.element(find.byKey(destination)))!;
+      expect(route.transitionDuration, const Duration(milliseconds: 500));
+      expect(
+        route.reverseTransitionDuration,
+        const Duration(milliseconds: 340),
+      );
+
+      await tester.pump(const Duration(milliseconds: 25));
       final inFade = _opacity(tester);
       expect(inFade, inExclusiveRange(0, 1));
       expect(_surface, findsNothing);

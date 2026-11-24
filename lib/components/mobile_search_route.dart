@@ -46,6 +46,7 @@ Future<T?> pushSearchFrom<T>(BuildContext origin, Widget Function() page) {
   final route = AppPageRoute<T>.fromAnchor(
     builder: (_) => page(),
     reduceMotion: reduce,
+    openingDuration: const Duration(milliseconds: 500),
     reveal: (_, animation, _, child) => _SearchReveal(
       animation: animation,
       initial: initial,
@@ -267,6 +268,11 @@ class SearchMorphFrame {
 
   static const growthEnd = .70;
 
+  // Start gently at the touch point, accelerate across the viewport, then
+  // settle at full coverage before fading in the page. A single monotonic
+  // curve means cancelling or reversing a push never makes the radius jump.
+  static const _radiusCurve = Cubic(.36, 0, .28, 1);
+
   static double contentOpacity(double t) =>
       const Interval(growthEnd, 1, curve: Curves.easeInOut).transform(t);
 
@@ -284,7 +290,7 @@ class SearchMorphFrame {
     final dy = math.max(center.dy - viewport.top, viewport.bottom - center.dy);
     final coveringRadius = math.sqrt(dx * dx + dy * dy);
     final progress = (t / growthEnd).clamp(0.0, 1.0);
-    final growth = const Cubic(.24, .12, .23, .98).transform(progress);
+    final growth = _radiusCurve.transform(progress);
     return SearchMorphFrame._(
       center,
       coveringRadius * growth,

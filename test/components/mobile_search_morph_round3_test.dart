@@ -46,6 +46,22 @@ void main() {
     },
   );
 
+  test('equal time steps accelerate out of the touch then gently settle', () {
+    const touch = Offset(170, 42);
+    double growth(double fraction) => SearchMorphFrame.at(
+      touch,
+      page,
+      fraction * SearchMorphFrame.growthEnd,
+    ).growth;
+    final initial = growth(.10) - growth(0);
+    final middle = growth(.50) - growth(.40);
+    final last = growth(1) - growth(.90);
+    expect(initial, inExclusiveRange(0.0, .04));
+    expect(middle, greaterThan(initial * 4));
+    expect(last, lessThan(middle / 4));
+    expect(growth(1), 1);
+  });
+
   testWidgets(
     'painter is round, opaque in its interior, and clipped to the viewport',
     (tester) async {
