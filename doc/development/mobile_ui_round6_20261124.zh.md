@@ -1,12 +1,12 @@
 # 手机界面第六轮：收藏侧栏与全局搜索节奏
 
-开工核对 `codex/agent-center-tab` 本地与 fork 实时远端同为 `496569a3c26c738bb2e6d829758af375a1882723`，产品及测试定稿 `60ae697cec811bff242d8eaa2b972b8f12f80791`。仍使用 Flutter 3.47.9、Dart 3.13.7 与锁定 Prism `8f5fc22`。仅调整以下手机交互，保留已有的阅读、关键词、本地收藏搜索、平台门禁和设置持久化。
+开工核对 `codex/agent-center-tab` 本地与 fork 实时远端同为 `496569a3c26c738bb2e6d829758af375a1882723`，产品及测试定稿 `37d98cc7b3c709fda78047b9501193c0fb352e67`。仍使用 Flutter 3.47.9、Dart 3.13.7 与锁定 Prism `8f5fc22`。仅调整以下手机交互，保留已有的阅读、关键词、本地收藏搜索、平台门禁和设置持久化。
 
 ## 收藏左侧面板
 
 - **50% → 75%** 指扣除系统安全区和浮层最小外边距后可用宽度；纵向继续由安全高度 86% 拉到最大安全高度。开启/关闭仍从物理左侧滑动。停靠后横拖，面板的左边不动，右边随手指，真实宽高、遮罩和关闭手势仍归原路由。
 - 普通目录行的**外轮廓随面板实际宽度连续变化**：填色、边框、墨水高亮、圆角裁剪与触摸区域使用同一尺寸。右上及右下保留完整圆角，不是把一张宽卡硬截成竖边。内容则按最大态宽度布局并固定物理左侧。窄态先看到图标和名称，右边数量由滑动露出；真实未知的网络数量不填 0。子目录的展开操作、选中标记和完整无障碍名称仍可辨识。
-- 标题／关闭、本地和网络的分组操作、搜索框用**真实可见宽度**布局，动作不会被夹掉；输入保持同一编辑状态/焦点，键盘避让及列表滚动继续有效。不新增置顶或粘滞分组。
+- 标题／关闭、本地和网络的分组操作、搜索框用**真实可见宽度**布局，动作不会被夹掉。窄或大字号时分组标题先让出装饰图标而非挤窄文字；输入保持同一编辑状态/焦点，键盘避让及列表滚动继续有效。不新增置顶或粘滞分组。
 - 除点击当前文件夹名外，收藏页关闭弹层时，也可从物理左侧系统返回区稍内侧向右横滑，达阈值松手才开启，初始仍是 50%。不抢系统／路由返回边缘，不拦截普通点击或纵滚；从中间、向左、距离不足、取消或当前页面已失效时都不打开。
 
 ## 全局搜索节奏
@@ -15,6 +15,6 @@
 
 ## 验证边界
 
-- 52 项锁定 Flutter／Prism 的定向控件和导航回归通过，入口含 `test/components/mobile_side_sheet_round3_test.dart`、`mobile_folder_sheet_widgets_round3_test.dart`、`edge_back_gesture_test.dart`、`mobile_search_route_test.dart`、`mobile_search_morph_round3_test.dart`、`mobile_search_focus_test.dart`、`mobile_ui_test.dart` 和 `mobile_collection_search_test.dart`。在 320 px、2.6 倍字、两种文字方向的逐帧像素判定中，圆角外的抽样点仍是底色且点击不触发目录，邻近内点为行底色；拖前、中间、结束的图标/名称和数量坐标及固定内容尺寸一致。
+- 53 项锁定 Flutter／Prism 的定向控件和导航回归通过，入口含 `test/components/mobile_side_sheet_round3_test.dart`、`mobile_folder_sheet_widgets_round3_test.dart`、`edge_back_gesture_test.dart`、`mobile_search_route_test.dart`、`mobile_search_morph_round3_test.dart`、`mobile_search_focus_test.dart`、`mobile_ui_test.dart` 和 `mobile_collection_search_test.dart`。在 320 px、2.6 倍字、两种文字方向的逐帧像素判定中，圆角外的抽样点仍是底色且点击不触发目录，邻近内点为行底色；拖前、中间、结束的图标/名称和数量坐标及固定内容尺寸一致。
 - 另用可控目录与存储运行 2 项实际 `FavoritesFolderSidebar` 交互。模拟 390 px 宽时，面板在三帧分别为 187、233.75、280.5 dp；标题/关闭、本地和网络分组操作、搜索都跟随真实边界。IME 下编辑焦点、查询和原选中项保留，嵌套展开/选择及网络选择正常。独立三帧效果图使用实际组件和示例数据，不是用户截图或真机截屏。完整 App 的收藏用例另在 `test/features/favorites/local_favorites_refresh_test.dart`，此环境未运行。
 - 同一批 68/166 个锁定依赖下，12 个改动 Dart 文件无新增离线诊断；导入、架构、简繁翻译覆盖和 Git 差异检查通过。未运行完整 App 分析、Android/iOS 真机、全量测试或 APK 构建；源码包不包含任何截图，不改远端。
