@@ -4,7 +4,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/slider.dart' as prism show Slider;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/reader/brightness.dart';
+import 'package:venera_next/features/reader/reader_appearance.dart';
 import 'package:venera_next/features/settings/reader.dart';
 import 'package:venera_next/features/settings/reader_brightness.dart';
 import 'package:venera_next/features/settings/setting_components.dart';
@@ -205,6 +208,124 @@ void main() {
       preview.dispose();
     },
   );
+
+  for (final scope in ['global', 'device', 'comic']) {
+    testWidgets(
+      'picture slider release saves only in the active $scope scope',
+      (tester) async {
+        _prepare();
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(390, 800);
+        addTearDown(tester.view.reset);
+        appdata.settings['language'] = 'en-US';
+        appdata.settings['readerNightMode'] = 'warm';
+        appdata.settings['readerNightModeIntensity'] = 0.25;
+        if (scope == 'device') {
+          appdata.settings.setEnabledDeviceSpecificSettings(true);
+        }
+        if (scope == 'comic') {
+          appdata.settings.setEnabledComicSpecificSettings(
+            'book',
+            'local',
+            true,
+          );
+        }
+        final brightness = ReaderBrightnessPreview();
+        final colors = ReaderColorPreview();
+        final callbacks = <String>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: const [MobileUiLocalizations.delegate],
+            builder: (_, child) => MobileUiTheme(glass: 'off', child: child!),
+            home: Scaffold(
+              body: ReaderBrightnessSetting(
+                comicId: 'book',
+                sourceKey: 'local',
+                panel: true,
+                usePrism: true,
+                preview: brightness,
+                colorPreview: colors,
+                onChanged: callbacks.add,
+              ),
+            ),
+          ),
+        );
+        prism.Slider slider(String title) => tester.widget<prism.Slider>(
+          find.descendant(
+            of: find.widgetWithText(ReaderPictureSlider, title),
+            matching: find.byType(prism.Slider),
+          ),
+        );
+        final dimmer = slider('Reader brightness');
+        expect((dimmer.min, dimmer.max, dimmer.divisions), (20.0, 100.0, 16));
+        dimmer.onChanged!(25);
+        dimmer.onChanged!(75);
+        final night = slider('Night mode intensity');
+        expect((night.min, night.max, night.divisions), (0.0, 0.8, 16));
+        night.onChanged!(0.35);
+        night.onChanged!(0.7);
+        await _flush(tester, appdata.saveData(false));
+        expect(brightness.brightness, 75);
+        expect(colors.valueOf(ReaderColorAdjustment.nightIntensity), 0.7);
+        expect(
+          appdata.settings.getReaderSetting(
+            'book',
+            'local',
+            'readerBrightness',
+          ),
+          50,
+        );
+        expect(
+          appdata.settings.getReaderSetting(
+            'book',
+            'local',
+            'readerNightModeIntensity',
+          ),
+          0.25,
+        );
+        expect(callbacks, isEmpty);
+
+        dimmer.onChangeEnd!(75);
+        night.onChangeEnd!(0.7);
+        await _flush(tester, appdata.saveData(false));
+        expect(brightness.brightness, isNull);
+        expect(colors.valueOf(ReaderColorAdjustment.nightIntensity), isNull);
+        expect(callbacks, ['readerBrightness', 'readerNightModeIntensity']);
+        expect(
+          appdata.settings.getReaderSetting(
+            'book',
+            'local',
+            'readerBrightness',
+          ),
+          75,
+        );
+        expect(
+          appdata.settings.getReaderSetting(
+            'book',
+            'local',
+            'readerNightModeIntensity',
+          ),
+          0.7,
+        );
+        expect(
+          appdata.settings['readerBrightness'],
+          scope == 'global' ? 75 : 50,
+        );
+        expect(
+          appdata.settings['readerNightModeIntensity'],
+          scope == 'global' ? 0.7 : 0.25,
+        );
+        expect(
+          appdata.settings.getDeviceReaderSetting('readerBrightness'),
+          scope == 'comic' ? 50 : 75,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        brightness.dispose();
+        colors.dispose();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets(
     'detached brightness form retains preview and the reader owns its queued assignment',

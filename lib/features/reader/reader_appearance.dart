@@ -55,6 +55,36 @@ List<double>? readerColorMatrix({
   ];
 }
 
+enum ReaderColorAdjustment { lineStrength, nightIntensity }
+
+/// Paint-only numeric drafts for the picture sheet. They never enter the
+/// preference queue until the corresponding control commits its value.
+class ReaderColorPreview extends ChangeNotifier {
+  final _values = <ReaderColorAdjustment, (Object, double)>{};
+  bool _disposed = false;
+
+  double? valueOf(ReaderColorAdjustment adjustment) => _values[adjustment]?.$2;
+
+  VoidCallback show(ReaderColorAdjustment adjustment, double value) {
+    if (_disposed) return () {};
+    final token = Object();
+    _values[adjustment] = (token, value);
+    notifyListeners();
+    return () {
+      if (_disposed || !identical(_values[adjustment]?.$1, token)) return;
+      _values.remove(adjustment);
+      notifyListeners();
+    };
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _values.clear();
+    super.dispose();
+  }
+}
+
 /// Keep the reading subtree mounted while appearance settings change live.
 /// Controls and sidebars sit outside this widget and retain their normal colors.
 class ReaderColorEffects extends StatelessWidget {
@@ -62,6 +92,7 @@ class ReaderColorEffects extends StatelessWidget {
     required this.comicId,
     required this.sourceKey,
     required this.child,
+    this.preview,
     this.enhanceLines = true,
     super.key,
   });
@@ -70,6 +101,7 @@ class ReaderColorEffects extends StatelessWidget {
   final String sourceKey;
   final Widget child;
   final bool enhanceLines;
+  final ReaderColorPreview? preview;
 
   @override
   Widget build(BuildContext context) {
@@ -82,22 +114,42 @@ class ReaderColorEffects extends StatelessWidget {
           comicId: comicId,
           sourceKey: sourceKey,
         );
-        final matrix = readerColorMatrix(
-          enhanceLines:
-              enhanceLines &&
-              settings.read(ReaderPreferences.readerLineEnhancement),
-          lineStrength: settings
-              .read(ReaderPreferences.readerLineEnhancementStrength)
-              .toDouble(),
-          nightMode: settings.read(ReaderPreferences.readerNightMode),
-          nightIntensity: settings
-              .read(ReaderPreferences.readerNightModeIntensity)
-              .toDouble(),
-        );
-        return _OptionalColorFilter(
-          colorFilter: matrix == null ? null : ColorFilter.matrix(matrix),
-          child: child!,
-        );
+        final lines =
+            enhanceLines &&
+            settings.read(ReaderPreferences.readerLineEnhancement);
+        final strength = settings
+            .read(ReaderPreferences.readerLineEnhancementStrength)
+            .toDouble();
+        final mode = settings.read(ReaderPreferences.readerNightMode);
+        final intensity = settings
+            .read(ReaderPreferences.readerNightModeIntensity)
+            .toDouble();
+        final draft = preview;
+        Widget filter(BuildContext context, Widget? child) {
+          final matrix = readerColorMatrix(
+            enhanceLines: lines,
+            lineStrength:
+                draft?.valueOf(ReaderColorAdjustment.lineStrength) ?? strength,
+            nightMode: mode,
+            nightIntensity:
+                draft?.valueOf(ReaderColorAdjustment.nightIntensity) ??
+                intensity,
+          );
+          return _OptionalColorFilter(
+            colorFilter: matrix == null ? null : ColorFilter.matrix(matrix),
+            child: child!,
+          );
+        }
+
+        // Keep committed reads off the pointer path. This builder swaps only
+        // the render object's paint filter, never the image/zoom subtree.
+        return draft == null
+            ? filter(context, child)
+            : ListenableBuilder(
+                listenable: draft,
+                builder: filter,
+                child: child,
+              );
       },
     );
   }

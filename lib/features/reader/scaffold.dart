@@ -117,6 +117,7 @@ class ReaderScaffold extends StatefulWidget {
 
 class ReaderScaffoldState extends State<ReaderScaffold> {
   var _brightnessPreview = ReaderBrightnessPreview();
+  var _colorPreview = ReaderColorPreview();
 
   ReaderSettings get _brightnessSettings =>
       widget.readBrightnessSettings?.call() ?? widget.data.preferences;
@@ -183,6 +184,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   @override
   void dispose() {
     _brightnessPreview.dispose();
+    _colorPreview.dispose();
     widget.favoriteChanges.removeListener(_imageFavoritesChanged);
     unawaited(_favorites.dispose());
     _sidebarBinding.dispose();
@@ -229,6 +231,8 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     _sidebarBinding.close();
     _brightnessPreview.dispose();
     _brightnessPreview = ReaderBrightnessPreview();
+    _colorPreview.dispose();
+    _colorPreview = ReaderColorPreview();
     _brightnessPanel = null;
     _topBar = null;
     _bottomActionInputs = null;
@@ -331,6 +335,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
                 child: ReaderColorEffects(
                   comicId: widget.data.comicId,
                   sourceKey: widget.data.sourceKey,
+                  preview: _colorPreview,
                   enhanceLines: !isOnChapterCommentsPage,
                   child: widget.child,
                 ),
@@ -338,27 +343,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
             ),
           ),
           if (!isOnChapterCommentsPage)
-            Positioned.fill(
-              child: ListenableBuilder(
-                listenable: Listenable.merge([
-                  _brightnessPreview,
-                  widget.brightnessChanges,
-                ]),
-                builder: (context, _) {
-                  final settings = _brightnessSettings;
-                  return ReaderBrightnessOverlay(
-                    enabled:
-                        _brightnessPreview.enabled ??
-                        settings.read(
-                          ReaderPreferences.readerBrightnessEnabled,
-                        ),
-                    brightness:
-                        _brightnessPreview.brightness ??
-                        settings.read(ReaderPreferences.readerBrightness),
-                  );
-                },
-              ),
-            ),
+            Positioned.fill(child: _buildBrightnessOverlay(context)),
           if (!isOnChapterCommentsPage) _buildInformation(),
           ReaderChapterNavigationButton(
             action: widget.chapterNavigation,
@@ -470,6 +455,27 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
           ),
         ),
       );
+
+  Widget _buildBrightnessOverlay(BuildContext context) {
+    Widget committed(BuildContext context, Widget? _) {
+      final settings = _brightnessSettings;
+      final enabled = settings.read(ReaderPreferences.readerBrightnessEnabled);
+      final brightness = settings.read(ReaderPreferences.readerBrightness);
+      final preview = _brightnessPreview;
+      return ListenableBuilder(
+        listenable: preview,
+        builder: (_, _) => ReaderBrightnessOverlay(
+          enabled: preview.enabled ?? enabled,
+          brightness: preview.brightness ?? brightness,
+        ),
+      );
+    }
+
+    final changes = widget.brightnessChanges;
+    return changes == null
+        ? committed(context, null)
+        : ListenableBuilder(listenable: changes, builder: committed);
+  }
 
   Widget _buildTop(double toolbarHeight, bool usePrism) {
     final showComments = shouldShowChapterComments();
@@ -727,6 +733,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         comicId: widget.data.comicId,
         sourceKey: widget.data.sourceKey,
         preview: _brightnessPreview,
+        colorPreview: usePrism ? _colorPreview : null,
         panel: true,
         usePrism: usePrism,
         onChanged: (key) {

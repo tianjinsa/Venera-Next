@@ -19,6 +19,8 @@ const _colors = [
 Future<void> _showSamples(
   WidgetTester tester, {
   bool enhanceLines = true,
+  ReaderColorPreview? preview,
+  VoidCallback? onArtworkBuild,
 }) async {
   await tester.pumpWidget(
     Directionality(
@@ -31,16 +33,22 @@ Future<void> _showSamples(
             comicId: _comicId,
             sourceKey: _sourceKey,
             enhanceLines: enhanceLines,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final color in _colors)
-                  SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: ColoredBox(color: color),
-                  ),
-              ],
+            preview: preview,
+            child: Builder(
+              builder: (_) {
+                onArtworkBuild?.call();
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final color in _colors)
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: ColoredBox(color: color),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -147,6 +155,40 @@ void main() {
         last = dimmed;
       }
     }
+  });
+
+  testWidgets('night drafts repaint the samples without rebuilding artwork', (
+    tester,
+  ) async {
+    settings['readerNightMode'] = 'warm';
+    final preview = ReaderColorPreview();
+    var builds = 0;
+    await _showSamples(
+      tester,
+      preview: preview,
+      onArtworkBuild: () => builds++,
+    );
+    final initial = await _pixels(tester);
+    final cancelEarlier = preview.show(
+      ReaderColorAdjustment.nightIntensity,
+      0.4,
+    );
+    final earlier = await _pixels(tester);
+    final cancelLatest = preview.show(
+      ReaderColorAdjustment.nightIntensity,
+      0.7,
+    );
+    final latest = await _pixels(tester);
+    expect(earlier[0][0], lessThan(initial[0][0]));
+    expect(latest[0][0], lessThan(earlier[0][0]));
+    expect(settings['readerNightModeIntensity'], 0.25);
+    cancelEarlier();
+    expect(await _pixels(tester), latest);
+    cancelLatest();
+    expect(await _pixels(tester), initial);
+    expect(builds, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    preview.dispose();
   });
 
   testWidgets('live effects follow device and comic setting priority', (
