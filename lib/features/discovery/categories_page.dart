@@ -5,6 +5,8 @@ import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/mobile_dock_inset.dart';
+import 'package:venera_next/components/mobile_search_route.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/routing/app_navigation.dart';
 import 'package:venera_next/foundation/app_locale.dart';
@@ -35,8 +37,9 @@ class _CategoriesPageState extends State<CategoriesPage>
   late TabController controller;
 
   void onSettingsChanged() {
-    var categories = GlobalPreferenceStore(appdata.settings)
-        .read(DiscoveryPreferences.categoryPages);
+    var categories = GlobalPreferenceStore(
+      appdata.settings,
+    ).read(DiscoveryPreferences.categoryPages);
     var allCategories = ComicSource.all()
         .map((e) => e.categoryData?.key)
         .where((element) => element != null)
@@ -56,8 +59,9 @@ class _CategoriesPageState extends State<CategoriesPage>
   @override
   void initState() {
     super.initState();
-    var categories = GlobalPreferenceStore(appdata.settings)
-        .read(DiscoveryPreferences.categoryPages);
+    var categories = GlobalPreferenceStore(
+      appdata.settings,
+    ).read(DiscoveryPreferences.categoryPages);
     var allCategories = ComicSource.all()
         .map((e) => e.categoryData?.key)
         .where((element) => element != null)
@@ -163,11 +167,11 @@ class _CategoryPage extends StatelessWidget {
           child: Wrap(
             children: [
               if (data.enableRankingPage)
-                buildTag("Ranking".tl, () {
+                buildTag("Ranking".tl, (_) {
                   context.to(() => RankingPage(categoryKey: data.key));
                 }),
               for (var buttonData in data.buttons)
-                buildTag(buttonData.label.tl, buttonData.onTap),
+                buildTag(buttonData.label.tl, (_) => buttonData.onTap()),
             ],
           ),
         ),
@@ -242,32 +246,43 @@ class _CategoryPage extends StatelessWidget {
     );
   }
 
-  Widget buildCategory(CategoryItem c) {
-    return buildTag(c.label, () {
-      var context = appNavigation.mainNavigatorKey!.currentContext!;
-      c.target.jump(context);
-    });
-  }
+  Widget buildCategory(CategoryItem item) => buildTag(
+    item.label,
+    (origin) {
+      if (MobileUi.enabledOf(origin)) {
+        item.target.jump(origin, searchOrigin: origin);
+      } else {
+        item.target.jump(appNavigation.mainNavigatorKey!.currentContext!);
+      }
+    },
+    searchAnchor:
+        item.target.page == 'search' || item.target.page == 'category',
+  );
 
-  Widget buildTag(String label, VoidCallback onClick) {
+  Widget buildTag(
+    String label,
+    ValueChanged<BuildContext> onClick, {
+    bool searchAnchor = false,
+  }) {
+    const border = BorderRadius.all(Radius.circular(8));
+    Widget tag(BuildContext origin) => Material(
+      borderRadius: border,
+      color: origin.colorScheme.primaryContainer.toOpacity(.72),
+      child: ClickInkWell(
+        borderRadius: border,
+        onTap: () => onClick(origin),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Text(label),
+        ),
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-      child: Builder(
-        builder: (context) {
-          return Material(
-            borderRadius: const BorderRadius.all(Radius.circular(8)),
-            color: context.colorScheme.primaryContainer.toOpacity(0.72),
-            child: ClickInkWell(
-              borderRadius: const BorderRadius.all(Radius.circular(8)),
-              onTap: onClick,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: Text(label),
-              ),
-            ),
-          );
-        },
-      ),
+      child: searchAnchor
+          ? MobileSearchAnchor(radius: 8, builder: tag)
+          : Builder(builder: tag),
     );
   }
 

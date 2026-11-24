@@ -362,11 +362,11 @@ void main() {
       final morph = tester.widget<SearchMorphSurface>(
         find.byType(SearchMorphSurface),
       );
-      final droplet = morph.frame.droplet!;
-      expect(droplet.center.dx, closeTo(source.center.dx, 3));
-      expect(droplet.center.dy, closeTo(source.center.dy, 3));
-      expect(droplet.width, closeTo(source.width, 3));
-      expect(droplet.width, lessThan(capsuleWidth));
+      final start = morph.frame.platter;
+      expect(start.center.dx, closeTo(source.center.dx, 3));
+      expect(start.center.dy, closeTo(source.center.dy, 3));
+      expect(start.width, closeTo(source.width, 3));
+      expect(start.width, lessThan(capsuleWidth));
       await tester.pumpAndSettle();
       expect(observer.pageCount, 2);
       expect(find.text('Search destination'), findsOneWidget);

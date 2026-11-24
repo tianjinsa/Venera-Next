@@ -7,11 +7,7 @@ import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/log.dart';
 
 extension PageJumpTargetNavigation on PageJumpTarget {
-  void jump(
-    BuildContext context, {
-    BuildContext? searchOrigin,
-    bool authorLookup = false,
-  }) {
+  void jump(BuildContext context, {BuildContext? searchOrigin}) {
     // The source owns the destination and its payload. A list of one author's
     // works can be a category with an opaque param, not a keyword search.
     final Widget Function() destination;
@@ -37,7 +33,7 @@ extension PageJumpTargetNavigation on PageJumpTarget {
         return;
     }
 
-    if (searchOrigin != null && (page == 'search' || authorLookup)) {
+    if (searchOrigin != null) {
       pushSearchFrom(searchOrigin, destination);
     } else {
       context.to(destination);

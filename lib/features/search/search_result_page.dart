@@ -4,10 +4,13 @@ import 'package:venera_next/foundation/global_preference_store.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/mobile_choice.dart';
 import 'package:venera_next/components/mobile_large_sheet.dart';
+import 'package:venera_next/components/mobile_setting_row.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/select.dart';
 import 'package:venera_next/features/comic_widgets/comic_widgets.dart';
@@ -21,6 +24,7 @@ import 'package:venera_next/foundation/extensions.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 
+import 'mobile_search_widgets.dart';
 import 'search_filter.dart';
 import 'search_page.dart';
 
@@ -175,50 +179,54 @@ class _SearchResultPageState extends State<SearchResultPage> {
   }
 
   Widget buildAction() {
-    return Tooltip(
-      message: "Settings".tl,
-      child: IconButton(
-        icon: const Icon(Icons.tune),
-        onPressed: () async {
-          if (suggestionOverlay != null) {
-            suggestionsController.remove();
-          }
+    Future<void> openFilters() async {
+      if (suggestionOverlay != null) {
+        suggestionsController.remove();
+      }
 
-          var previousOptions = List<String>.from(options);
-          var previousSourceKey = sourceKey;
-          if (MobileUi.enabledOf(context)) {
-            FocusManager.instance.primaryFocus?.unfocus();
-            final result = await Navigator.of(context, rootNavigator: true)
-                .push(
-                  mobileLargeSheetRoute<_SearchFilters>(
-                    context: context,
-                    builder: (_) =>
-                        _SearchSettingsDialog(state: this, mobile: true),
-                  ),
-                );
-            if (!mounted ||
-                result == null ||
-                ComicSource.find(result.source)?.searchPageData == null) {
-              return;
-            }
-            sourceKey = result.source;
-            options = result.options;
-          } else {
-            await showDialog<void>(
-              context: context,
-              useRootNavigator: true,
-              builder: (_) => _SearchSettingsDialog(state: this),
-            );
-            if (!mounted) return;
-          }
-          if (!previousOptions.isEqualTo(options) ||
-              previousSourceKey != sourceKey) {
-            text = _applyConfiguredLanguageFilter(controller.text);
-            controller.currentText = text;
-            setState(() {});
-          }
-        },
-      ),
+      var previousOptions = List<String>.from(options);
+      var previousSourceKey = sourceKey;
+      if (MobileUi.enabledOf(context)) {
+        FocusManager.instance.primaryFocus?.unfocus();
+        final result = await Navigator.of(context, rootNavigator: true).push(
+          mobileLargeSheetRoute<_SearchFilters>(
+            context: context,
+            builder: (_) => _SearchSettingsDialog(state: this, mobile: true),
+          ),
+        );
+        if (!mounted ||
+            result == null ||
+            ComicSource.find(result.source)?.searchPageData == null) {
+          return;
+        }
+        sourceKey = result.source;
+        options = result.options;
+      } else {
+        await showDialog<void>(
+          context: context,
+          useRootNavigator: true,
+          builder: (_) => _SearchSettingsDialog(state: this),
+        );
+        if (!mounted) return;
+      }
+      if (!previousOptions.isEqualTo(options) ||
+          previousSourceKey != sourceKey) {
+        text = _applyConfiguredLanguageFilter(controller.text);
+        controller.currentText = text;
+        setState(() {});
+      }
+    }
+
+    if (MobileUi.enabledOf(context)) {
+      return MobileToolbarButton(
+        label: 'Settings'.tl,
+        icon: const Icon(Icons.tune, size: 20),
+        onPressed: openFilters,
+      );
+    }
+    return Tooltip(
+      message: 'Settings'.tl,
+      child: IconButton(icon: const Icon(Icons.tune), onPressed: openFilters),
     );
   }
 }
@@ -325,14 +333,30 @@ class _SuggestionsState extends State<_Suggestions> {
   }
 
   Widget buildSuggestions(BuildContext context) {
-    bool showMethod = MediaQuery.of(context).size.width < 600;
-    bool showTranslation = appLocale.languageCode == "zh";
+    final mobile = MobileUi.enabledOf(context);
+    final showMethod = MediaQuery.sizeOf(context).width < 600;
+    final showTranslation = appLocale.languageCode == 'zh';
+    void clear() {
+      widget.controller.suggestions.clear();
+      widget.controller.remove();
+    }
 
     Widget buildItem(Pair<String, TranslationType> value) {
       var subTitle = TagsTranslation.translationTagWithNamespace(
         value.left,
         value.right.name,
       );
+      if (mobile) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: MobileSearchTagSuggestion(
+            tag: value.left,
+            namespace: value.right.name,
+            translation: showTranslation ? subTitle : null,
+            onSelected: () => onSelected(value.left, value.right),
+          ),
+        );
+      }
       return ListTile(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -357,20 +381,31 @@ class _SuggestionsState extends State<_Suggestions> {
 
     return Column(
       children: [
-        ListTile(
-          leading: const Icon(Icons.hub_outlined),
-          title: Text("Suggestions".tl),
-          trailing: Tooltip(
-            message: "Clear".tl,
-            child: IconButton(
-              icon: const Icon(Icons.clear_all),
-              onPressed: () {
-                widget.controller.suggestions.clear();
-                widget.controller.remove();
-              },
+        if (mobile)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: MobileSearchSectionHeader(
+              'Suggestions'.tl,
+              leading: const Icon(Icons.hub_outlined, size: 20),
+              action: MobileToolbarButton(
+                label: 'Clear'.tl,
+                icon: const prism.GlyphIcon(prism.Glyphs.clearField),
+                onPressed: clear,
+              ),
+            ),
+          )
+        else
+          ListTile(
+            leading: const Icon(Icons.hub_outlined),
+            title: Text("Suggestions".tl),
+            trailing: Tooltip(
+              message: "Clear".tl,
+              child: IconButton(
+                icon: const Icon(Icons.clear_all),
+                onPressed: clear,
+              ),
             ),
           ),
-        ),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -486,12 +521,24 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
       });
     }
 
+    void confirm() {
+      if (widget.mobile) {
+        if (ModalRoute.of(context)?.isCurrent != true) return;
+        Navigator.pop<_SearchFilters>(context, (
+          source: searchTarget,
+          options: List.of(options),
+        ));
+      } else {
+        context.pop();
+      }
+    }
+
     final body = Column(
       children: [
         if (widget.mobile)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: MobileChoiceRow(
+            child: SettingChoiceRow(
               title: Text('Search in'.tl),
               choice: MobileChoice<String>(
                 label: 'Search in'.tl,
@@ -500,6 +547,7 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
                   for (final source in sources)
                     MobileChoiceOption(source.key, source.name.tl),
                 ],
+                setting: true,
                 onChanged: pickSource,
               ),
             ),
@@ -524,20 +572,10 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
         ],
         buildSearchOptions(),
         const SizedBox(height: 24),
-        FilledButton(
-          child: Text("Confirm".tl),
-          onPressed: () {
-            if (widget.mobile) {
-              if (ModalRoute.of(context)?.isCurrent != true) return;
-              Navigator.pop<_SearchFilters>(context, (
-                source: searchTarget,
-                options: List.of(options),
-              ));
-            } else {
-              context.pop();
-            }
-          },
-        ),
+        if (widget.mobile)
+          prism.FilledButton(onPressed: confirm, child: Text('Confirm'.tl))
+        else
+          FilledButton(onPressed: confirm, child: Text('Confirm'.tl)),
       ],
     ).fixWidth(double.infinity);
     if (!widget.mobile) {
@@ -570,6 +608,7 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
       final option = searchOptions[i];
       children.add(
         SearchOptionWidget(
+          key: ValueKey((searchTarget, i)),
           option: option,
           value: options[i],
           onChanged: (value) {
@@ -589,7 +628,7 @@ class _SearchSettingsDialogState extends State<_SearchSettingsDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: children,
+        children: settingGroup(context, children),
       ),
     );
   }

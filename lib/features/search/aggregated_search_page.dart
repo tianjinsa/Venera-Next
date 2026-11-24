@@ -4,6 +4,10 @@ import "package:flutter/material.dart";
 import 'package:shimmer_animation/shimmer_animation.dart';
 import "package:venera_next/components/appbar.dart";
 import "package:venera_next/components/gesture.dart";
+import 'package:venera_next/components/mobile_content_surface.dart';
+import 'package:venera_next/components/mobile_search_route.dart';
+import 'package:venera_next/components/mobile_setting_row.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import "package:venera_next/components/scroll.dart";
 import "package:venera_next/features/comic_widgets/comic_widgets.dart";
 import "package:venera_next/foundation/appdata.dart";
@@ -12,6 +16,7 @@ import "package:venera_next/features/comic_source/comic_source.dart";
 import "package:venera_next/foundation/translations.dart";
 import "package:venera_next/foundation/widget_utils.dart";
 
+import 'mobile_search_widgets.dart';
 import "search_result_page.dart";
 
 class AggregatedSearchPage extends StatefulWidget {
@@ -37,9 +42,8 @@ class _AggregatedSearchPageState extends State<AggregatedSearchPage> {
         .map((e) => e.key)
         .toList();
     var settings =
-        GlobalPreferenceStore(
-          appdata.settings,
-        ).read(DiscoveryPreferences.searchSources) ??
+        GlobalPreferenceStore(appdata.settings)
+            .read(DiscoveryPreferences.searchSources) ??
         const <String>[];
     var sources = <String>[];
     for (var source in settings) {
@@ -62,7 +66,7 @@ class _AggregatedSearchPageState extends State<AggregatedSearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SmoothCustomScrollView(
+    final scroll = SmoothCustomScrollView(
       slivers: [
         SliverSearchBar(controller: controller),
         SliverList(
@@ -78,6 +82,7 @@ class _AggregatedSearchPageState extends State<AggregatedSearchPage> {
         ),
       ],
     );
+    return MobileUi.enabledOf(context) ? Scaffold(body: scroll) : scroll;
   }
 }
 
@@ -117,6 +122,7 @@ class _SliverSearchResultState extends State<_SliverSearchResult>
         .toList();
     if (data.loadPage != null) {
       var res = await data.loadPage!(widget.keyword, 1, options);
+      if (!mounted) return;
       if (!res.error) {
         setState(() {
           comics = res.data;
@@ -130,6 +136,7 @@ class _SliverSearchResultState extends State<_SliverSearchResult>
       }
     } else if (data.loadNext != null) {
       var res = await data.loadNext!(widget.keyword, null, options);
+      if (!mounted) return;
       if (!res.error) {
         setState(() {
           comics = res.data;
@@ -175,21 +182,30 @@ class _SliverSearchResultState extends State<_SliverSearchResult>
       error = "Cloudflare verification required".tl;
     }
     super.build(context);
-    return ClickInkWell(
-      onTap: () {
-        context.to(
-          () => SearchResultPage(
-            text: widget.keyword,
-            sourceKey: widget.source.key,
-          ),
-        );
-      },
-      child: Column(
-        children: [
-          ListTile(
+    Widget destination() =>
+        SearchResultPage(text: widget.keyword, sourceKey: widget.source.key);
+    final mobile = MobileUi.enabledOf(context);
+    final heading = mobile
+        ? Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: MobileSearchAnchor(
+              builder: (origin) => MobileSearchRow(
+                title: widget.source.name,
+                leading: const Icon(Icons.travel_explore, size: 20),
+                trailing: const SettingDisclosure(),
+                onTap: () => pushSearchFrom<void>(origin, destination),
+              ),
+            ),
+          )
+        : ListTile(
             mouseCursor: SystemMouseCursors.click,
             title: Text(widget.source.name),
-          ),
+          );
+    return ClickInkWell(
+      onTap: () => context.to<void>(destination),
+      child: Column(
+        children: [
+          heading,
           if (isLoading)
             SizedBox(
               height: _kComicHeight,
@@ -219,27 +235,38 @@ class _SliverSearchResultState extends State<_SliverSearchResult>
               ),
             )
           else if (error != null || comics == null || comics!.isEmpty)
-            SizedBox(
-              height: _kComicHeight,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.error_outline),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          error ?? "No search results found".tl,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+            if (mobile)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: MobileContentSurface(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(error ?? 'No search results found'.tl),
                   ),
-                  const Spacer(),
-                ],
-              ).paddingHorizontal(16),
-            )
+                ),
+              )
+            else
+              SizedBox(
+                height: _kComicHeight,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.error_outline),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            error ?? "No search results found".tl,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                  ],
+                ).paddingHorizontal(16),
+              )
           else
             SizedBox(
               height: _kComicHeight,

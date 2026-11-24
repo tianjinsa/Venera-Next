@@ -666,6 +666,7 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
 
       if (onTap != null) {
         return MobileSearchAnchor(
+          radius: 12,
           builder: (tagContext) {
             return Material(
               color: color,

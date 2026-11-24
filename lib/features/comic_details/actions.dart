@@ -394,11 +394,7 @@ abstract mixin class ComicPageActions {
 
   void onTapTag(String tag, String namespace, [BuildContext? origin]) {
     var target = searchTargetForTag(tag, namespace);
-    target?.jump(
-      context,
-      searchOrigin: origin,
-      authorLookup: isAuthorNamespace(namespace),
-    );
+    target?.jump(context, searchOrigin: origin);
   }
 
   PageJumpTarget? searchTargetForTag(String tag, String namespace) {

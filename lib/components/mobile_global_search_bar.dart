@@ -6,6 +6,7 @@ import 'package:prism_ui/liquid_glass.dart' as prism;
 import 'package:prism_ui/theme_data.dart' as prism show ColorScheme;
 import 'package:venera_next/foundation/translations.dart';
 
+import 'mobile_search_route.dart';
 import 'mobile_ui.dart';
 
 /// FlClash's search glyph, pill, clear and submit interaction. Use Prism's
@@ -17,6 +18,7 @@ class MobileGlobalSearchBar extends StatelessWidget {
     required this.editing,
     required this.topPadding,
     required this.onSubmit,
+    this.onSubmitFrom,
     this.onChanged,
     this.focusNode,
     this.action,
@@ -25,6 +27,10 @@ class MobileGlobalSearchBar extends StatelessWidget {
   final TextEditingController editing;
   final double topPadding;
   final ValueChanged<String>? onSubmit;
+
+  /// Use the field itself, not the viewport or the adjacent controls, as the
+  /// origin when submission opens a separate full-page route.
+  final void Function(String, BuildContext)? onSubmitFrom;
   final ValueChanged<String>? onChanged;
   final FocusNode? focusNode;
   final Widget? action;
@@ -35,41 +41,57 @@ class MobileGlobalSearchBar extends StatelessWidget {
       borderRadius: prism.AppRadius.full,
       borderSide: BorderSide.none,
     );
-    final field = prism.TextField(
-      controller: editing,
-      focusNode: focusNode,
-      textInputAction: TextInputAction.search,
-      textAlignVertical: TextAlignVertical.center,
-      onChanged: onChanged,
-      onSubmitted: onSubmit,
-      decoration: prism.InputDecoration(
-        hintText: 'Search'.tl,
-        contentPadding: EdgeInsets.zero,
-        border: border,
-        focusedBorder: border,
-        enabledBorder: border,
-        prefixIcon: const prism.GlyphIcon(prism.Glyphs.search, size: 20),
-        prefixIconConstraints: const BoxConstraints.tightFor(width: 40),
-        suffixIconConstraints: const BoxConstraints(),
-        suffixIcon: ValueListenableBuilder<TextEditingValue>(
-          valueListenable: editing,
-          builder: (context, value, _) => value.text.isEmpty
-              ? const SizedBox(width: 12)
-              : MobileToolbarButton(
-                  label: MaterialLocalizations.of(context).clearButtonTooltip,
-                  icon: const prism.GlyphIcon(
-                    prism.Glyphs.clearField,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    editing.clear();
-                    onChanged?.call('');
-                  },
-                ),
-        ),
-      ),
-    );
     final glass = prism.LiquidGlassScope.of(context);
+    Widget field(ValueChanged<String>? submit) {
+      final input = prism.TextField(
+        controller: editing,
+        focusNode: focusNode,
+        textInputAction: TextInputAction.search,
+        textAlignVertical: TextAlignVertical.center,
+        onChanged: onChanged,
+        onSubmitted: submit,
+        decoration: prism.InputDecoration(
+          hintText: 'Search'.tl,
+          contentPadding: EdgeInsets.zero,
+          border: border,
+          focusedBorder: border,
+          enabledBorder: border,
+          prefixIcon: const prism.GlyphIcon(prism.Glyphs.search, size: 20),
+          prefixIconConstraints: const BoxConstraints.tightFor(width: 40),
+          suffixIconConstraints: const BoxConstraints(),
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: editing,
+            builder: (context, value, _) => value.text.isEmpty
+                ? const SizedBox(width: 12)
+                : MobileToolbarButton(
+                    label: MaterialLocalizations.of(context).clearButtonTooltip,
+                    icon: const prism.GlyphIcon(
+                      prism.Glyphs.clearField,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      editing.clear();
+                      onChanged?.call('');
+                    },
+                  ),
+          ),
+        ),
+      );
+      return glass
+          ? prism.LiquidGlass(
+              style: prism.LiquidGlassStyle.pill(prism.ColorScheme.of(context)),
+              child: input,
+            )
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: prism.AppRadius.full,
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              ),
+              child: input,
+            );
+    }
+
+    final anchoredSubmit = onSubmitFrom;
     return Material(
       color: Theme.of(context).colorScheme.surface,
       child: Padding(
@@ -86,22 +108,13 @@ class MobileGlobalSearchBar extends StatelessWidget {
               ),
               Expanded(
                 child: SizedBox(
+                  key: const ValueKey('mobile-global-search-field'),
                   height: 46,
-                  child: glass
-                      ? prism.LiquidGlass(
-                          style: prism.LiquidGlassStyle.pill(
-                            prism.ColorScheme.of(context),
-                          ),
-                          child: field,
-                        )
-                      : DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: prism.AppRadius.full,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHigh,
-                          ),
-                          child: field,
+                  child: anchoredSubmit == null
+                      ? field(onSubmit)
+                      : MobileSearchAnchor(
+                          builder: (origin) =>
+                              field((value) => anchoredSubmit(value, origin)),
                         ),
                 ),
               ),

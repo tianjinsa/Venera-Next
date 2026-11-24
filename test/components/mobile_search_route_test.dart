@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/mobile_global_search_bar.dart';
 import 'package:venera_next/components/mobile_search_route.dart';
 import 'package:venera_next/components/mobile_ui.dart';
@@ -21,14 +22,15 @@ Widget _app(Widget home, {String glass = 'off', bool reduce = false}) =>
       home: Scaffold(body: home),
     );
 
-Rect _clip(WidgetTester tester) {
-  final findClip = find.byKey(const ValueKey('search-route-reveal'));
-  return tester
-      .widget<ClipRSuperellipse>(findClip)
-      .clipper!
-      .getClip(tester.getSize(findClip))
-      .outerRect;
-}
+final _surface = find.byType(SearchMorphSurface);
+final _backing = find.byKey(const ValueKey('search-route-backing'));
+final _content = find.byKey(const ValueKey('search-route-content'));
+
+Rect _bounds(WidgetTester tester) =>
+    tester.widget<SearchMorphSurface>(_surface).frame.outline().getBounds();
+
+double _opacity(WidgetTester tester) =>
+    tester.widget<Opacity>(_content).opacity;
 
 void main() {
   for (final entry in [
@@ -76,33 +78,59 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
-      final surface = find.byType(SearchMorphSurface);
-      final first = tester.widget<SearchMorphSurface>(surface);
-      final start = first.frame.outline().getBounds();
-      expect(start.left, closeTo(entry.rect.left, 1));
-      expect(start.top, closeTo(entry.rect.top, 1));
-      expect(start.right, closeTo(entry.rect.right, 1));
-      expect(start.bottom, closeTo(entry.rect.bottom, 1));
-      expect(first.glass, isNotNull);
-      // During release the destination platter travels away from the
-      // residual. It must not enclose the whole trigger like a rect tween.
-      await tester.pump(const Duration(milliseconds: 135));
-      final release = tester.widget<SearchMorphSurface>(surface).frame;
-      expect(release.platter.contains(release.droplet!.center), isFalse);
-      expect(release.droplet!.size.width, lessThan(start.width));
-      await tester.pump(const Duration(milliseconds: 140));
-      final middle = _clip(tester);
-      expect(middle.width, greaterThan(release.platter.width));
-      expect(middle.height, greaterThan(release.platter.height));
-      expect(tester.getSize(find.byKey(destination)), const Size(390, 750));
+      final start = _bounds(tester);
+      expect(start.left, closeTo(entry.rect.left, 2));
+      expect(start.top, closeTo(entry.rect.top, 2));
+      expect(start.right, closeTo(entry.rect.right, 2));
+      expect(start.bottom, closeTo(entry.rect.bottom, 2));
+      final surface = tester.widget<SearchMorphSurface>(_surface);
+      expect(surface.sourceColor.a, 1);
+      expect(surface.destinationColor.a, 1);
+      expect(_opacity(tester), 0);
+      expect(_backing, findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 35));
+      final early = _bounds(tester);
+      expect(early, isNot(start));
+      expect(early.contains(entry.rect.center), isTrue);
+      expect(early.width, greaterThanOrEqualTo(start.width));
+      expect(early.height, greaterThan(start.height));
+      expect(_opacity(tester), 0);
+
+      await tester.pump(const Duration(milliseconds: 225));
+      expect(_bounds(tester).height, greaterThan(early.height));
+      expect(_opacity(tester), 0);
+      const viewport = Rect.fromLTWH(0, 0, 390, 750);
+      expect(tester.getRect(find.byKey(destination)), viewport);
+      expect(find.text('results').hitTestable(), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 80));
+      final inFade = _opacity(tester);
+      expect(inFade, inExclusiveRange(0, 1));
+      expect(_surface, findsNothing);
+      expect(tester.getRect(_backing), viewport);
+      expect(
+        tester.widget<ColoredBox>(_backing).color,
+        surface.destinationColor,
+      );
+      expect(tester.getRect(find.byKey(destination)), viewport);
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(_opacity(tester), greaterThan(inFade));
       await tester.pumpAndSettle();
-      expect(_clip(tester), const Rect.fromLTWH(0, 0, 390, 750));
-      expect(surface, findsNothing);
+      expect(_opacity(tester), 1);
+      expect(tester.getRect(_backing), viewport);
       expect(builds, 1);
       owner.pop();
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 170));
-      expect(_clip(tester).width, inExclusiveRange(0.0, 390.0));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_opacity(tester), inExclusiveRange(0, 1));
+      expect(tester.getRect(_backing), viewport);
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(_opacity(tester), 0);
+      expect(
+        _bounds(tester).height,
+        inExclusiveRange(entry.rect.height, 750.0),
+      );
       await tester.pumpAndSettle();
       expect(find.text(entry.name).hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -134,6 +162,54 @@ void main() {
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.text('entry').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('keyboard submission opens from the actual 46dp sliver field', (
+    tester,
+  ) async {
+    _phone(tester);
+    final submitted = <String>[];
+    await tester.pumpWidget(
+      _app(
+        CustomScrollView(
+          slivers: [
+            SliverSearchBar(
+              controller: SearchBarController(
+                onSearch: (_) => fail('unanchored mobile fallback'),
+              ),
+              action: const SizedBox(width: 52),
+              onSubmitFrom: (text, field) {
+                submitted.add(text);
+                pushSearchFrom<void>(
+                  field,
+                  () => const Scaffold(body: Text('matching book')),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    final field = find.byKey(const ValueKey('mobile-global-search-field'));
+    final trigger = tester.getRect(field);
+    expect(trigger.height, 46);
+    expect(trigger.width, lessThan(350));
+    await tester.enterText(find.byType(EditableText), 'artist:Example');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+    final start = _bounds(tester);
+    expect(start.center.dx, closeTo(trigger.center.dx, 2));
+    expect(start.center.dy, closeTo(trigger.center.dy, 2));
+    expect(start.width, closeTo(trigger.width, 2));
+    expect(start.height, closeTo(trigger.height, 2));
+    expect(submitted, ['artist:Example']);
+    await tester.pumpAndSettle();
+    expect(find.text('matching book').hitTestable(), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(EditableText).hitTestable(), findsOneWidget);
   });
 
   testWidgets(

@@ -874,6 +874,7 @@ class SliverSearchBar extends StatefulWidget {
     super.key,
     required this.controller,
     this.onChanged,
+    this.onSubmitFrom,
     this.action,
     this.focusNode,
   });
@@ -881,6 +882,7 @@ class SliverSearchBar extends StatefulWidget {
   final SearchBarController controller;
 
   final void Function(String)? onChanged;
+  final void Function(String, BuildContext)? onSubmitFrom;
 
   final Widget? action;
 
@@ -904,6 +906,7 @@ class _SliverSearchBarState extends State<SliverSearchBar>
         controller: _controller,
         topPadding: MediaQuery.of(context).padding.top,
         onChanged: widget.onChanged,
+        onSubmitFrom: widget.onSubmitFrom,
         action: widget.action,
         focusNode: widget.focusNode,
       ),
@@ -919,6 +922,7 @@ class _SliverSearchBarDelegate extends SliverPersistentHeaderDelegate {
   final double topPadding;
 
   final void Function(String)? onChanged;
+  final void Function(String, BuildContext)? onSubmitFrom;
 
   final Widget? action;
 
@@ -929,6 +933,7 @@ class _SliverSearchBarDelegate extends SliverPersistentHeaderDelegate {
     required this.controller,
     required this.topPadding,
     this.onChanged,
+    this.onSubmitFrom,
     this.action,
     this.focusNode,
   });
@@ -946,6 +951,7 @@ class _SliverSearchBarDelegate extends SliverPersistentHeaderDelegate {
         editing: editingController,
         topPadding: topPadding,
         onSubmit: controller.onSearch,
+        onSubmitFrom: onSubmitFrom,
         onChanged: onChanged,
         focusNode: focusNode,
         action: action,
@@ -1019,6 +1025,7 @@ class _SliverSearchBarDelegate extends SliverPersistentHeaderDelegate {
         controller != oldDelegate.controller ||
         topPadding != oldDelegate.topPadding ||
         onChanged != oldDelegate.onChanged ||
+        onSubmitFrom != oldDelegate.onSubmitFrom ||
         action != oldDelegate.action ||
         focusNode != oldDelegate.focusNode;
   }

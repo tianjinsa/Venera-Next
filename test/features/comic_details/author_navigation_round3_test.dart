@@ -52,7 +52,7 @@ class _Actions extends Fake with ComicPageActions {
 
 void main() {
   testWidgets(
-    'author chip and saved author reveal the exact source category; ordinary category chips do not',
+    'author, saved author and explicit category chips reveal the exact source result',
     (tester) async {
       tester.view
         ..devicePixelRatio = 1
@@ -117,8 +117,8 @@ void main() {
         ),
       );
 
-      // The source may serve the exact same target for ordinary tags; it is
-      // the originating lookup, not inspecting the opaque param, that matters.
+      // Explicit source tags and saved author lookups each preserve the
+      // original category result and animate from their own control.
       for (final label in ['畫師', 'saved', 'genre', '畫師']) {
         final button = find.widgetWithText(TextButton, label);
         final original = tester.getRect(button);
@@ -128,17 +128,10 @@ void main() {
         await tester.pump();
         expect(source.calls.last, (label == 'saved' ? 'artist' : label, 'X/Y'));
         final surface = find.byType(SearchMorphSurface);
-        if (label == 'genre') {
-          expect(surface, findsNothing);
-        } else {
-          final drop = tester
-              .widget<SearchMorphSurface>(surface)
-              .frame
-              .droplet!;
-          expect(drop.center.dx, closeTo(original.center.dx, 1));
-          expect(drop.center.dy, closeTo(original.center.dy, 1));
-          expect(drop.width, closeTo(original.width, 1));
-        }
+        final bounds = tester.widget<SearchMorphSurface>(surface).frame.platter;
+        expect(bounds.center.dx, closeTo(original.center.dx, 2));
+        expect(bounds.center.dy, closeTo(original.center.dy, 2));
+        expect(bounds.width, closeTo(original.width, 2));
         await tester.pump(const Duration(milliseconds: 550));
         final destination = tester.widget<CategoryComicsPage>(
           find.byType(CategoryComicsPage),

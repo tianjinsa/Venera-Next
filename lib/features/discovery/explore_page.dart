@@ -5,6 +5,7 @@ import 'package:venera_next/components/appbar.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:venera_next/components/mobile_scroll_top.dart';
+import 'package:venera_next/components/mobile_search_route.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/navigation_bar.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
@@ -494,12 +495,21 @@ Iterable<Widget> _buildExplorePagePart(
                   part.title,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                trailing: part.viewMore == null
-                    ? null
-                    : TextButton(
-                        onPressed: viewMore,
-                        child: Text("View more".tl),
+                trailing: switch (part.viewMore) {
+                  null => null,
+                  final target when target.page == 'search' =>
+                    MobileSearchAnchor(
+                      builder: (origin) => TextButton(
+                        onPressed: () =>
+                            target.jump(origin, searchOrigin: origin),
+                        child: Text('View more'.tl),
                       ),
+                    ),
+                  _ => TextButton(
+                    onPressed: viewMore,
+                    child: Text('View more'.tl),
+                  ),
+                },
               ),
             );
           }

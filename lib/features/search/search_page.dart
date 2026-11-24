@@ -5,13 +5,20 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/icons/icons.dart' as prism;
+import 'package:prism_ui/null_status.dart' as prism;
+import 'package:prism_ui/popup.dart' as prism;
 import 'package:sliver_tools/sliver_tools.dart';
 import 'package:venera_next/components/appbar.dart';
+import 'package:venera_next/components/file_save_task.dart';
 import 'package:venera_next/components/flyout.dart';
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_search_route.dart';
+import 'package:venera_next/components/mobile_setting_row.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/pop_up_widget.dart';
 import 'package:venera_next/components/scroll.dart';
@@ -32,6 +39,7 @@ import 'package:venera_next/foundation/widget_utils.dart';
 import 'package:venera_next/features/comic_details/comic_details.dart';
 
 import 'aggregated_search_page.dart';
+import 'mobile_search_widgets.dart';
 import 'search_result_page.dart';
 import 'search_shortcuts.dart';
 
@@ -52,8 +60,8 @@ class _SearchPageState extends State<SearchPage> {
 
   String searchTarget = "";
 
-  SearchPageData get currentSearchPageData =>
-      ComicSource.find(searchTarget)!.searchPageData!;
+  List<SearchOptions> get _sourceOptions =>
+      ComicSource.find(searchTarget)?.searchPageData?.searchOptions ?? [];
 
   bool aggregatedSearch = false;
 
@@ -96,22 +104,25 @@ class _SearchPageState extends State<SearchPage> {
     setState(() {});
   }
 
-  void search([String? text]) {
-    if (aggregatedSearch) {
-      context
-          .to(() => AggregatedSearchPage(keyword: text ?? controller.text))
-          .then((_) => update());
-    } else {
-      context
-          .to(
-            () => SearchResultPage(
-              text: text ?? controller.text,
-              sourceKey: searchTarget,
-              options: options,
-            ),
-          )
-          .then((_) => update());
-    }
+  void search([String? text, BuildContext? origin]) {
+    final keyword = text ?? controller.text;
+    final source = searchTarget;
+    final parameters = List<String>.of(options);
+    final combine = aggregatedSearch;
+    if (!combine && ComicSource.find(source)?.searchPageData == null) return;
+    Widget destination() => combine
+        ? AggregatedSearchPage(keyword: keyword)
+        : SearchResultPage(
+            text: keyword,
+            sourceKey: source,
+            options: parameters,
+          );
+    final returning = origin == null
+        ? context.to<void>(destination)
+        : pushSearchFrom<void>(origin, destination);
+    returning.then((_) {
+      if (mounted) update();
+    });
   }
 
   var suggestions = <Pair<String, TranslationType>>[];
@@ -149,7 +160,7 @@ class _SearchPageState extends State<SearchPage> {
       }
     }
 
-    if (!ComicSource.find(searchTarget)!.enableTagsSuggestions) {
+    if (ComicSource.find(searchTarget)?.enableTagsSuggestions != true) {
       update();
       return;
     }
@@ -240,10 +251,12 @@ class _SearchPageState extends State<SearchPage> {
 
   void updateSearchSourcesIfNeeded() {
     var old = searchSources;
+    final oldTarget = searchTarget;
     findSearchSources();
     if (old.isEqualTo(searchSources)) {
       return;
     }
+    if (oldTarget != searchTarget) options = [];
     setState(() {});
   }
 
@@ -252,20 +265,55 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget buildEmpty() {
-    var msg = "No Search Sources".tl;
-    msg += '\n';
+    final title = 'No Search Sources'.tl;
+    final description = ComicSource.isEmpty
+        ? 'Please add some sources'.tl
+        : 'Please check your settings'.tl;
     VoidCallback onTap;
     if (ComicSource.isEmpty) {
-      msg += "Please add some sources".tl;
       onTap = () {
         context.to(() => ComicSourcePage());
       };
     } else {
-      msg += "Please check your settings".tl;
       onTap = manageSearchSources;
     }
+    if (MobileUi.enabledOf(context)) {
+      return Scaffold(
+        body: Column(
+          children: [
+            MobileToolbar(title: Text('Search'.tl), showBack: true),
+            Expanded(
+              child: prism.NullStatus(
+                illustration: prism.Illustration.search,
+                label: title,
+                description: description,
+                action: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    prism.FilledButton(
+                      onPressed: onTap,
+                      child: Text('Manage'.tl),
+                    ),
+                    prism.TextButton(
+                      onPressed: () => saveFileForWindow(
+                        context,
+                        data: utf8.encode(Log().toString()),
+                        filename: 'log.txt',
+                      ),
+                      child: Text('Export logs'.tl),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return NetworkError(
-      message: msg,
+      message: '$title\n$description',
       retry: onTap,
       withAppbar: true,
       buttonText: "Manage".tl,
@@ -285,6 +333,7 @@ class _SearchPageState extends State<SearchPage> {
   Iterable<Widget> buildSlivers() sync* {
     yield SliverSearchBar(
       controller: controller,
+      onSubmitFrom: (value, origin) => search(value, origin),
       onChanged: (s) {
         findSuggestions();
       },
@@ -304,7 +353,52 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget buildSearchTarget() {
-    var sources = searchSources.map((e) => ComicSource.find(e)!).toList();
+    final sources = searchSources.map(ComicSource.find).nonNulls;
+    if (MobileUi.enabledOf(context)) {
+      return SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        sliver: SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 8,
+            children: [
+              MobileSearchSectionHeader(
+                'Search in'.tl,
+                leading: const prism.GlyphIcon(prism.Glyphs.search, size: 20),
+                action: MobileToolbarButton(
+                  label: 'Search Sources'.tl,
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: manageSearchSources,
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final source in sources)
+                    MobileSearchChoiceChip(
+                      key: ValueKey(source.key),
+                      label: source.name,
+                      selected: aggregatedSearch || searchTarget == source.key,
+                      onPressed: aggregatedSearch
+                          ? null
+                          : () => setState(() {
+                              searchTarget = source.key;
+                              useDefaultOptions();
+                            }),
+                    ),
+                ],
+              ),
+              SettingSwitchRow(
+                title: Text('Aggregated Search'.tl),
+                value: aggregatedSearch,
+                onChanged: (value) => setState(() => aggregatedSearch = value),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return SliverToBoxAdapter(
       child: Container(
         width: double.infinity,
@@ -357,8 +451,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void useDefaultOptions() {
-    final searchOptions = currentSearchPageData.searchOptions ?? [];
-    options = searchOptions.map((e) => e.defaultValue).toList();
+    options = _sourceOptions.map((e) => e.defaultValue).toList();
   }
 
   Widget buildSearchOptions() {
@@ -368,7 +461,7 @@ class _SearchPageState extends State<SearchPage> {
 
     var children = <Widget>[];
 
-    final searchOptions = currentSearchPageData.searchOptions ?? [];
+    final searchOptions = _sourceOptions;
     if (searchOptions.length != options.length) {
       useDefaultOptions();
     }
@@ -379,6 +472,7 @@ class _SearchPageState extends State<SearchPage> {
       final option = searchOptions[i];
       children.add(
         SearchOptionWidget(
+          key: ValueKey((searchTarget, i)),
           option: option,
           value: options[i],
           onChanged: (value) {
@@ -386,6 +480,15 @@ class _SearchPageState extends State<SearchPage> {
             update();
           },
           sourceKey: searchTarget,
+        ),
+      );
+    }
+
+    if (MobileUi.enabledOf(context)) {
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: Column(children: settingGroup(context, children)),
         ),
       );
     }
@@ -451,10 +554,27 @@ class _SearchPageState extends State<SearchPage> {
       focusNode.requestFocus();
     }
 
-    bool showMethod = MediaQuery.of(context).size.width < 600;
-    bool showTranslation = appLocale.languageCode == "zh";
+    final mobile = MobileUi.enabledOf(context);
+    final showMethod = MediaQuery.sizeOf(context).width < 600;
+    final showTranslation = appLocale.languageCode == 'zh';
+    void clear() => setState(suggestions.clear);
+
     Widget buildItem(Pair<String, TranslationType> value) {
       if (value.left == "**URL**") {
+        void openLink() {
+          clear();
+          handleAppLink(Uri.parse(controller.text));
+        }
+
+        if (mobile) {
+          return MobileSearchRow(
+            title: 'Open link'.tl,
+            subtitle: controller.text,
+            leading: const Icon(Icons.link, size: 20),
+            trailing: const SettingDisclosure(),
+            onTap: openLink,
+          );
+        }
         return ListTile(
           leading: const Icon(Icons.link),
           title: Text("Open link".tl),
@@ -464,12 +584,7 @@ class _SearchPageState extends State<SearchPage> {
             overflow: TextOverflow.fade,
           ),
           trailing: const Icon(Icons.arrow_right),
-          onTap: () {
-            setState(() {
-              suggestions.clear();
-            });
-            handleAppLink(Uri.parse(controller.text));
-          },
+          onTap: openLink,
         );
       }
 
@@ -479,18 +594,28 @@ class _SearchPageState extends State<SearchPage> {
         if (comicSource == null) {
           return const SizedBox();
         }
+        final title = '${'Open comic'.tl}: ${comicSource.name}';
+        void openComic() =>
+            context.to(() => ComicPage(sourceKey: key, id: controller.text));
+        if (mobile) {
+          return MobileSearchRow(
+            title: title,
+            subtitle: controller.text,
+            leading: const Icon(Icons.link, size: 20),
+            trailing: const SettingDisclosure(),
+            onTap: openComic,
+          );
+        }
         return ListTile(
           leading: const Icon(Icons.link),
-          title: Text("${"Open comic".tl}: ${comicSource.name}"),
+          title: Text(title),
           subtitle: Text(
             controller.text,
             maxLines: 1,
             overflow: TextOverflow.fade,
           ),
           trailing: const Icon(Icons.arrow_right),
-          onTap: () {
-            context.to(() => ComicPage(sourceKey: key, id: controller.text));
-          },
+          onTap: openComic,
         );
       }
 
@@ -498,6 +623,14 @@ class _SearchPageState extends State<SearchPage> {
         value.left,
         value.right.name,
       );
+      if (mobile) {
+        return MobileSearchTagSuggestion(
+          tag: value.left,
+          namespace: value.right.name,
+          translation: showTranslation ? subTitle : null,
+          onSelected: () => onSelected(value.left, value.right),
+        );
+      }
       return ListTile(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -520,31 +653,45 @@ class _SearchPageState extends State<SearchPage> {
       );
     }
 
-    return SliverMainAxisGroup(
+    final slivers = SliverMainAxisGroup(
       slivers: [
         SliverToBoxAdapter(
-          child: ListTile(
-            leading: const Icon(Icons.hub_outlined),
-            title: Text("Suggestions".tl),
-            trailing: Tooltip(
-              message: "Clear".tl,
-              child: IconButton(
-                icon: const Icon(Icons.clear_all),
-                onPressed: () {
-                  suggestions.clear();
-                  update();
-                },
-              ),
-            ),
-          ),
+          child: mobile
+              ? MobileSearchSectionHeader(
+                  'Suggestions'.tl,
+                  leading: const Icon(Icons.hub_outlined, size: 20),
+                  action: MobileToolbarButton(
+                    label: 'Clear'.tl,
+                    icon: const prism.GlyphIcon(prism.Glyphs.clearField),
+                    onPressed: clear,
+                  ),
+                )
+              : ListTile(
+                  leading: const Icon(Icons.hub_outlined),
+                  title: Text("Suggestions".tl),
+                  trailing: Tooltip(
+                    message: "Clear".tl,
+                    child: IconButton(
+                      icon: const Icon(Icons.clear_all),
+                      onPressed: clear,
+                    ),
+                  ),
+                ),
         ),
         SliverList(
           delegate: SliverChildBuilderDelegate((context, index) {
-            return buildItem(suggestions[index]);
+            final item = buildItem(suggestions[index]);
+            return mobile
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: item,
+                  )
+                : item;
           }, childCount: suggestions.length),
         ),
       ],
     );
+    return mobile ? slivers.sliverPaddingHorizontal(16) : slivers;
   }
 }
 
@@ -567,12 +714,10 @@ class SearchOptionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (MobileUi.enabledOf(context) &&
-        (option.type == 'select' || option.type == 'dropdown')) {
+    if (MobileUi.enabledOf(context)) {
       final label = option.label.ts(sourceKey);
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: MobileChoiceRow(
+      if (option.type == 'select' || option.type == 'dropdown') {
+        return SettingChoiceRow(
           title: Text(label),
           choice: MobileChoice<String>(
             key: ValueKey((sourceKey, option.label)),
@@ -582,10 +727,41 @@ class SearchOptionWidget extends StatelessWidget {
               for (final entry in option.options.entries)
                 MobileChoiceOption(entry.key, entry.value.ts(sourceKey)),
             ],
+            setting: true,
             onChanged: onChanged,
           ),
-        ),
-      );
+        );
+      }
+      if (option.type == 'multi-select') {
+        final values = (jsonDecode(value) as List).whereType<String>().toList();
+        return SettingRow(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 8,
+            children: [
+              Text(label),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final entry in option.options.entries)
+                    MobileSearchChoiceChip(
+                      key: ValueKey(entry.key),
+                      label: entry.value.ts(sourceKey),
+                      selected: values.contains(entry.key),
+                      onPressed: () {
+                        final edited = List<String>.of(values);
+                        if (!edited.remove(entry.key)) edited.add(entry.key);
+                        onChanged(jsonEncode(edited));
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }
+      return SettingRow(title: Text(label));
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,7 +821,7 @@ class SearchOptionWidget extends StatelessWidget {
 class _SearchHistory extends StatefulWidget {
   const _SearchHistory(this.search);
 
-  final void Function(String) search;
+  final void Function(String, [BuildContext?]) search;
 
   @override
   State<_SearchHistory> createState() => _SearchHistoryState();
@@ -671,6 +847,9 @@ class _SearchHistoryState extends State<_SearchHistory> {
 
   @override
   Widget build(BuildContext context) {
+    if (MobileUi.enabledOf(context)) {
+      return _buildMobile();
+    }
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         if (index == 0) {
@@ -739,6 +918,68 @@ class _SearchHistoryState extends State<_SearchHistory> {
       }, childCount: 2 + appdata.searchHistory.length),
     ).sliverPaddingHorizontal(16);
   }
+
+  Widget _buildMobile() {
+    final words = appdata.searchHistory;
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: MobileSearchSectionHeader(
+              'Search History'.tl,
+              leading: const Icon(Icons.history, size: 20),
+              action: words.isEmpty || _saving
+                  ? null
+                  : MobileMenuButton(
+                      label: 'Clear'.tl,
+                      icon: const prism.GlyphIcon(prism.Glyphs.clearField),
+                      items: [
+                        prism.PopupMenuItem(
+                          label: 'Clear Search History'.tl,
+                          danger: true,
+                          onPressed: () =>
+                              _editHistory(appdata.clearSearchHistory),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+        SliverList.builder(
+          itemCount: words.length,
+          itemBuilder: (context, index) => _mobileItem(words[index]),
+        ),
+        const SliverToBoxAdapter(
+          child: SafeArea(top: false, child: SizedBox(height: 12)),
+        ),
+      ],
+    ).sliverPaddingHorizontal(16);
+  }
+
+  Widget _mobileItem(String keyword) => Padding(
+    key: ValueKey(keyword),
+    padding: const EdgeInsets.only(bottom: 6),
+    child: MobileSearchMenuRow(
+      title: keyword,
+      leading: const Icon(Icons.history, size: 20),
+      onSearch: (origin) => widget.search(keyword, origin),
+      items: [
+        prism.PopupMenuItem(
+          label: 'Copy'.tl,
+          glyph: prism.Glyphs.copy,
+          onPressed: () => Clipboard.setData(ClipboardData(text: keyword)),
+        ),
+        prism.PopupMenuItem(
+          label: 'Delete'.tl,
+          danger: true,
+          onPressed: _saving
+              ? null
+              : () => _editHistory(() => appdata.removeSearchHistory(keyword)),
+        ),
+      ],
+    ),
+  );
 
   Widget buildItem(int index) {
     final keyword = appdata.searchHistory[index];

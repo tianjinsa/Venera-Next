@@ -10,76 +10,115 @@ void main() {
   const page = Rect.fromLTWH(0, 0, 390, 750);
   const anchor = Rect.fromLTWH(150, 52, 48, 48);
 
-  testWidgets(
-    'the painted material forms a neck, pinches apart, then fills the page',
-    (tester) async {
-      final boundary = GlobalKey();
-      bool foundNeck = false;
-      bool foundGap = false;
-      for (final i in Iterable<int>.generate(39)) {
-        final frame = SearchMorphFrame.at(anchor, page, i / 100);
-        final drop = frame.droplet!;
-        // A probe in the gap between the two raw shapes can be filled *only*
-        // by a real liquid bridge, not a Stack of two rounded rectangles.
-        if (frame.platter.top <= drop.bottom + 3) continue;
-        final y = (frame.platter.top + drop.bottom) / 2;
-        final x = (frame.platter.center.dx + drop.center.dx) / 2;
-        final probe = Offset(x.floor() + .5, y.floor() + .5);
-        final joined = frame.outline().contains(probe);
-        if ((!foundNeck && !joined) || (foundNeck && joined)) continue;
-        await tester.pumpWidget(
-          Align(
-            alignment: Alignment.topLeft,
-            child: RepaintBoundary(
-              key: boundary,
-              child: SizedBox.fromSize(
-                size: page.size,
-                child: SearchMorphSurface(
-                  frame: frame,
-                  color: Colors.red,
-                  glass: null,
-                ),
-              ),
-            ),
-          ),
+  test(
+    'a connected shape grows in place immediately and settles before the fade',
+    () {
+      final beginning = SearchMorphFrame.at(anchor, page, 0);
+      expect(beginning.outline().getBounds(), anchor);
+      var previous = beginning.platter;
+      var actuallyDeformed = false;
+      for (final tick in Iterable<int>.generate(70, (index) => index + 1)) {
+        final t = tick / 100;
+        final frame = SearchMorphFrame.at(
+          anchor,
+          page,
+          t,
+          relative: const Offset(.08, .95),
         );
-        final box =
-            boundary.currentContext!.findRenderObject()!
-                as RenderRepaintBoundary;
-        // Widget test's default logical height is 600: the probe is above that.
-        final image = await tester.runAsync(() => box.toImage());
-        final data = await tester.runAsync(
-          () => image!.toByteData(format: ui.ImageByteFormat.rawRgba),
+        final path = frame.outline();
+        final bounds = path.getBounds();
+        // Path.getBounds includes Bézier control points. The painter also
+        // clips to this envelope, so none of the motion can lead the platter.
+        expect(bounds.left, closeTo(frame.platter.left, 5));
+        expect(bounds.top, closeTo(frame.platter.top, 5));
+        expect(bounds.right, closeTo(frame.platter.right, 5));
+        expect(bounds.bottom, closeTo(frame.platter.bottom, 5));
+        expect(path.contains(anchor.center), isTrue);
+        expect(
+          path.computeMetrics().length,
+          1,
+          reason: 'the shape must never detach at t=$t',
         );
-        final pixel = (probe.dy.floor() * image!.width + probe.dx.floor()) * 4;
-        final alpha = data!.getUint8(pixel + 3);
-        image.dispose();
-        if (!foundNeck && alpha > 200) {
-          foundNeck = true;
-        } else if (foundNeck && !joined && alpha < 10) {
-          foundGap = true;
-          break;
-        }
+        expect(frame.platter.width, greaterThan(previous.width));
+        expect(frame.platter.height, greaterThan(previous.height));
+        expect(SearchMorphFrame.contentOpacity(t), 0);
+        final plain = Path()..addRSuperellipse(frame.clip);
+        final added = Path.combine(PathOperation.difference, path, plain);
+        actuallyDeformed |= added.computeMetrics().any(
+          (contour) => contour.length > 3,
+        );
+        previous = frame.platter;
       }
-      expect(foundNeck, isTrue, reason: 'A visible bridge outside both lobes');
       expect(
-        foundGap,
+        actuallyDeformed,
         isTrue,
-        reason: 'The bridge breaks before the page grows',
+        reason: 'the contact corner deforms rather than just growing a rounded rectangle',
       );
-      expect(
-        SearchMorphFrame.at(anchor, page, 0).outline().getBounds(),
-        anchor,
-      );
-      final settled = SearchMorphFrame.at(anchor, page, 1);
-      expect(settled.droplet, isNull);
-      expect(settled.clip.outerRect, page);
-      expect(settled.radius, 0);
+      expect(previous, page);
+      expect(SearchMorphFrame.at(anchor, page, 1).radius, 0);
+      expect(SearchMorphFrame.contentOpacity(.85), inExclusiveRange(0.0, 1.0));
+      expect(SearchMorphFrame.contentOpacity(1), 1);
     },
   );
 
   testWidgets(
-    'interrupting the release returns the result and restores the exact trigger twice',
+    'all painted interior pixels remain opaque even in the sheen mode',
+    (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = page.size;
+      addTearDown(tester.view.reset);
+      final boundary = GlobalKey();
+      final frame = SearchMorphFrame.at(
+        anchor,
+        page,
+        .41,
+        relative: const Offset(.08, .95),
+      );
+      await tester.pumpWidget(
+        Align(
+          alignment: Alignment.topLeft,
+          child: RepaintBoundary(
+            key: boundary,
+            child: SizedBox.fromSize(
+              size: page.size,
+              child: SearchMorphSurface(
+                frame: frame,
+                sourceColor: const Color(0x22663F15),
+                destinationColor: const Color(0x225B50A5),
+                sheen: Colors.cyan,
+              ),
+            ),
+          ),
+        ),
+      );
+      final box =
+          boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      await tester.runAsync(() async {
+        final image = await box.toImage();
+        try {
+          final data = (await image.toByteData(
+            format: ui.ImageByteFormat.rawRgba,
+          ))!;
+          int channel(Offset p, int channel) => data.getUint8(
+            (p.dy.floor() * image.width + p.dx.floor()) * 4 + channel,
+          );
+          expect(channel(anchor.center, 3), 255);
+          expect(channel(frame.platter.center, 3), 255);
+          expect(
+            channel(frame.platter.bottomCenter + const Offset(0, 2), 3),
+            0,
+          );
+          expect(channel(const Offset(2, 2), 3), 0);
+        } finally {
+          image.dispose();
+        }
+      });
+    },
+  );
+
+  testWidgets(
+    'interrupting expansion returns the result and restores the exact trigger twice',
     (tester) async {
       tester.view
         ..devicePixelRatio = 1
