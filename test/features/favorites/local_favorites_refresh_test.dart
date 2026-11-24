@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/components/button.dart';
 import 'package:venera_next/components/mobile_collection_ui.dart';
 import 'package:venera_next/components/mobile_ui.dart';
+import 'package:prism_ui/popup.dart' as prism;
 import 'package:prism_ui/search_field.dart' as prism;
 import 'package:venera_next/features/comic_details/comic_details.dart';
 import 'package:venera_next/features/comic_source/comic_source_api.dart'
@@ -238,7 +239,7 @@ void main() {
   App.cachePath = Directory.systemTemp.path;
 
   testWidgets(
-    'favorite title opens the left modal; current folder pops without reloading, nested choice replaces it',
+    'favorite title opens left modal with independent subfolder dropdown and direct search',
     (tester) async {
       tester.view
         ..devicePixelRatio = 1
@@ -246,6 +247,8 @@ void main() {
       addTearDown(tester.view.reset);
       final fixture = await _prepare(tester, 1);
       const nested = 'A very long / named folder that requires truncation';
+      const second = 'Second nested';
+
       await tester.runAsync(() async {
         await fixture.manager.createChildFolder(
           nested,
@@ -254,6 +257,14 @@ void main() {
         await fixture.manager.addComic(
           nested,
           _comic('nested-one', 'Nested book'),
+        );
+        await fixture.manager.createChildFolder(
+          second,
+          fixture.manager.folderTree.named('B')!.id,
+        );
+        await fixture.manager.addComic(
+          second,
+          _comic('second', 'Another book'),
         );
       });
       await tester.pumpWidget(
@@ -320,14 +331,34 @@ void main() {
       );
       final expand = find.descendant(
         of: rootRow,
-        matching: find.byKey(const ValueKey('mobile-folder-sheet-expand')),
+        matching: find.byKey(const ValueKey('mobile-folder-sheet-subfolders')),
+      );
+      final popup = find.byType(prism.PopupMenu);
+      Finder menuChoice(String label) =>
+          find.descendant(of: popup, matching: find.text(label));
+      Finder row(String label) => find.descendant(
+        of: panel,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is MobileFolderSheetRow && widget.label == label,
+        ),
       );
       expect(check, findsOneWidget);
       expect(tester.widget<MobileFolderSheetRow>(rootRow).count, 1);
       expect(option(nested), findsNothing);
       await tester.tap(expand);
       await tester.pumpAndSettle();
-      expect(option(nested), findsOneWidget);
+      expect(row(nested), findsNothing);
+      expect(menuChoice(nested), findsOneWidget);
+      expect(menuChoice(second), findsOneWidget);
+      expect(tester.widget<prism.PopupMenu>(popup).items.map((e) => e.label), [
+        nested,
+        second,
+      ]);
+      expect(panel, findsOneWidget);
+      expect(tester.state(local), same(original));
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(popup, findsNothing);
       expect(panel, findsOneWidget);
 
       await tester.tap(
@@ -356,7 +387,25 @@ void main() {
       );
       await tester.enterText(search, 'requires truncation');
       await tester.pumpAndSettle();
-      expect(option(nested), findsOneWidget);
+      expect(row(nested), findsOneWidget);
+      expect(
+        find.descendant(of: row(nested), matching: find.text('B / $nested')),
+        findsOneWidget,
+      );
+      final input = tester.widget<EditableText>(search);
+      expect(input.focusNode.hasPrimaryFocus, isTrue);
+      await tester.tap(expand);
+      await tester.pumpAndSettle();
+      expect(popup, findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<EditableText>(search).controller,
+        same(input.controller),
+      );
+      expect(input.controller.text, 'requires truncation');
+      expect(input.focusNode.hasPrimaryFocus, isTrue);
+      expect(popup, findsNothing);
       await tester.tap(option(nested));
       await _settle(tester);
       expect(panel, findsNothing);
@@ -366,11 +415,20 @@ void main() {
 
       await tester.tap(find.text(nested));
       await tester.pumpAndSettle();
-      expect(option(nested), findsOneWidget);
-      await tester.tapAt(const Offset(380, 100));
+      expect(row(nested), findsNothing);
+      expect(tester.widget<MobileFolderSheetRow>(rootRow).subtitle, nested);
+      await tester.tap(expand);
       await tester.pumpAndSettle();
+      final childItems = tester.widget<prism.PopupMenu>(popup).items;
+      expect(
+        childItems.singleWhere((item) => item.checked == true).label,
+        nested,
+      );
+      await tester.tap(menuChoice(second));
+      await _settle(tester);
       expect(panel, findsNothing);
-      expect(_tile('nested-one'), findsOneWidget);
+      expect(popup, findsNothing);
+      expect(_tile('second'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

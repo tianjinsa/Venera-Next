@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/popup.dart' as prism show PopupMenu;
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/select.dart';
 import 'package:venera_next/features/favorites/favorite_folder.dart';
 import 'package:venera_next/features/favorites/favorite_folder_browser.dart';
@@ -99,6 +101,78 @@ void main() {
       expect(parent.onChanged, isNull);
       await tester.tap(find.text('Paused'));
       expect(selected, ['Paused']);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'mobile child list scrolls to the checked row and rejects a stale choice',
+    (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(390, 800);
+      addTearDown(tester.view.reset);
+      FavoriteFolderTree list({bool renamed = false}) => FavoriteFolderTree([
+        const FavoriteFolder(id: 'parent', name: 'Parent shelf', order: 0),
+        for (var index = 0; index < 12; index++)
+          FavoriteFolder(
+            id: 'child-$index',
+            name: renamed && index == 10 ? 'Renamed shelf' : 'Child $index',
+            parentId: 'parent',
+            order: index,
+          ),
+      ]);
+      final tree = ValueNotifier(list());
+      addTearDown(tree.dispose);
+      final selected = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [MobileUiLocalizations.delegate],
+          builder: (_, child) => MobileUiTheme(glass: 'off', child: child!),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 185,
+                child: ValueListenableBuilder(
+                  valueListenable: tree,
+                  builder: (_, value, _) => FavoriteFolderBrowser(
+                    tree: value,
+                    onSelected: selected.add,
+                    selected: {value.identified('child-10')!.name},
+                    mobileSheetRows: true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final toggle = find.byKey(
+        const ValueKey('mobile-folder-sheet-subfolders'),
+      );
+      final popup = find.byType(prism.PopupMenu);
+      Finder item(String label) =>
+          find.descendant(of: popup, matching: find.text(label)).hitTestable();
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<prism.PopupMenu>(popup).maxVisibleItems, 7);
+      expect(item('Child 10'), findsOneWidget);
+      expect(item('Child 0'), findsNothing);
+
+      tree.value = list(renamed: true);
+      await tester.pumpAndSettle();
+      await tester.tap(item('Child 10'));
+      await tester.pumpAndSettle();
+      expect(selected, isEmpty);
+      expect(popup, findsNothing);
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(item('Renamed shelf'), findsOneWidget);
+      await tester.tap(item('Renamed shelf'));
+      await tester.pumpAndSettle();
+      expect(selected, ['Renamed shelf']);
       expect(tester.takeException(), isNull);
     },
   );

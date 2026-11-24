@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:venera_next/components/mobile_dock_inset.dart';
 import 'package:flutter/services.dart';
 import 'package:prism_ui/icons/icons.dart' as prism;
+import 'package:prism_ui/popup.dart' as prism;
 import 'package:prism_ui/search_field.dart' as prism;
 import 'package:prism_ui/shape.dart' as prism;
 import 'package:prism_ui/text_field.dart' as prism;
@@ -215,15 +216,45 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
     );
   }
 
+  List<FavoriteFolder> _visibleChildren(FavoriteFolder root) => [
+    for (final child in widget.tree.childrenOf(root.id))
+      if (!widget.hidden.contains(child.name)) child,
+  ];
+
+  VoidCallback? _mobileSelection(FavoriteFolder folder) {
+    if (!widget.enabled ||
+        widget.disabled.contains(folder.name) ||
+        widget.hidden.contains(folder.name)) {
+      return null;
+    }
+    final origin = ModalRoute.of(context);
+    return () {
+      if (!mounted ||
+          !widget.enabled ||
+          (origin != null && !origin.isCurrent)) {
+        return;
+      }
+      final current = widget.tree.identified(folder.id);
+      // A menu can outlive a folder refresh; never select a stale, renamed,
+      // moved, newly hidden, or disabled item from a captured menu snapshot.
+      if (current == null ||
+          current.name != folder.name ||
+          current.parentId != folder.parentId ||
+          widget.hidden.contains(current.name) ||
+          widget.disabled.contains(current.name)) {
+        return;
+      }
+      widget.onSelected(current.name);
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final rows = <FavoriteFolder>[];
     final tree = widget.tree;
+    final mobileRows = widget.mobileSheetRows && MobileUi.enabledOf(context);
     for (final root in tree.roots) {
-      final children = tree
-          .childrenOf(root.id)
-          .where((folder) => !widget.hidden.contains(folder.name))
-          .toList();
+      final children = _visibleChildren(root);
       if (widget.hidden.contains(root.name) && children.isEmpty) continue;
       final matches = children
           .where(
@@ -238,11 +269,10 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
       rows.add(root);
       if (_query.isNotEmpty) {
         rows.addAll(matches);
-      } else if (_expanded.contains(root.id)) {
+      } else if (!mobileRows && _expanded.contains(root.id)) {
         rows.addAll(children);
       }
     }
-    final mobileRows = widget.mobileSheetRows && MobileUi.enabledOf(context);
     final rowIndexes = mobileRows
         ? {
             for (var i = 0; i < rows.length; i++)
@@ -279,20 +309,54 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
                     : (key) => rowIndexes[(key as ValueKey<String>).value],
                 itemBuilder: (context, index) {
                   final folder = rows[index];
+                  final child = folder.parentId != null;
+                  final count = widget.countFor?.call(folder.name);
+                  final key = ValueKey('favorite-folder-${folder.id}');
+                  final selected = widget.selected.contains(folder.name);
+                  if (mobileRows) {
+                    final visibleChildren = _visibleChildren(folder);
+                    final selectedChild = visibleChildren
+                        .where((item) => widget.selected.contains(item.name))
+                        .firstOrNull;
+                    return MobileFolderSheetRow(
+                      key: key,
+                      label: folder.name,
+                      icon: Icons.folder_outlined,
+                      subtitle: child && _query.isNotEmpty
+                          ? tree.label(folder.name)
+                          : selectedChild != null
+                          ? selectedChild.name
+                          : visibleChildren.isEmpty
+                          ? null
+                          : '@a subfolders'.tlParams({
+                              'a': visibleChildren.length,
+                            }),
+                      count: count,
+                      selected: selected,
+                      nested: child,
+                      subfolders: [
+                        if (widget.enabled)
+                          for (final item in visibleChildren)
+                            prism.PopupMenuItem(
+                              label: item.name,
+                              checked: widget.selected.contains(item.name),
+                              onPressed: _mobileSelection(item),
+                            ),
+                      ],
+                      onPressed: _mobileSelection(folder),
+                    );
+                  }
                   final children = tree.childrenOf(folder.id);
                   final expanded =
                       _query.isNotEmpty || _expanded.contains(folder.id);
                   final enabled =
                       widget.enabled && !widget.disabled.contains(folder.name);
-                  final child = folder.parentId != null;
-                  final count = widget.countFor?.call(folder.name);
                   final detail = child && _query.isNotEmpty
                       ? tree.label(folder.name)
                       : children.isEmpty
                       ? null
                       : '@a subfolders'.tlParams({'a': children.length});
-                  final key = ValueKey('favorite-folder-${folder.id}');
-                  final selected = widget.selected.contains(folder.name);
+                  final canToggle = widget.enabled && _query.isEmpty;
                   void toggle() {
                     setState(() {
                       if (!_expanded.add(folder.id)) {
@@ -301,27 +365,6 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
                     });
                   }
 
-                  final canToggle = widget.enabled && _query.isEmpty;
-                  if (mobileRows) {
-                    return MobileFolderSheetRow(
-                      key: key,
-                      label: folder.name,
-                      icon: expanded && children.isNotEmpty
-                          ? Icons.folder_open
-                          : Icons.folder_outlined,
-                      subtitle: detail,
-                      count: count,
-                      selected: selected,
-                      nested: child,
-                      expanded: children.isEmpty ? null : expanded,
-                      onToggle: children.isNotEmpty && canToggle
-                          ? toggle
-                          : null,
-                      onPressed: enabled
-                          ? () => widget.onSelected(folder.name)
-                          : null,
-                    );
-                  }
                   final title = Text(folder.name, softWrap: true);
                   final subtitle = detail == null ? null : Text(detail);
                   final trailing =

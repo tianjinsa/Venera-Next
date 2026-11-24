@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prism_ui/list_row.dart' as prism show ListRow;
+import 'package:prism_ui/popup.dart' as prism show PopupMenu, PopupMenuItem;
 import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:venera_next/components/mobile_side_sheet.dart';
 import 'package:venera_next/components/mobile_ui.dart';
@@ -112,9 +113,13 @@ void main() {
                               count: 123456,
                               nested: true,
                               selected: true,
-                              expanded: false,
+                              subfolders: [
+                                prism.PopupMenuItem(
+                                  label: 'Choose nested',
+                                  onPressed: () => toggles++,
+                                ),
+                              ],
                               subtitle: 'Nested in another long label',
-                              onToggle: () => toggles++,
                               onPressed: () => selections++,
                             ),
                           ],
@@ -133,7 +138,9 @@ void main() {
         final title = find.text(name);
         final icon = find.byKey(const ValueKey('mobile-folder-sheet-icon'));
         final count = find.byKey(const ValueKey('mobile-folder-sheet-count'));
-        final toggle = find.byKey(const ValueKey('mobile-folder-sheet-expand'));
+        final toggle = find.byKey(
+          const ValueKey('mobile-folder-sheet-subfolders'),
+        );
         final select = find.byKey(const ValueKey('mobile-folder-sheet-select'));
         final mark = find.byKey(const ValueKey('mobile-folder-sheet-selected'));
         final outline = find.byKey(
@@ -150,12 +157,15 @@ void main() {
         expect(inner.width, maximum - 6);
         expect(inner.left, narrow.left);
         expect(stableTitle.left, greaterThan(tester.getRect(icon).right));
-        expect(stableTitle.width, greaterThan(65));
+        expect(stableTitle.width, greaterThan(35));
         expect(stableTitle.right, lessThan(narrow.right));
         expect(stableCount.left, greaterThanOrEqualTo(narrow.right));
         expect(mark, findsOneWidget);
         expect(narrow.contains(tester.getCenter(mark)), isTrue);
         expect(toggle.hitTestable(), findsOneWidget);
+        final anchor = tester.getRect(toggle);
+        expect(anchor.center.dy, tester.getCenter(select).dy);
+        expect(stableTitle.right, lessThan(anchor.left));
         expect(
           tester.getSemantics(select).getSemanticsData().label,
           allOf(contains(name), contains('123456 comics')),
@@ -200,6 +210,10 @@ void main() {
         await checkRoundedCorner();
         await tester.tap(toggle);
         await tester.pumpAndSettle();
+        expect(find.byType(prism.PopupMenu), findsOneWidget);
+        expect((toggles, selections), (0, 0));
+        await tester.tap(find.text('Choose nested'));
+        await tester.pumpAndSettle();
         expect((toggles, selections), (1, 0));
         await tester.tap(title);
         await tester.pumpAndSettle();
@@ -223,18 +237,17 @@ void main() {
     );
 
     testWidgets(
-      'sheet cells use Prism layout, separate selection and expansion: $direction',
+      'sheet cells use Prism layout and an independent subfolder menu: $direction',
       (tester) async {
         tester.view
           ..devicePixelRatio = 1
           ..physicalSize = const Size(320, 680);
         addTearDown(tester.view.reset);
 
-        bool expanded = false;
         String? selected;
+        var pickedChild = 0;
         int closed = 0;
         const parent = ValueKey('parent');
-        const child = ValueKey('child');
         const trailing = ValueKey('trailing');
         const parentName = 'A long parent folder name ending in / 正常';
         final parentByKey = find.byKey(parent);
@@ -242,7 +255,7 @@ void main() {
             find.descendant(of: host, matching: find.byKey(key));
         final expand = inside(
           parentByKey,
-          const ValueKey('mobile-folder-sheet-expand'),
+          const ValueKey('mobile-folder-sheet-subfolders'),
         );
         final select = inside(
           parentByKey,
@@ -286,17 +299,18 @@ void main() {
                         icon: Icons.folder_outlined,
                         count: 123456,
                         selected: selected == parentName,
-                        expanded: expanded,
-                        onToggle: () => update(() => expanded = !expanded),
+                        subfolders: [
+                          const prism.PopupMenuItem(
+                            label: 'Disabled nested folder',
+                          ),
+                          prism.PopupMenuItem(
+                            label: 'Checked nested folder',
+                            checked: true,
+                            onPressed: () => pickedChild++,
+                          ),
+                        ],
                         onPressed: () => update(() => selected = parentName),
                       ),
-                      if (expanded)
-                        const MobileFolderSheetRow(
-                          key: child,
-                          label: 'Disabled nested folder',
-                          nested: true,
-                          icon: Icons.folder_outlined,
-                        ),
                       MobileFolderSheetRow(
                         key: trailing,
                         label: 'Network library',
@@ -323,14 +337,21 @@ void main() {
           matching: find.byType(MobileContentSurface),
         );
         expect(tester.widget<MobileContentSurface>(surface).selected, isFalse);
-        expect(find.byKey(child), findsNothing);
+        final menu = find.byType(prism.PopupMenu);
+        final disabled = find.text('Disabled nested folder');
+        final checked = find.text('Checked nested folder');
+        expect(disabled, findsNothing);
         await tester.tap(expand);
         await tester.pumpAndSettle();
         expect(selected, isNull);
-        expect(find.byKey(child), findsOneWidget);
-        final parentLabel = tester.getRect(find.text(parentName));
-        final childLabel = tester.getRect(find.text('Disabled nested folder'));
-        expect(childLabel.left, greaterThan(parentLabel.left));
+        expect(menu, findsOneWidget);
+        final items = tester.widget<prism.PopupMenu>(menu).items;
+        expect(items.map((item) => item.label), [
+          'Disabled nested folder',
+          'Checked nested folder',
+        ]);
+        expect(items.first.onPressed, isNull);
+        expect(items.last.checked, isTrue);
         expect(
           inside(
             find.byKey(trailing),
@@ -338,24 +359,37 @@ void main() {
           ),
           findsNothing,
         );
-        await tester.tap(find.text('Disabled nested folder'));
+        expect(
+          inside(
+            find.byKey(trailing),
+            const ValueKey('mobile-folder-sheet-subfolders'),
+          ),
+          findsNothing,
+        );
+        await tester.tap(disabled);
         await tester.pumpAndSettle();
+        expect(menu, findsOneWidget);
         expect(selected, isNull);
-        // The actionable node combines the name and count; truncation
-        // is visual only, it must retain the entire original folder name.
+        expect(pickedChild, 0);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(menu, findsNothing);
+        expect(disabled, findsNothing);
         expect(
           tester.getSemantics(select).getSemanticsData().label,
           contains(parentName),
         );
-        await tester.tap(select);
+        await tester.tap(find.text(parentName));
         await tester.pumpAndSettle();
         expect(mark, findsOneWidget);
         expect(tester.widget<MobileContentSurface>(surface).selected, isTrue);
         expect(selected, parentName);
-        expect(find.byKey(child), findsOneWidget);
         await tester.tap(expand);
         await tester.pumpAndSettle();
-        expect(find.byKey(child), findsNothing);
+        await tester.tap(checked);
+        await tester.pumpAndSettle();
+        expect(menu, findsNothing);
+        expect(pickedChild, 1);
         expect(selected, parentName);
         await tester.tap(
           find.byKey(const ValueKey('mobile-folder-sheet-close')),

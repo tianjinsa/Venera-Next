@@ -6,6 +6,7 @@ import 'package:prism_ui/button.dart' as prism show TonalButtonTheme;
 import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/liquid_glass.dart' as prism show LiquidGlassScope;
 import 'package:prism_ui/list_row.dart' as prism show ListRow;
+import 'package:prism_ui/popup.dart' as prism show PopupMenuItem;
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:venera_next/components/mobile_side_sheet.dart';
@@ -114,8 +115,8 @@ class MobileFolderSheetSection extends StatelessWidget {
   }
 }
 
-/// A matte, lazy folder row. Selection and expansion deliberately use
-/// separate sibling controls: activating one never triggers the other.
+/// A matte, lazy folder row. The fixed inner layout holds the select surface
+/// and the independent subfolder popup anchor, even at the narrow detent.
 class MobileFolderSheetRow extends StatelessWidget {
   const MobileFolderSheetRow({
     super.key,
@@ -126,8 +127,7 @@ class MobileFolderSheetRow extends StatelessWidget {
     this.countHint,
     this.selected = false,
     this.nested = false,
-    this.expanded,
-    this.onToggle,
+    this.subfolders = const [],
     this.onPressed,
   });
 
@@ -139,13 +139,12 @@ class MobileFolderSheetRow extends StatelessWidget {
   final bool selected;
   final bool nested;
 
-  /// Null for leaf rows. A true/false value with a null [onToggle] is a
-  /// visible but disabled expansion control (for example, during search).
-  final bool? expanded;
-  final VoidCallback? onToggle;
+  /// Empty for leaf rows. Disabled submenu items have a null callback.
+  final List<prism.PopupMenuItem> subfolders;
   final VoidCallback? onPressed;
 
   static const _margin = EdgeInsets.symmetric(horizontal: 3, vertical: 3);
+  static const _accessorySize = 44.0;
 
   @override
   Widget build(BuildContext context) {
@@ -175,23 +174,32 @@ class MobileFolderSheetRow extends StatelessWidget {
         );
         final countRoom = count == null ? 0.0 : math.min(72.0, fixedWidth * .3);
         final leftWidth = math.min(collapsedWidth, fixedWidth - countRoom);
-        final action = expanded == null
+        final action = subfolders.isEmpty
             ? null
             : Semantics(
                 label: label,
-                expanded: expanded,
-                child: MobileToolbarButton(
-                  key: const ValueKey('mobile-folder-sheet-expand'),
-                  label: (expanded! ? 'Collapse folder' : 'Expand folder').tl,
-                  icon: prism.GlyphIcon(
-                    expanded!
-                        ? prism.Glyphs.chevronDown
-                        : prism.Glyphs.chevronForward,
-                    size: 16,
+                child: MobilePopupAnchor(
+                  items: subfolders,
+                  maxVisibleItems: 7,
+                  targetBuilder: (open) => SizedBox.square(
+                    dimension: _accessorySize,
+                    child: Center(
+                      child: MobileToolbarButton(
+                        key: const ValueKey('mobile-folder-sheet-subfolders'),
+                        label: '@a subfolders'.tlParams({
+                          'a': subfolders.length,
+                        }),
+                        icon: const prism.GlyphIcon(
+                          prism.Glyphs.chevronDown,
+                          size: 16,
+                        ),
+                        onPressed: open,
+                      ),
+                    ),
                   ),
-                  onPressed: onToggle,
                 ),
               );
+        final spokenLabel = [label, ?subtitle, ?countLabel].join(', ');
 
         // One rounded edge clips the matte fill/rim, its Material ink,
         // and all hit targets. Only the outer surface follows the drawer.
@@ -205,15 +213,14 @@ class MobileFolderSheetRow extends StatelessWidget {
             fit: OverflowBoxFit.deferToChild,
             minWidth: fixedWidth,
             maxWidth: fixedWidth,
-            child: Column(
+            child: Stack(
               key: const ValueKey('mobile-folder-sheet-fixed-content'),
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Semantics(
                   selected: selected,
                   enabled: active,
                   button: true,
-                  label: countLabel == null ? label : '$label, $countLabel',
+                  label: spokenLabel,
                   child: ClickInkWell(
                     key: const ValueKey('mobile-folder-sheet-select'),
                     onTap: onPressed,
@@ -229,7 +236,8 @@ class MobileFolderSheetRow extends StatelessWidget {
                             child: Padding(
                               padding: EdgeInsets.only(
                                 left: nested ? 12 : 6,
-                                right: 3,
+                                right:
+                                    3 + (action == null ? 0 : _accessorySize),
                               ),
                               child: Row(
                                 textDirection: TextDirection.ltr,
@@ -335,18 +343,12 @@ class MobileFolderSheetRow extends StatelessWidget {
                   ),
                 ),
                 if (action != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SizedBox(
-                      width: leftWidth,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 5),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: action,
-                        ),
-                      ),
-                    ),
+                  Positioned(
+                    left: math.max(0.0, leftWidth - _accessorySize - 1),
+                    top: 0,
+                    bottom: 0,
+                    width: _accessorySize,
+                    child: Center(child: action),
                   ),
               ],
             ),
