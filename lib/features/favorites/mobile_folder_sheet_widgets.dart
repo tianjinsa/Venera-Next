@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:prism_ui/button.dart' as prism show TonalButtonTheme;
 import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/liquid_glass.dart' as prism show LiquidGlassScope;
@@ -17,46 +18,42 @@ class MobileFolderSheetHeader extends StatelessWidget {
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) {
-    final content = LayoutBuilder(
-      builder: (context, box) {
-        final compact = box.maxWidth < 155;
-        return Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(compact ? 6 : 14, 6, 2, 6),
-          child: Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  namesRoute: true,
-                  header: true,
-                  child: Text(
-                    'Folders'.tl,
-                    style: compact
-                        ? Theme.of(context).textTheme.titleSmall
-                        : Theme.of(context).textTheme.titleLarge,
-                    maxLines: compact ? 2 : 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final compact = box.maxWidth < 155;
+      return Padding(
+        padding: EdgeInsetsDirectional.fromSTEB(compact ? 6 : 14, 6, 2, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                namesRoute: true,
+                header: true,
+                child: Text(
+                  'Folders'.tl,
+                  style: compact
+                      ? Theme.of(context).textTheme.titleSmall
+                      : Theme.of(context).textTheme.titleLarge,
+                  maxLines: compact ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 6),
-              prism.TonalButtonTheme(
-                glass: prism.LiquidGlassScope.of(context),
-                child: MobileToolbarButton(
-                  key: const ValueKey('mobile-folder-sheet-close'),
-                  label: MaterialLocalizations.of(context).closeButtonTooltip,
-                  icon: const prism.GlyphIcon(prism.Glyphs.close, size: 20),
-                  onPressed: onClose,
-                ),
+            ),
+            const SizedBox(width: 6),
+            prism.TonalButtonTheme(
+              glass: prism.LiquidGlassScope.of(context),
+              child: MobileToolbarButton(
+                key: const ValueKey('mobile-folder-sheet-close'),
+                label: MaterialLocalizations.of(context).closeButtonTooltip,
+                icon: const prism.GlyphIcon(prism.Glyphs.close, size: 20),
+                onPressed: onClose,
               ),
-            ],
-          ),
-        );
-      },
-    );
-    return MobileSideSheetLayout.maybeOf(context)?.keepVisible(content) ??
-        content;
-  }
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 class MobileFolderSheetSection extends StatelessWidget {
@@ -74,7 +71,7 @@ class MobileFolderSheetSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final content = LayoutBuilder(
+    return LayoutBuilder(
       builder: (context, box) {
         final compact = box.maxWidth < 155;
         final inset = compact ? 4.0 : 10.0;
@@ -110,8 +107,6 @@ class MobileFolderSheetSection extends StatelessWidget {
         );
       },
     );
-    return MobileSideSheetLayout.maybeOf(context)?.keepVisible(content) ??
-        content;
   }
 }
 
@@ -146,8 +141,12 @@ class MobileFolderSheetRow extends StatelessWidget {
   final VoidCallback? onToggle;
   final VoidCallback? onPressed;
 
+  static const _margin = EdgeInsets.symmetric(horizontal: 3, vertical: 3);
+
   @override
   Widget build(BuildContext context) {
+    final style = MobileContentStyle.row;
+    final shape = MobileContentSurface.inkShapeOf(context, style);
     final scheme = Theme.of(context).colorScheme;
     final active = onPressed != null;
     final accent = !active
@@ -156,14 +155,23 @@ class MobileFolderSheetRow extends StatelessWidget {
         ? scheme.primary
         : scheme.onSurfaceVariant;
     final count = this.count;
+    final countLabel = count == null
+        ? null
+        : '@a comics'.tlParams({'a': count});
     final sideSheet = MobileSideSheetLayout.maybeOf(context);
     return LayoutBuilder(
       builder: (context, box) {
-        // In the card's own coordinates this lane never changes width. The
-        // narrow detent clips the start of the card, leaving this lane intact.
-        final lane = sideSheet?.controlsWidth ?? box.maxWidth * .56;
-        final titleWidth = lane.clamp(0.0, box.maxWidth);
-        final toggle = expanded == null
+        final fixedWidth = math.max(
+          0.0,
+          (sideSheet?.maxContentWidth ?? box.maxWidth) - _margin.horizontal,
+        );
+        final collapsedWidth = math.max(
+          0.0,
+          (sideSheet?.minContentWidth ?? box.maxWidth) - _margin.horizontal,
+        );
+        final countRoom = count == null ? 0.0 : math.min(72.0, fixedWidth * .3);
+        final leftWidth = math.min(collapsedWidth, fixedWidth - countRoom);
+        final action = expanded == null
             ? null
             : Semantics(
                 label: label,
@@ -180,126 +188,172 @@ class MobileFolderSheetRow extends StatelessWidget {
                   onPressed: onToggle,
                 ),
               );
-        return MobileContentSurface(
-          style: MobileContentStyle.row,
+
+        // One rounded edge clips the matte fill/rim, its Material ink,
+        // and all hit targets. Only the outer surface follows the drawer.
+        // The contents keep the same constraints and physical-left origin.
+        final surface = MobileContentSurface(
+          style: style,
           selected: selected,
-          margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Semantics(
-                selected: selected,
-                enabled: active,
-                button: true,
-                child: ClickInkWell(
-                  key: const ValueKey('mobile-folder-sheet-select'),
-                  onTap: onPressed,
-                  customBorder: MobileContentSurface.inkShapeOf(
-                    context,
-                    MobileContentStyle.row,
-                  ),
-                  child: Row(
-                    // Force only the physical order of these slots. Text,
-                    // icons and focus controls still inherit the locale.
-                    textDirection: TextDirection.ltr,
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 5),
-                          child: Row(
-                            textDirection: TextDirection.ltr,
-                            children: [
-                              ExcludeSemantics(
-                                child: Icon(icon, size: 18, color: accent),
+          margin: EdgeInsets.zero,
+          child: OverflowBox(
+            alignment: Alignment.topLeft,
+            fit: OverflowBoxFit.deferToChild,
+            minWidth: fixedWidth,
+            maxWidth: fixedWidth,
+            child: Column(
+              key: const ValueKey('mobile-folder-sheet-fixed-content'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Semantics(
+                  selected: selected,
+                  enabled: active,
+                  button: true,
+                  label: countLabel == null ? label : '$label, $countLabel',
+                  child: ClickInkWell(
+                    key: const ValueKey('mobile-folder-sheet-select'),
+                    onTap: onPressed,
+                    customBorder: shape,
+                    child: ExcludeSemantics(
+                      child: Row(
+                        // Only slot geometry is physical; text and icons keep
+                        // the selected locale's directionality.
+                        textDirection: TextDirection.ltr,
+                        children: [
+                          SizedBox(
+                            width: leftWidth,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: nested ? 12 : 6,
+                                right: 3,
                               ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  subtitle ?? '',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall,
+                              child: Row(
+                                textDirection: TextDirection.ltr,
+                                children: [
+                                  SizedBox(
+                                    width: 23,
+                                    height: 27,
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Positioned(
+                                          left: 0,
+                                          top: 4,
+                                          child: Icon(
+                                            icon,
+                                            key: const ValueKey(
+                                              'mobile-folder-sheet-icon',
+                                            ),
+                                            size: 18,
+                                            color: accent,
+                                          ),
+                                        ),
+                                        if (selected)
+                                          Positioned(
+                                            right: 0,
+                                            bottom: 0,
+                                            child: prism.GlyphIcon(
+                                              prism.Glyphs.check,
+                                              key: const ValueKey(
+                                                'mobile-folder-sheet-selected',
+                                              ),
+                                              size: 11,
+                                              color: accent,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: prism.ListRow(
+                                      minHeight: 50,
+                                      padding: EdgeInsets.zero,
+                                      minVerticalPadding: 6,
+                                      title: Text(
+                                        label,
+                                        maxLines: 4,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: !active
+                                            ? TextStyle(color: accent)
+                                            : selected
+                                            ? TextStyle(
+                                                color: accent,
+                                                fontWeight: FontWeight.w600,
+                                              )
+                                            : null,
+                                      ),
+                                      subtitle: subtitle == null
+                                          ? null
+                                          : Text(
+                                              subtitle!,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (count != null)
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 4,
+                                  right: 9,
                                 ),
-                              ),
-                              if (count != null)
-                                Flexible(
-                                  fit: FlexFit.loose,
+                                child: Align(
+                                  alignment: Alignment.centerRight,
                                   child: Tooltip(
                                     message:
                                         countHint ??
                                         'Comics directly in this folder'.tl,
                                     child: FittedBox(
-                                      fit: BoxFit.scaleDown,
                                       alignment: Alignment.centerRight,
+                                      fit: BoxFit.scaleDown,
                                       child: Text(
                                         '$count',
                                         key: const ValueKey(
                                           'mobile-folder-sheet-count',
                                         ),
-                                        semanticsLabel: '@a comics'.tlParams({
-                                          'a': count,
-                                        }),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
                                       ),
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: (titleWidth - 3).clamp(
-                          0.0,
-                          math.max(0.0, box.maxWidth - 6),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            left: nested ? 9 : 2,
-                            right: 2,
-                          ),
-                          child: prism.ListRow(
-                            minHeight: 50,
-                            padding: const EdgeInsets.symmetric(horizontal: 3),
-                            minVerticalPadding: 6,
-                            title: Text(
-                              label,
-                              semanticsLabel: label,
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                              style: !active
-                                  ? TextStyle(color: accent)
-                                  : selected
-                                  ? TextStyle(
-                                      color: accent,
-                                      fontWeight: FontWeight.w600,
-                                    )
-                                  : null,
+                              ),
                             ),
-                            subtitle: selected
-                                ? ExcludeSemantics(
-                                    child: prism.GlyphIcon(
-                                      prism.Glyphs.check,
-                                      key: const ValueKey(
-                                        'mobile-folder-sheet-selected',
-                                      ),
-                                      size: 16,
-                                      color: accent,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              if (toggle != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Align(alignment: Alignment.centerRight, child: toggle),
-                ),
-            ],
+                if (action != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: leftWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 5),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: action,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+        return Padding(
+          padding: _margin,
+          child: ClipPath(
+            key: const ValueKey('mobile-folder-sheet-row-clip'),
+            clipper: shape == null ? null : ShapeBorderClipper(shape: shape),
+            child: surface,
           ),
         );
       },

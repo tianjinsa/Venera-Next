@@ -260,7 +260,6 @@ void main() {
         fixture.host(phone: true, page: const FavoritesPage()),
       );
       await _settle(tester);
-      final path = find.byKey(const ValueKey('favorite-path-current'));
       final chevron = find.byKey(const ValueKey('favorite-path-open-sheet'));
       final local = find.byType(LocalFavoritesPage);
       final panel = find.byKey(const ValueKey('mobile-side-sheet-surface'));
@@ -347,8 +346,10 @@ void main() {
       expect(tester.state(local), same(original));
       expect(_tile('seed-0'), findsOneWidget);
 
-      await tester.tap(path);
+      await tester.dragFrom(const Offset(48, 520), const Offset(148, 0));
       await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+      expect(tester.getSize(panel).width, (390 - 16) * .50);
       final search = find.descendant(
         of: panel,
         matching: find.byType(EditableText),
@@ -375,7 +376,7 @@ void main() {
   );
 
   testWidgets(
-    '320px actual favorite sheet reveals a fixed card and keeps browser, rows and IME',
+    '320px actual favorite sheet resizes its rounded rows and keeps the fixed inner layout and IME',
     (tester) async {
       tester.view
         ..devicePixelRatio = 1
@@ -422,10 +423,9 @@ void main() {
           find.descendant(of: panel, matching: target);
       final narrow = tester.getRect(viewport);
       expect(narrow.left, 12);
-      expect(narrow.width, closeTo((320 - 12 - 10) * .4, .01));
+      expect(narrow.width, closeTo((320 - 12 - 10) * .50, .01));
       expect(narrow.height, lessThan(720 - 22 - 18));
-      expect(tester.getSize(panel), const Size(298, 680));
-      expect(tester.getRect(panel).left, lessThan(0));
+      expect(tester.getRect(panel), narrow);
       expect(
         inside(find.byKey(const ValueKey('mobile-folder-sheet-close')))
             .hitTestable(),
@@ -442,42 +442,51 @@ void main() {
       position.jumpTo(0);
       await tester.pumpAndSettle();
       final editor = inside(find.byType(EditableText));
+      final field = inside(
+        find.byKey(const ValueKey('favorite-folder-search')),
+      );
+      final close = inside(
+        find.byKey(const ValueKey('mobile-folder-sheet-close')),
+      );
       await tester.enterText(editor, 'from the search');
       tester.view.viewInsets = const FakeViewPadding(bottom: 210);
       await tester.pumpAndSettle();
       final oldEditor = tester.widget<EditableText>(editor);
       final withIme = tester.getRect(viewport);
-      final unchangedCard = tester.getSize(panel);
-      final unchangedScroll = tester.getSize(view);
-      final unchangedEditor = tester.getSize(editor);
+      final narrowScroll = tester.getSize(view);
+      final narrowField = tester.getSize(field);
+      final narrowClose = tester.getCenter(close);
       final label = inside(find.text(nested));
       await tester.ensureVisible(label);
       await tester.pumpAndSettle();
       final unchangedLabel = tester.getSize(label);
+      final labelLeft = tester.getTopLeft(label).dx;
       expect(withIme.height, lessThan(narrow.height));
       final fingers = await tester.startGesture(tester.getCenter(grip));
       await fingers.moveBy(const Offset(28, 0));
-      await fingers.moveBy(const Offset(85, 0));
+      await fingers.moveBy(const Offset(42, 0));
       await tester.pump(const Duration(milliseconds: 70));
       final middle = tester.getRect(viewport);
       expect(middle.width, greaterThan(withIme.width));
       expect(middle.height, greaterThan(withIme.height));
-      expect(tester.getSize(panel), unchangedCard);
-      expect(tester.getSize(view), unchangedScroll);
-      expect(tester.getSize(editor), unchangedEditor);
+      expect(tester.getRect(panel), middle);
+      expect(tester.getSize(view).width, greaterThan(narrowScroll.width));
+      expect(tester.getSize(field).width, greaterThan(narrowField.width));
+      expect(tester.getCenter(close).dx, greaterThan(narrowClose.dx));
       expect(tester.getSize(label), unchangedLabel);
+      expect(tester.getTopLeft(label).dx, labelLeft);
       await fingers.moveBy(const Offset(125, 0));
       await fingers.up();
       await tester.pumpAndSettle();
       final wide = tester.getRect(viewport);
       expect(wide.left, narrow.left);
-      expect(wide.right, 310);
+      expect(wide.width, closeTo(298 * .75, .01));
       expect(wide.top, 22);
       expect(wide.bottom, 720 - 210 - 18);
-      expect(tester.getSize(panel), unchangedCard);
-      expect(tester.getSize(view), unchangedScroll);
-      expect(tester.getSize(editor), unchangedEditor);
+      expect(tester.getRect(panel), wide);
+      expect(tester.getSize(field).width, greaterThan(narrowField.width));
       expect(tester.getSize(label), unchangedLabel);
+      expect(tester.getTopLeft(label).dx, labelLeft);
       expect(tester.state(browser), same(owner));
       expect(tester.state<ScrollableState>(view).position, same(position));
       final newEditor = tester.widget<EditableText>(editor);

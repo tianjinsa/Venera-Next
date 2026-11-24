@@ -8,7 +8,7 @@ void main() {
   const size = Size(390, 750);
   final panel = find.byKey(const ValueKey('mobile-side-sheet-viewport'));
   final card = find.byKey(const ValueKey('mobile-side-sheet-surface'));
-  final hidden = find.byKey(const ValueKey('left-only-action'));
+  final hidden = find.byKey(const ValueKey('wide-only-action'));
   final grabber = find.byKey(const ValueKey('mobile-side-sheet-handle'));
 
   for (final direction in TextDirection.values) {
@@ -73,8 +73,9 @@ void main() {
                                     children: [
                                       Align(
                                         alignment: Alignment.topRight,
-                                        child: layout.keepVisible(
-                                          TextButton(
+                                        child: SizedBox(
+                                          width: 132,
+                                          child: TextButton(
                                             autofocus: true,
                                             focusNode: sheetFocus,
                                             onPressed: () =>
@@ -89,15 +90,13 @@ void main() {
                                         ),
                                       ),
                                       Positioned(
-                                        // Only 2dp to the left of the exposed
-                                        // safe-area edge on the narrow detent.
-                                        right: layout.controlsWidth + 2,
+                                        left: layout.minContentWidth + 4,
                                         top: 100,
                                         width: 20,
                                         height: 44,
                                         child: TextButton(
                                           key: const ValueKey(
-                                            'left-only-action',
+                                            'wide-only-action',
                                           ),
                                           onPressed: () => hiddenTaps++,
                                           child: const SizedBox.shrink(),
@@ -136,14 +135,12 @@ void main() {
       expect(landed.left, 13);
       const safeHeight = 750.0 - 90 - 24 - 25;
       const safeWidth = 390.0 - 13 - 11;
-      expect(landed.width, closeTo(safeWidth * .4, .01));
+      expect(landed.width, closeTo(safeWidth * .50, .01));
       expect(landed.height, closeTo(safeHeight * .86, .01));
       expect(landed.top, greaterThan(24));
       expect(landed.bottom, lessThan(size.height - 90 - 25));
       final compactCard = tester.getRect(card);
-      expect(compactCard.size, const Size(safeWidth, safeHeight));
-      expect(compactCard.left, lessThan(0));
-      expect(compactCard.right, closeTo(landed.right, .01));
+      expect(compactCard, landed);
       expect(hidden.hitTestable(), findsNothing);
       expect(
         tester.widget<Material>(card).shape,
@@ -155,31 +152,39 @@ void main() {
       final grow = await tester.startGesture(tester.getCenter(grabber));
       await grow.moveBy(const Offset(30, 0)); // Recognizer's touch slop.
       await tester.pump(const Duration(milliseconds: 30));
-      await grow.moveBy(const Offset(72, 0));
+      await grow.moveBy(const Offset(52, 0));
       await tester.pump(const Duration(milliseconds: 70));
       final held = tester.getRect(panel);
       expect(held.left, landed.left);
       expect(held.width, greaterThan(landed.width + 40));
-      expect(held.width, lessThan(safeWidth));
+      expect(held.width, lessThan(safeWidth * .75));
       expect(held.height, greaterThan(landed.height));
       expect(held.height, lessThan(safeHeight));
       expect(held.top, lessThan(landed.top));
       expect(held.bottom, greaterThan(landed.bottom));
       final heldCard = tester.getRect(card);
-      expect(heldCard.size, compactCard.size);
-      expect(heldCard.left, greaterThan(compactCard.left));
-      expect(heldCard.right, closeTo(held.right, .01));
+      expect(heldCard, held);
       await grow.moveBy(const Offset(160, 0));
       await tester.pump();
       await grow.up();
       await tester.pumpAndSettle();
       final wide = tester.getRect(panel);
       expect(wide.left, landed.left);
-      expect(wide.right, size.width - 11);
+      expect(wide.width, closeTo(safeWidth * .75, .01));
       expect(wide.top, 24);
       expect(wide.bottom, size.height - 90 - 25);
       expect(tester.getRect(card), wide);
-      expect(layouts, {const Size(safeWidth - 22, safeHeight)});
+      for (final frame in [landed, held, wide]) {
+        expect(
+          layouts.any(
+            (size) =>
+                (size.width - (frame.width - 22)).abs() < .01 &&
+                (size.height - frame.height).abs() < .01,
+          ),
+          isTrue,
+          reason: 'visible body was laid out for $frame',
+        );
+      }
       expect(sheetFocus.hasPrimaryFocus, isTrue);
       expect(hidden.hitTestable(), findsOneWidget);
       await tester.tap(hidden);
@@ -187,7 +192,7 @@ void main() {
 
       final shrink = await tester.startGesture(tester.getCenter(grabber));
       await shrink.moveBy(const Offset(-30, 0));
-      await shrink.moveBy(const Offset(-125, 0));
+      await shrink.moveBy(const Offset(-45, 0));
       await tester.pump();
       expect(tester.getRect(panel).width, lessThan(wide.width));
       expect(tester.getRect(panel).left, landed.left);
@@ -217,7 +222,7 @@ void main() {
       await finger.moveBy(const Offset(-36, 0));
       await finger.moveBy(const Offset(-38, 0));
       await tester.pump();
-      expect(tester.getRect(panel).width, lessThan(landed.width));
+      expect(tester.getRect(panel).width, landed.width);
       expect(tester.getRect(card).left, lessThan(compactCard.left));
       await finger.cancel();
       await tester.pumpAndSettle();
@@ -259,9 +264,10 @@ void main() {
               onPressed: () => Navigator.of(context).push(
                 MobileSideSheetRoute<void>(
                   context: context,
-                  builder: (context) => MobileSideSheetLayout.maybeOf(
-                    context,
-                  )!.keepVisible(const CloseButton()),
+                  builder: (context) => const Align(
+                    alignment: Alignment.topRight,
+                    child: CloseButton(),
+                  ),
                 ),
               ),
               child: const Text('Open'),
@@ -275,18 +281,120 @@ void main() {
     await tester.pump();
     expect(tester.getTopLeft(panel).dx, 8);
     expect(tester.getTopLeft(panel).dy, greaterThan(8));
-    expect(tester.getSize(panel).width, closeTo((size.width - 16) * .4, .01));
+    expect(tester.getSize(panel).width, closeTo((size.width - 16) * .50, .01));
     final narrowCard = tester.getSize(card);
-    expect(narrowCard.width, size.width - 16);
+    expect(narrowCard.width, tester.getSize(panel).width);
     expect(find.byType(CloseButton).hitTestable(), findsOneWidget);
     await tester.tap(grabber);
     await tester.pump();
     expect(tester.getTopLeft(panel), const Offset(8, 8));
-    expect(tester.getSize(panel).width, size.width - 16);
-    expect(tester.getSize(card), narrowCard);
+    expect(tester.getSize(panel).width, (size.width - 16) * .75);
+    expect(tester.getSize(card), tester.getSize(panel));
     await tester.tap(find.byType(CloseButton));
     await tester.pump();
     await tester.pump();
     expect(panel, findsNothing);
   });
+
+  for (final direction in TextDirection.values) {
+    testWidgets(
+      'swipe opens the closed panel only from the interior physical left ($direction)',
+      (tester) async {
+        tester.view
+          ..devicePixelRatio = 1
+          ..physicalSize = size;
+        addTearDown(tester.view.reset);
+        final scroll = ScrollController();
+        addTearDown(scroll.dispose);
+        var opens = 0, taps = 0;
+        var allowed = true;
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(systemGestureInsets: const EdgeInsets.only(left: 36)),
+              child: MobileUiTheme(
+                glass: 'off',
+                child: Directionality(textDirection: direction, child: child!),
+              ),
+            ),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) {
+                  void open() {
+                    opens++;
+                    Navigator.of(context).push(
+                      MobileSideSheetRoute<void>(
+                        context: context,
+                        builder: (_) => const Text('Folder sheet'),
+                      ),
+                    );
+                  }
+
+                  return MobileSideSheetSwipe(
+                    enabled: () => allowed,
+                    onOpen: open,
+                    child: ListView.builder(
+                      controller: scroll,
+                      itemExtent: 64,
+                      itemCount: 25,
+                      itemBuilder: (_, index) => index == 0
+                          ? TextButton(
+                              onPressed: open,
+                              child: const Text('Current folder'),
+                            )
+                          : InkWell(
+                              onTap: () => taps++,
+                              child: Text('Content $index'),
+                            ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tapAt(const Offset(54, 93));
+        expect(taps, 1);
+        await tester.dragFrom(const Offset(54, 290), const Offset(6, -110));
+        await tester.pumpAndSettle();
+        expect(scroll.offset, greaterThan(0));
+        for (final (start, delta) in const [
+          (Offset(30, 220), Offset(150, 0)), // OS gesture strip.
+          (Offset(180, 220), Offset(150, 0)), // Main content, not the edge.
+          (Offset(54, 220), Offset(-46, 0)), // Wrong direction.
+          (Offset(54, 220), Offset(32, 0)), // Too short.
+        ]) {
+          await tester.dragFrom(start, delta);
+          await tester.pumpAndSettle();
+          expect(opens, 0);
+        }
+        final interrupted = await tester.startGesture(const Offset(54, 220));
+        await interrupted.moveBy(const Offset(95, 0));
+        await tester.pump();
+        await interrupted.cancel();
+        expect(opens, 0);
+        allowed = false;
+        await tester.dragFrom(const Offset(54, 220), const Offset(140, 0));
+        await tester.pumpAndSettle();
+        expect(opens, 0);
+        allowed = true;
+        await tester.dragFrom(const Offset(54, 220), const Offset(170, 0));
+        await tester.pumpAndSettle();
+        expect(opens, 1);
+        expect(tester.getTopLeft(panel).dx, 8);
+        expect(tester.getSize(panel).width, (size.width - 16) * .50);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Current folder'));
+        await tester.pumpAndSettle();
+        expect(opens, 2);
+        expect(find.text('Folder sheet'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }

@@ -97,6 +97,7 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
   @override
   Widget build(BuildContext context) {
     final mobile = MobileUi.enabledOf(context);
+    final body = buildBody();
     return protectSettings(
       Column(
         children: [
@@ -132,7 +133,13 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
                         : _kLeftBarWidth,
                     right: 0,
                     bottom: 0,
-                    child: buildBody(),
+                    child: mobile
+                        ? MobileSideSheetSwipe(
+                            enabled: _canOpenFolderSelector,
+                            onOpen: showFolderSelector,
+                            child: body,
+                          )
+                        : body,
                   ),
                 ],
               ),
@@ -143,13 +150,16 @@ class _FavoritesPageState extends SettingsSaveState<FavoritesPage> {
     );
   }
 
+  bool _canOpenFolderSelector() =>
+      mounted &&
+      acceptsSettingsChanges &&
+      _folderSelector == null &&
+      NavigationAdmission.allows(context) &&
+      ModalRoute.isCurrentOf(context) != false &&
+      Navigator.maybeOf(context)?.userGestureInProgress != true;
+
   void showFolderSelector() {
-    if (!acceptsSettingsChanges ||
-        _folderSelector != null ||
-        !NavigationAdmission.allows(context) ||
-        ModalRoute.isCurrentOf(context) == false) {
-      return;
-    }
+    if (!_canOpenFolderSelector()) return;
     final origin = ModalRoute.of(context);
     final navigator = Navigator.of(context, rootNavigator: true);
     final store = FavoritesScope.capture(context);

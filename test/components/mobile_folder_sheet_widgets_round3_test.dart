@@ -1,4 +1,7 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prism_ui/list_row.dart' as prism show ListRow;
 import 'package:venera_next/components/mobile_content_surface.dart';
@@ -9,46 +12,64 @@ import 'package:venera_next/features/favorites/mobile_folder_sheet_widgets.dart'
 void main() {
   for (final direction in TextDirection.values) {
     testWidgets(
-      '40%-width folder cells prioritize name and separate toggle: $direction',
+      'ordinary row grows its rounded clip while left content stays fixed: $direction',
       (tester) async {
         tester.view
           ..devicePixelRatio = 1
           ..physicalSize = const Size(320, 680);
         addTearDown(tester.view.reset);
         const name = 'A long bilingual folder name 正常 / 收藏';
+        const sceneKey = ValueKey('folder-row-scene');
+        const minimum = 130.0; // 304dp safe width × .50 less the 22dp grip.
+        const maximum = 206.0; // 304dp safe width × .75 less the 22dp grip.
+        const background = Color(0xffff00ff);
+        final width = ValueNotifier(minimum);
+        addTearDown(width.dispose);
         var toggles = 0;
         var selections = 0;
         await tester.pumpWidget(
           MaterialApp(
             localizationsDelegates: const [MobileUiLocalizations.delegate],
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(2.6)),
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(2.6)),
               child: MobileUiTheme(
                 glass: 'off',
                 child: Directionality(textDirection: direction, child: child!),
               ),
             ),
             home: Scaffold(
-              body: MobileSideSheetLayout(
-                // 40% of a 304dp safe viewport, minus the 22dp physical rail.
-                controlsWidth: 99.6,
-                bottomReserve: 0,
-                child: ListView(
-                  children: [
-                    MobileFolderSheetRow(
-                      label: name,
-                      icon: Icons.folder_outlined,
-                      count: 123456,
-                      nested: true,
-                      selected: true,
-                      expanded: false,
-                      subtitle: 'Nested in another long label',
-                      onToggle: () => toggles++,
-                      onPressed: () => selections++,
+              body: RepaintBoundary(
+                key: sceneKey,
+                child: ColoredBox(
+                  color: background,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: MobileSideSheetLayout(
+                      minContentWidth: minimum,
+                      maxContentWidth: maximum,
+                      child: ValueListenableBuilder<double>(
+                        valueListenable: width,
+                        child: ListView(
+                          children: [
+                            MobileFolderSheetRow(
+                              label: name,
+                              icon: Icons.folder_outlined,
+                              count: 123456,
+                              nested: true,
+                              selected: true,
+                              expanded: false,
+                              subtitle: 'Nested in another long label',
+                              onToggle: () => toggles++,
+                              onPressed: () => selections++,
+                            ),
+                          ],
+                        ),
+                        builder: (_, value, child) =>
+                            SizedBox(width: value, child: child),
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -56,41 +77,93 @@ void main() {
         );
         await tester.pumpAndSettle();
         final title = find.text(name);
+        final icon = find.byKey(const ValueKey('mobile-folder-sheet-icon'));
         final count = find.byKey(const ValueKey('mobile-folder-sheet-count'));
         final toggle = find.byKey(const ValueKey('mobile-folder-sheet-expand'));
         final select = find.byKey(const ValueKey('mobile-folder-sheet-select'));
-        expect(tester.getRect(title).width, greaterThan(65));
-        expect(
-          tester.getRect(title).left,
-          greaterThan(tester.getRect(count).right),
+        final mark = find.byKey(const ValueKey('mobile-folder-sheet-selected'));
+        final outline = find.byKey(
+          const ValueKey('mobile-folder-sheet-row-clip'),
         );
-        expect(
-          tester.getRect(title).top,
-          lessThan(tester.getRect(count).center.dy),
+        final fixed = find.byKey(
+          const ValueKey('mobile-folder-sheet-fixed-content'),
         );
-        expect(
-          tester.getRect(title).bottom,
-          greaterThan(tester.getRect(count).center.dy),
-        );
-        expect(
-          tester.getRect(select).bottom,
-          lessThanOrEqualTo(tester.getRect(toggle).top),
-        );
-        expect(tester.widget<Text>(count).data, '123456');
+        final narrow = tester.getRect(outline);
+        final inner = tester.getRect(fixed);
+        final stableTitle = tester.getRect(title);
+        final stableCount = tester.getRect(count);
+        expect(narrow.width, minimum - 6);
+        expect(inner.width, maximum - 6);
+        expect(inner.left, narrow.left);
+        expect(stableTitle.left, greaterThan(tester.getRect(icon).right));
+        expect(stableTitle.width, greaterThan(65));
+        expect(stableTitle.right, lessThan(narrow.right));
+        expect(stableCount.left, greaterThanOrEqualTo(narrow.right));
+        expect(mark, findsOneWidget);
+        expect(narrow.contains(tester.getCenter(mark)), isTrue);
+        expect(toggle.hitTestable(), findsOneWidget);
         expect(
           tester.getSemantics(select).getSemanticsData().label,
-          contains(name),
+          allOf(contains(name), contains('123456 comics')),
         );
-        expect(
-          tester.getSemantics(select).getSemanticsData().label,
-          contains('123456 comics'),
-        );
+
+        Future<void> checkRoundedCorner() async {
+          final bounds = tester.getRect(outline);
+          final corner = Offset(bounds.right - 2, bounds.top + 2);
+          final clipper = tester.widget<ClipPath>(outline).clipper!;
+          expect(clipper, isA<ShapeBorderClipper>());
+          expect(
+            clipper.getClip(bounds.size).contains(corner - bounds.topLeft),
+            isFalse,
+          );
+          final before = selections;
+          await tester.tapAt(corner);
+          await tester.pumpAndSettle();
+          expect(selections, before);
+          // Sample the produced picture too: the top-right pixel remains
+          // background while a point inside the actual matte is painted.
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byKey(sceneKey),
+          );
+          final inside = Offset(bounds.right - 3, bounds.center.dy);
+          await tester.runAsync(() async {
+            final picture = await boundary.toImage(pixelRatio: 1);
+            try {
+              final bytes = (await picture.toByteData(
+                format: ui.ImageByteFormat.rawRgba,
+              ))!;
+              int pixel(Offset point) => bytes.getUint32(
+                (point.dy.floor() * picture.width + point.dx.floor()) * 4,
+              );
+              expect(pixel(corner), 0xff00ffff);
+              expect(pixel(inside), isNot(0xff00ffff));
+            } finally {
+              picture.dispose();
+            }
+          });
+        }
+
+        await checkRoundedCorner();
         await tester.tap(toggle);
         await tester.pumpAndSettle();
         expect((toggles, selections), (1, 0));
         await tester.tap(title);
         await tester.pumpAndSettle();
         expect((toggles, selections), (1, 1));
+        for (final value in [168.0, maximum]) {
+          width.value = value;
+          await tester.pumpAndSettle();
+          final revealed = tester.getRect(outline);
+          expect(revealed.left, narrow.left);
+          expect(revealed.width, value - 6);
+          expect(revealed.height, narrow.height);
+          expect(tester.getRect(fixed), inner);
+          expect(tester.getRect(title), stableTitle);
+          expect(tester.getRect(count), stableCount);
+          await checkRoundedCorner();
+        }
+        expect(stableCount.right, lessThan(tester.getRect(outline).right));
+        expect(tester.widget<Text>(count).data, '123456');
         expect(tester.takeException(), isNull);
       },
     );
@@ -130,9 +203,8 @@ void main() {
           MaterialApp(
             localizationsDelegates: const [MobileUiLocalizations.delegate],
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(2.6)),
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(2.6)),
               child: MobileUiTheme(
                 glass: 'off',
                 child: Directionality(textDirection: direction, child: child!),
@@ -175,7 +247,6 @@ void main() {
                         key: trailing,
                         label: 'Network library',
                         icon: Icons.cloud_outlined,
-                        count: 5,
                         onPressed: () => update(() => selected = 'Network'),
                       ),
                     ],
@@ -205,8 +276,7 @@ void main() {
         expect(find.byKey(child), findsOneWidget);
         final parentLabel = tester.getRect(find.text(parentName));
         final childLabel = tester.getRect(find.text('Disabled nested folder'));
-        expect(childLabel.left, greaterThanOrEqualTo(parentLabel.left));
-        expect(childLabel.right, lessThanOrEqualTo(parentLabel.right));
+        expect(childLabel.left, greaterThan(parentLabel.left));
         expect(
           inside(
             find.byKey(trailing),

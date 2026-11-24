@@ -13,6 +13,10 @@ class EdgeBackGestureDetector extends StatelessWidget {
     required this.onEnd,
     required this.onCancel,
     this.edgeWidth = 24,
+    this.edgeInset = 0,
+    this.swipeDirection,
+    this.reserveEdge = true,
+    this.supportedDevices,
   });
 
   final Widget child;
@@ -22,12 +26,17 @@ class EdgeBackGestureDetector extends StatelessWidget {
   final ValueChanged<double> onEnd;
   final VoidCallback onCancel;
   final double edgeWidth;
+  final double edgeInset;
+  final TextDirection? swipeDirection;
+  final bool reserveEdge;
+  final Set<PointerDeviceKind>? supportedDevices;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final direction = Directionality.of(context) == TextDirection.ltr
+        final direction =
+            (swipeDirection ?? Directionality.of(context)) == TextDirection.ltr
             ? 1.0
             : -1.0;
         final width = constraints.maxWidth;
@@ -41,7 +50,9 @@ class EdgeBackGestureDetector extends StatelessWidget {
                     ..enabled = enabled
                     ..width = width
                     ..edgeWidth = edgeWidth
+                    ..edgeInset = edgeInset
                     ..direction = direction
+                    ..supportedDevices = supportedDevices
                     ..onStart = onStart
                     ..onUpdate = ((delta) => onUpdate(delta / width))
                     ..onEnd = ((velocity) => onEnd(velocity / width))
@@ -52,9 +63,10 @@ class EdgeBackGestureDetector extends StatelessWidget {
             fit: StackFit.passthrough,
             children: [
               child,
-              if (enabled())
-                PositionedDirectional(
-                  start: 0,
+              if (reserveEdge && enabled())
+                Positioned(
+                  left: direction > 0 ? edgeInset : null,
+                  right: direction < 0 ? edgeInset : null,
                   top: 0,
                   bottom: 0,
                   width: edgeWidth,
@@ -75,7 +87,7 @@ class EdgeBackGestureDetector extends StatelessWidget {
 
 class _EdgeBackRecognizer extends OneSequenceGestureRecognizer {
   late bool Function() enabled;
-  late double width, edgeWidth, direction;
+  late double width, edgeWidth, edgeInset, direction;
   late VoidCallback onStart, onCancel;
   late ValueChanged<double> onUpdate, onEnd;
 
@@ -102,8 +114,8 @@ class _EdgeBackRecognizer extends OneSequenceGestureRecognizer {
     if (!enabled() ||
         !width.isFinite ||
         width <= 0 ||
-        distanceFromEdge < 0 ||
-        distanceFromEdge > edgeWidth ||
+        distanceFromEdge < edgeInset ||
+        distanceFromEdge > edgeInset + edgeWidth ||
         event.buttons != kPrimaryButton) {
       resolvePointer(event.pointer, GestureDisposition.rejected);
       return;
