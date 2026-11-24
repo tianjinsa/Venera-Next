@@ -17,6 +17,7 @@ import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/loading.dart';
 import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/mobile_choice.dart';
+import 'package:venera_next/components/mobile_search_focus.dart';
 import 'package:venera_next/components/mobile_search_route.dart';
 import 'package:venera_next/components/mobile_setting_row.dart';
 import 'package:venera_next/components/mobile_ui.dart';
@@ -65,38 +66,7 @@ class _SearchPageState extends State<SearchPage> {
 
   bool aggregatedSearch = false;
 
-  final focusNode = FocusNode();
-  Animation<double>? _arrival;
-  bool _requestedFocus = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!widget.focusOnArrival || _requestedFocus) return;
-    final next = ModalRoute.of(context)?.animation;
-    if (_arrival != next) {
-      _arrival?.removeStatusListener(_onArrival);
-      _arrival = next;
-      next?.addStatusListener(_onArrival);
-    }
-    _onArrival(next?.status ?? AnimationStatus.completed);
-  }
-
-  void _onArrival(AnimationStatus status) {
-    if (_requestedFocus || status != AnimationStatus.completed) return;
-    _requestedFocus = true;
-    _arrival?.removeStatusListener(_onArrival);
-    // Do not make keyboard insets resize the expanding page, or request
-    // input/a11y focus if the push was cancelled or there is no search field.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted &&
-          searchSources.isNotEmpty &&
-          !MediaQuery.accessibleNavigationOf(context) &&
-          ModalRoute.isCurrentOf(context) == true) {
-        focusNode.requestFocus();
-      }
-    });
-  }
+  final focusNode = FocusNode(debugLabel: 'Global search input');
 
   var options = <String>[];
 
@@ -222,7 +192,6 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   void dispose() {
-    _arrival?.removeStatusListener(_onArrival);
     focusNode.dispose();
     appdata.settings.removeListener(updateSearchSourcesIfNeeded);
     super.dispose();
@@ -322,12 +291,19 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (searchSources.isEmpty) {
-      return buildEmpty();
-    }
-    return Scaffold(
-      body: SmoothCustomScrollView(slivers: buildSlivers().toList()),
-    );
+    final hasSearchSources = searchSources.isNotEmpty;
+    final page = hasSearchSources
+        ? Scaffold(
+            body: SmoothCustomScrollView(slivers: buildSlivers().toList()),
+          )
+        : buildEmpty();
+    return widget.focusOnArrival
+        ? SearchFocusOnArrival(
+            editor: focusNode,
+            enabled: hasSearchSources,
+            child: page,
+          )
+        : page;
   }
 
   Iterable<Widget> buildSlivers() sync* {

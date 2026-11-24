@@ -12,6 +12,7 @@ import 'package:prism_ui/popup.dart' as prism;
 import 'package:prism_ui/search_field.dart' as prism;
 import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/mobile_content_surface.dart';
+import 'package:venera_next/components/mobile_search_focus.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/translations.dart';
 
@@ -229,7 +230,7 @@ class _MobileCollectionSearchToolbarState
     with SingleTickerProviderStateMixin {
   final _origin = GlobalKey();
   final _stack = GlobalKey();
-  final _focus = FocusNode();
+  final _focus = FocusNode(debugLabel: 'Collection search input');
   // The controller holds actual geometry, not elapsed time. Retargeting an
   // interrupted gesture starts at the last painted rect in either direction.
   late final _motion = AnimationController.unbounded(
@@ -245,6 +246,11 @@ class _MobileCollectionSearchToolbarState
     seconds: .30,
   );
   Rect? _from;
+  int _focusGeneration = 0;
+  bool _focusPending = false;
+  ModalRoute<dynamic>? _focusOwner;
+
+  bool get _fieldReady => widget.search.open && !_motion.isAnimating;
 
   void _move(bool opening) {
     final target = opening ? 1.0 : 0.0;
@@ -265,8 +271,13 @@ class _MobileCollectionSearchToolbarState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    final current = ModalRoute.isCurrentOf(context) != false;
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (_focusOwner != route || !current || !visible) _cancelPendingFocus();
     if (MediaQuery.disableAnimationsOf(context) && _motion.isAnimating) {
       _motion.value = widget.search.open ? 1 : 0;
+      _focusWhenSettled();
     }
   }
 
@@ -284,35 +295,64 @@ class _MobileCollectionSearchToolbarState
   }
 
   void _open() {
+    if (widget.search.open) return;
     _measure();
     widget.search.onOpen();
   }
 
-  void _requestFocus() => WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (mounted && widget.search.open) _focus.requestFocus();
-  });
+  void _cancelPendingFocus() {
+    _focusGeneration++;
+    _focusPending = false;
+  }
+
+  void _onMotionStatus(AnimationStatus _) => _focusWhenSettled();
+
+  void _focusWhenSettled() {
+    if (!_focusPending || !_fieldReady || _motion.value != 1) return;
+    _focusPending = false;
+    final generation = _focusGeneration;
+    final owner = _focusOwner;
+    final controller = widget.search.controller;
+    focusSearchInputAfterPaint(
+      context,
+      _focus,
+      isStillRequested: () =>
+          generation == _focusGeneration &&
+          _fieldReady &&
+          identical(ModalRoute.of(context), owner) &&
+          identical(widget.search.controller, controller),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    if (widget.search.open) _requestFocus();
+    _motion.addStatusListener(_onMotionStatus);
   }
 
   @override
   void didUpdateWidget(MobileCollectionSearchToolbar oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.search.controller, widget.search.controller)) {
+      _cancelPendingFocus();
+      if (_focus.hasFocus) _focus.unfocus();
+    }
     if (oldWidget.search.open == widget.search.open) return;
     _measure(); // Also refresh after rotation / a system back.
+    _cancelPendingFocus();
     if (widget.search.open) {
-      _requestFocus();
-    } else {
+      _focusOwner = ModalRoute.of(context);
+      _focusPending = searchInputOwnerIsCurrent(context);
+    } else if (_focus.hasFocus) {
       _focus.unfocus();
     }
     _move(widget.search.open);
+    _focusWhenSettled();
   }
 
   @override
   void dispose() {
+    _cancelPendingFocus();
     _focus.dispose();
     _motion.dispose();
     super.dispose();
@@ -437,7 +477,13 @@ class _MobileCollectionSearchToolbarState
                                                             .centerStart,
                                                     minWidth: slot.width,
                                                     maxWidth: slot.width,
-                                                    child: field,
+                                                    child: ExcludeFocus(
+                                                      excluding: !_fieldReady,
+                                                      child: IgnorePointer(
+                                                        ignoring: !_fieldReady,
+                                                        child: field,
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
                                                 if (opacity < 1)

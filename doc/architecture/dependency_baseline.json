@@ -572,6 +572,7 @@
     "components/mobile_global_search_bar.dart",
     "components/mobile_large_sheet.dart",
     "components/mobile_scroll_top.dart",
+    "components/mobile_search_focus.dart",
     "components/mobile_search_route.dart",
     "components/mobile_setting_row.dart",
     "components/mobile_side_sheet.dart",
