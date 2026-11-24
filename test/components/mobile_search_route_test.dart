@@ -26,8 +26,8 @@ final _surface = find.byType(SearchMorphSurface);
 final _backing = find.byKey(const ValueKey('search-route-backing'));
 final _content = find.byKey(const ValueKey('search-route-content'));
 
-Rect _bounds(WidgetTester tester) =>
-    tester.widget<SearchMorphSurface>(_surface).frame.outline().getBounds();
+SearchMorphFrame _frame(WidgetTester tester) =>
+    tester.widget<SearchMorphSurface>(_surface).frame;
 
 double _opacity(WidgetTester tester) =>
     tester.widget<Opacity>(_content).opacity;
@@ -72,17 +72,21 @@ void main() {
           glass: 'standard',
         ),
       );
-      await tester.tap(find.text(entry.name));
+      final pressed = Offset(
+        entry.rect.left + entry.rect.width * .22,
+        entry.rect.top + entry.rect.height * .37,
+      );
+      await tester.tapAt(pressed);
       // A PageRoute with a HeroController is initially measured offstage.
       // Bring it onstage and inspect its first visible frame (not its midpoint).
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
-      final start = _bounds(tester);
-      expect(start.left, closeTo(entry.rect.left, 2));
-      expect(start.top, closeTo(entry.rect.top, 2));
-      expect(start.right, closeTo(entry.rect.right, 2));
-      expect(start.bottom, closeTo(entry.rect.bottom, 2));
+      final start = _frame(tester);
+      expect(start.center.dx, closeTo(pressed.dx, .01));
+      expect(start.center.dy, closeTo(pressed.dy, .01));
+      expect(start.center, isNot(entry.rect.center));
+      expect(start.radius, lessThan(4));
       final surface = tester.widget<SearchMorphSurface>(_surface);
       expect(surface.sourceColor.a, 1);
       expect(surface.destinationColor.a, 1);
@@ -90,15 +94,14 @@ void main() {
       expect(_backing, findsNothing);
 
       await tester.pump(const Duration(milliseconds: 35));
-      final early = _bounds(tester);
-      expect(early, isNot(start));
-      expect(early.contains(entry.rect.center), isTrue);
-      expect(early.width, greaterThanOrEqualTo(start.width));
-      expect(early.height, greaterThan(start.height));
+      final early = _frame(tester);
+      expect(early.center, start.center);
+      expect(early.radius, greaterThan(start.radius));
       expect(_opacity(tester), 0);
 
       await tester.pump(const Duration(milliseconds: 225));
-      expect(_bounds(tester).height, greaterThan(early.height));
+      expect(_frame(tester).center, start.center);
+      expect(_frame(tester).radius, greaterThan(early.radius));
       expect(_opacity(tester), 0);
       const viewport = Rect.fromLTWH(0, 0, 390, 750);
       expect(tester.getRect(find.byKey(destination)), viewport);
@@ -128,14 +131,60 @@ void main() {
       await tester.pump(const Duration(milliseconds: 120));
       expect(_opacity(tester), 0);
       expect(
-        _bounds(tester).height,
-        inExclusiveRange(entry.rect.height, 750.0),
+        _frame(tester).radius,
+        inExclusiveRange(0.0, start.coveringRadius),
       );
+      expect(_frame(tester).center, start.center);
       await tester.pumpAndSettle();
       expect(find.text(entry.name).hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets(
+    'reverse remeasures a relocated trigger without recentering its tap',
+    (tester) async {
+      _phone(tester);
+      final position = ValueNotifier(const Offset(24, 80));
+      addTearDown(position.dispose);
+      late NavigatorState navigator;
+      const buttonSize = Size(120, 44);
+      const localTap = Offset(32, 23);
+      await tester.pumpWidget(
+        _app(
+          ValueListenableBuilder(
+            valueListenable: position,
+            builder: (_, offset, _) => Stack(
+              children: [
+                Positioned.fromRect(
+                  rect: offset & buttonSize,
+                  child: MobileSearchAnchor(
+                    builder: (origin) => TextButton(
+                      child: const Text('Tap here'),
+                      onPressed: () {
+                        navigator = Navigator.of(origin);
+                        pushSearchFrom<void>(origin, () => const Scaffold());
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.tapAt(position.value + localTap);
+      await tester.pumpAndSettle();
+      position.value = const Offset(177, 158);
+      await tester.pump();
+      navigator.pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(_frame(tester).center, position.value + localTap);
+      await tester.pumpAndSettle();
+      expect(find.text('Tap here').hitTestable(), findsOneWidget);
+    },
+  );
 
   testWidgets('reduce motion skips the pane and still owns a normal route', (
     tester,
@@ -164,53 +213,63 @@ void main() {
     expect(find.text('entry').hitTestable(), findsOneWidget);
   });
 
-  testWidgets('keyboard submission opens from the actual 46dp sliver field', (
-    tester,
-  ) async {
-    _phone(tester);
-    final submitted = <String>[];
-    await tester.pumpWidget(
-      _app(
-        CustomScrollView(
-          slivers: [
-            SliverSearchBar(
-              controller: SearchBarController(
-                onSearch: (_) => fail('unanchored mobile fallback'),
+  testWidgets(
+    'keyboard submission opens from the actual visible caret, not the large field',
+    (tester) async {
+      _phone(tester);
+      final submitted = <String>[];
+      await tester.pumpWidget(
+        _app(
+          CustomScrollView(
+            slivers: [
+              SliverSearchBar(
+                controller: SearchBarController(
+                  onSearch: (_) => fail('unanchored mobile fallback'),
+                ),
+                action: const SizedBox(width: 52),
+                onSubmitFrom: (text, field) {
+                  submitted.add(text);
+                  pushSearchFrom<void>(
+                    field,
+                    () => const Scaffold(body: Text('matching book')),
+                  );
+                },
               ),
-              action: const SizedBox(width: 52),
-              onSubmitFrom: (text, field) {
-                submitted.add(text);
-                pushSearchFrom<void>(
-                  field,
-                  () => const Scaffold(body: Text('matching book')),
-                );
-              },
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-    final field = find.byKey(const ValueKey('mobile-global-search-field'));
-    final trigger = tester.getRect(field);
-    expect(trigger.height, 46);
-    expect(trigger.width, lessThan(350));
-    await tester.enterText(find.byType(EditableText), 'artist:Example');
-    await tester.testTextInput.receiveAction(TextInputAction.search);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1));
-    await tester.pump();
-    final start = _bounds(tester);
-    expect(start.center.dx, closeTo(trigger.center.dx, 2));
-    expect(start.center.dy, closeTo(trigger.center.dy, 2));
-    expect(start.width, closeTo(trigger.width, 2));
-    expect(start.height, closeTo(trigger.height, 2));
-    expect(submitted, ['artist:Example']);
-    await tester.pumpAndSettle();
-    expect(find.text('matching book').hitTestable(), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byType(EditableText).hitTestable(), findsOneWidget);
-  });
+      );
+      final field = find.byKey(const ValueKey('mobile-global-search-field'));
+      final trigger = tester.getRect(field);
+      expect(trigger.height, 46);
+      expect(trigger.width, lessThan(350));
+      final editor = find.byType(EditableText);
+      await tester.enterText(editor, 'artist:Example');
+      final state = tester.state<EditableTextState>(editor);
+      final editing = state.widget.controller;
+      editing.selection = const TextSelection.collapsed(offset: 2);
+      await tester.pump();
+      final render = state.renderEditable;
+      final expected = render.localToGlobal(
+        render.getLocalRectForCaret(editing.selection.extent).center,
+      );
+      expect((expected.dx - trigger.center.dx).abs(), greaterThan(20));
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      final start = _frame(tester);
+      expect(start.center.dx, closeTo(expected.dx, .01));
+      expect(start.center.dy, closeTo(expected.dy, .01));
+      expect(start.radius, lessThan(4));
+      expect(submitted, ['artist:Example']);
+      await tester.pumpAndSettle();
+      expect(find.text('matching book').hitTestable(), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(EditableText).hitTestable(), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'global field submits full source URLs; clear notifies suggestions',

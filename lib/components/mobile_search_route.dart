@@ -1,9 +1,6 @@
 import 'dart:math' as math;
-import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:prism_ui/goo.dart' as prism show gooPairOutline;
-import 'package:prism_ui/liquid_glass.dart' as prism show LiquidGlassScope;
 import 'package:venera_next/foundation/app_page_route.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/navigation_admission.dart';
@@ -37,8 +34,11 @@ Future<T?> pushSearchFrom<T>(BuildContext origin, Widget Function() page) {
   if (initial == null || viewport.isEmpty) return origin.to<T>(page);
   final reduce = MediaQuery.disableAnimationsOf(origin);
   final anchor = origin.findAncestorStateOfType<_MobileSearchAnchorState>();
-  final press = anchor?._takePress();
-  final point = press == null ? initial.center : overlay.globalToLocal(press);
+  final globalPoint = anchor?._takeOrigin(origin);
+  final projected = globalPoint == null
+      ? null
+      : overlay.globalToLocal(globalPoint);
+  final point = projected?.isFinite == true ? projected! : initial.center;
   final relative = Offset(
     ((point.dx - initial.left) / initial.width).clamp(0.0, 1.0),
     ((point.dy - initial.top) / initial.height).clamp(0.0, 1.0),
@@ -52,56 +52,44 @@ Future<T?> pushSearchFrom<T>(BuildContext origin, Widget Function() page) {
       viewport: viewport.size,
       measure: measure,
       relative: relative,
-      sourceRadius: anchor?.widget.radius,
       child: child,
     ),
   );
-  final result = navigator.push<T>(route);
-  if (!reduce) anchor?._follow(route);
-  return result;
+  return navigator.push<T>(route);
 }
 
-/// Wrap the actual card, chip or button. The optional pointer affects its
-/// local deformation, not its origin rectangle or the semantic tap target.
-/// Keyboard activation uses the same control, centered.
+/// Wrap only the actual card, chip or button, not its surrounding toolbar.
 class MobileSearchAnchor extends StatefulWidget {
-  const MobileSearchAnchor({super.key, required this.builder, this.radius});
+  const MobileSearchAnchor({
+    super.key,
+    required this.builder,
+    this.keyboardOrigin,
+  });
 
   final WidgetBuilder builder;
-  final double? radius;
+
+  /// Optional global caret position for an input that submits from the IME.
+  /// A null result centers the reveal on that field, not on an earlier tap.
+  final Offset? Function(BuildContext field)? keyboardOrigin;
 
   @override
   State<MobileSearchAnchor> createState() => _MobileSearchAnchorState();
 }
 
 class _MobileSearchAnchorState extends State<MobileSearchAnchor> {
-  PageRoute<dynamic>? _route;
-  Animation<double> _opacity = kAlwaysCompleteAnimation;
   Offset? _press;
   int? _pointer;
 
-  Offset? _takePress() {
-    final position = _press;
+  void _clearPress() {
     _press = null;
     _pointer = null;
-    return position;
   }
 
-  void _follow(PageRoute<dynamic> route) {
-    setState(() {
-      _route = route;
-      _opacity = route.animation!
-          .drive(CurveTween(curve: const Interval(0, .10)))
-          .drive(Tween<double>(begin: 1, end: 0));
-    });
-    route.completed.then((_) {
-      if (mounted && identical(_route, route)) {
-        setState(() {
-          _route = null;
-          _opacity = kAlwaysCompleteAnimation;
-        });
-      }
-    });
+  Offset? _takeOrigin(BuildContext trigger) {
+    final press = _press;
+    _clearPress();
+    final caret = widget.keyboardOrigin;
+    return caret == null ? press : caret(trigger);
   }
 
   @override
@@ -109,34 +97,33 @@ class _MobileSearchAnchorState extends State<MobileSearchAnchor> {
     if (!AppPageRoute.mobileOf(context)) {
       return Builder(builder: widget.builder);
     }
-    return FadeTransition(
-      opacity: _opacity,
-      child: Listener(
-        onPointerDown: (event) {
-          _pointer = event.pointer;
-          _press = event.position;
-        },
-        onPointerMove: (event) {
-          if (_pointer == event.pointer &&
-              _press != null &&
-              (event.position - _press!).distance > 20) {
-            _takePress();
-          }
-        },
-        onPointerCancel: (event) {
-          if (_pointer == event.pointer) _takePress();
-        },
-        onPointerUp: (event) {
-          // On release, allow synchronous onTap/onPressed in this dispatch.
-          // Never reuse a previous press for a later keyboard submission.
-          if (_pointer == event.pointer) {
-            Future.microtask(() {
-              if (_pointer == event.pointer) _takePress();
-            });
-          }
-        },
-        child: Builder(builder: widget.builder),
-      ),
+    // Keep the original control in place and painted while the circle
+    // passes over it. The rest of its label does not wink out on the first
+    // frame of a point-sized reveal, or blink in at the end of reverse.
+    return Listener(
+      onPointerDown: (event) {
+        _pointer = event.pointer;
+        _press = event.position;
+      },
+      onPointerMove: (event) {
+        if (_pointer == event.pointer &&
+            _press != null &&
+            (event.position - _press!).distance > 20) {
+          _clearPress();
+        }
+      },
+      onPointerCancel: (event) {
+        if (_pointer == event.pointer) _clearPress();
+      },
+      onPointerUp: (event) {
+        // Keep the point through the current tap dispatch only.
+        if (_pointer == event.pointer) {
+          Future.microtask(() {
+            if (_pointer == event.pointer) _clearPress();
+          });
+        }
+      },
+      child: Builder(builder: widget.builder),
     );
   }
 }
@@ -148,7 +135,6 @@ class _SearchReveal extends StatefulWidget {
     required this.viewport,
     required this.measure,
     required this.relative,
-    required this.sourceRadius,
     required this.child,
   });
 
@@ -157,7 +143,6 @@ class _SearchReveal extends StatefulWidget {
   final Size viewport;
   final Rect? Function() measure;
   final Offset relative;
-  final double? sourceRadius;
   final Widget child;
 
   @override
@@ -204,9 +189,6 @@ class _SearchRevealState extends State<_SearchReveal> {
     final colors = theme.colorScheme;
     final background = theme.scaffoldBackgroundColor.withAlpha(255);
     final sourceColor = colors.surfaceContainerHigh.withAlpha(255);
-    final sheen = prism.LiquidGlassScope.of(context)
-        ? colors.primary.withValues(alpha: .16)
-        : null;
     final reduce = MediaQuery.disableAnimationsOf(context);
     return LayoutBuilder(
       builder: (context, constraints) => AnimatedBuilder(
@@ -232,15 +214,15 @@ class _SearchRevealState extends State<_SearchReveal> {
               if (t < SearchMorphFrame.growthEnd)
                 SearchMorphSurface(
                   frame: SearchMorphFrame.at(
-                    start,
+                    Offset(
+                      start.left + start.width * widget.relative.dx,
+                      start.top + start.height * widget.relative.dy,
+                    ),
                     viewport,
                     t,
-                    relative: widget.relative,
-                    sourceRadius: widget.sourceRadius,
                   ),
                   sourceColor: sourceColor,
                   destinationColor: background,
-                  sheen: sheen,
                 )
               else
                 ColoredBox(
@@ -271,18 +253,16 @@ class _SearchRevealState extends State<_SearchReveal> {
   }
 }
 
-/// One connected, dark/light theme-colored body, derived from the anchored
-/// surface rather than animated from a second position. Its corner stretches
-/// toward the contact side, borrowing Prism's real Goo silhouette. There is
-/// no departing droplet or refracting backdrop behind the growing pane.
+/// A concentric liquid reveal. The touch/caret is the center for the entire
+/// expansion; only the radius changes. Measuring the farthest corner, rather
+/// than using the viewport's short side, prevents a corner flash at handoff.
 @immutable
 class SearchMorphFrame {
   const SearchMorphFrame._(
-    this.platter,
+    this.center,
     this.radius,
+    this.coveringRadius,
     this.growth,
-    this._shoulder,
-    this._blend,
   );
 
   static const growthEnd = .70;
@@ -290,88 +270,26 @@ class SearchMorphFrame {
   static double contentOpacity(double t) =>
       const Interval(growthEnd, 1, curve: Curves.easeInOut).transform(t);
 
-  final Rect platter;
+  final Offset center;
   final double radius;
+  final double coveringRadius;
   final double growth;
-  final Rect? _shoulder;
-  final double _blend;
 
-  factory SearchMorphFrame.at(
-    Rect source,
-    Rect page,
-    double t, {
-    Offset relative = const Offset(.5, .5),
-    double? sourceRadius,
-  }) {
-    final progress = (t / growthEnd).clamp(0.0, 1.0);
-    final growth = const Cubic(.26, .13, .23, .98).transform(progress);
-    final platter = Rect.lerp(source, page, growth)!;
-    final radius = lerpDouble(
-      sourceRadius ?? source.shortestSide / 2,
-      0,
-      const Interval(.52, 1, curve: Curves.easeIn).transform(progress),
-    )!;
-    final pulse = math.sin(math.pi * progress);
-    final reach = math.min(platter.shortestSide / 2, math.max(16.0, radius));
-    // Keep the moving shoulder inside the silhouette's bounds and overlapping
-    // its body. The corner nearest the press stretches while the opposite
-    // corners retain their own shape; then the deformation settles flush.
-    final shoulder = reach <= 1 || progress == 0 || progress == 1
-        ? null
-        : Rect.fromCircle(
-            center: Offset(
-              _cornerAxis(
-                relative.dx,
-                source.left - page.left,
-                page.right - source.right,
-                platter.left,
-                platter.right,
-                reach,
-              ),
-              _cornerAxis(
-                relative.dy,
-                source.top - page.top,
-                page.bottom - source.bottom,
-                platter.top,
-                platter.bottom,
-                reach,
-              ),
-            ),
-            radius: reach * (.20 + .33 * pulse),
-          );
-    return SearchMorphFrame._(
-      platter,
-      radius,
-      growth,
-      shoulder,
-      reach * .74 * pulse,
+  factory SearchMorphFrame.at(Offset origin, Rect viewport, double t) {
+    final center = Offset(
+      origin.dx.clamp(viewport.left, viewport.right),
+      origin.dy.clamp(viewport.top, viewport.bottom),
     );
-  }
-
-  static double _cornerAxis(
-    double relative,
-    double before,
-    double after,
-    double start,
-    double end,
-    double reach,
-  ) {
-    // If there is no pointer (keyboard or assistive activation), deform into
-    // the more open side. Edge taps are instead biased toward that contact.
-    final towardStart = relative == .5 ? before > after : relative < .5;
-    return towardStart ? start + reach * .55 : end - reach * .55;
-  }
-
-  RSuperellipse get clip =>
-      RSuperellipse.fromRectAndRadius(platter, Radius.circular(radius));
-
-  Path outline() {
-    final shoulder = _shoulder;
-    if (shoulder == null) return Path()..addRSuperellipse(clip);
-    return Path.combine(
-      PathOperation.intersect,
-      prism.gooPairOutline(platter, radius, shoulder, _blend, coarse: true),
-      Path()..addRect(platter),
+    final dx = math.max(center.dx - viewport.left, viewport.right - center.dx);
+    final dy = math.max(center.dy - viewport.top, viewport.bottom - center.dy);
+    final coveringRadius = math.sqrt(dx * dx + dy * dy);
+    final progress = (t / growthEnd).clamp(0.0, 1.0);
+    final growth = const Cubic(.24, .12, .23, .98).transform(progress);
+    return SearchMorphFrame._(
+      center,
+      coveringRadius * growth,
+      coveringRadius,
+      growth,
     );
   }
 }
@@ -382,54 +300,40 @@ class SearchMorphSurface extends StatelessWidget {
     required this.frame,
     required this.sourceColor,
     required this.destinationColor,
-    this.sheen,
   });
 
   final SearchMorphFrame frame;
   final Color sourceColor;
   final Color destinationColor;
-  final Color? sheen;
 
   @override
   Widget build(BuildContext context) => CustomPaint(
     painter: _SearchSurfacePainter(
       frame,
       Color.lerp(sourceColor, destinationColor, frame.growth)!.withAlpha(255),
-      sheen,
     ),
     size: Size.infinite,
   );
 }
 
 class _SearchSurfacePainter extends CustomPainter {
-  const _SearchSurfacePainter(this.frame, this.fill, this.sheen);
+  const _SearchSurfacePainter(this.frame, this.fill);
 
   final SearchMorphFrame frame;
   final Color fill;
-  final Color? sheen;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = frame.outline();
+    if (frame.radius <= 0) return;
     canvas.save();
-    canvas.clipRect(frame.platter, doAntiAlias: false);
-    canvas.drawPath(path, Paint()..color = fill);
-    if (sheen case final color?) {
-      final strength = 1 - frame.growth;
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = color.withValues(alpha: color.a * strength)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1,
-      );
-    }
+    canvas.clipRect(Offset.zero & size, doAntiAlias: false);
+    canvas.drawCircle(frame.center, frame.radius, Paint()..color = fill);
     canvas.restore();
   }
 
   @override
   bool shouldRepaint(_SearchSurfacePainter oldDelegate) =>
-      oldDelegate.frame != frame ||
-      oldDelegate.fill != fill ||
-      oldDelegate.sheen != sheen;
+      oldDelegate.frame.center != frame.center ||
+      oldDelegate.frame.radius != frame.radius ||
+      oldDelegate.fill != fill;
 }

@@ -303,7 +303,7 @@ void main() {
   }
 
   testWidgets(
-    'grouped pane search morphs from the search button, not its lens',
+    'grouped pane search starts from the actual tap, not its shared lens',
     (tester) async {
       _phone(tester);
       final navigator = GlobalKey<NavigatorState>();
@@ -354,19 +354,18 @@ void main() {
       expect(find.descendant(of: capsule, matching: search), findsOneWidget);
       expect(find.descendant(of: capsule, matching: settings), findsOneWidget);
       final source = tester.getRect(search);
-      final capsuleWidth = tester.getRect(capsule).width;
-      await tester.tap(search);
+      final pressed = source.center + const Offset(-6, 4);
+      await tester.tapAt(pressed);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
       final morph = tester.widget<SearchMorphSurface>(
         find.byType(SearchMorphSurface),
       );
-      final start = morph.frame.platter;
-      expect(start.center.dx, closeTo(source.center.dx, 3));
-      expect(start.center.dy, closeTo(source.center.dy, 3));
-      expect(start.width, closeTo(source.width, 3));
-      expect(start.width, lessThan(capsuleWidth));
+      final start = morph.frame;
+      expect(start.center.dx, closeTo(pressed.dx, .01));
+      expect(start.center.dy, closeTo(pressed.dy, .01));
+      expect(start.radius, lessThan(4));
       await tester.pumpAndSettle();
       expect(observer.pageCount, 2);
       expect(find.text('Search destination'), findsOneWidget);

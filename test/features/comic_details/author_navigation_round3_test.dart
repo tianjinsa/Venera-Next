@@ -128,10 +128,10 @@ void main() {
         await tester.pump();
         expect(source.calls.last, (label == 'saved' ? 'artist' : label, 'X/Y'));
         final surface = find.byType(SearchMorphSurface);
-        final bounds = tester.widget<SearchMorphSurface>(surface).frame.platter;
-        expect(bounds.center.dx, closeTo(original.center.dx, 2));
-        expect(bounds.center.dy, closeTo(original.center.dy, 2));
-        expect(bounds.width, closeTo(original.width, 2));
+        final frame = tester.widget<SearchMorphSurface>(surface).frame;
+        expect(frame.center.dx, closeTo(original.center.dx, .01));
+        expect(frame.center.dy, closeTo(original.center.dy, .01));
+        expect(frame.radius, lessThan(4));
         await tester.pump(const Duration(milliseconds: 550));
         final destination = tester.widget<CategoryComicsPage>(
           find.byType(CategoryComicsPage),

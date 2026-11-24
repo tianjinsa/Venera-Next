@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderEditable;
 import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/shape.dart' as prism;
 import 'package:prism_ui/text_field.dart' as prism;
@@ -28,8 +29,8 @@ class MobileGlobalSearchBar extends StatelessWidget {
   final double topPadding;
   final ValueChanged<String>? onSubmit;
 
-  /// Use the field itself, not the viewport or the adjacent controls, as the
-  /// origin when submission opens a separate full-page route.
+  /// Use the visible caret, or the center of the field if it cannot be
+  /// measured, when submission opens a separate full-page route.
   final void Function(String, BuildContext)? onSubmitFrom;
   final ValueChanged<String>? onChanged;
   final FocusNode? focusNode;
@@ -113,6 +114,8 @@ class MobileGlobalSearchBar extends StatelessWidget {
                   child: anchoredSubmit == null
                       ? field(onSubmit)
                       : MobileSearchAnchor(
+                          keyboardOrigin: (origin) =>
+                              _visibleCaret(origin, editing.selection),
                           builder: (origin) =>
                               field((value) => anchoredSubmit(value, origin)),
                         ),
@@ -125,4 +128,30 @@ class MobileGlobalSearchBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Read only the editor's geometry and selection endpoint, never its text.
+/// A synchronous submit can run before a resized, collapsed or offscreen
+/// editor has reliable bounds: let the route use the field's center then.
+Offset? _visibleCaret(BuildContext field, TextSelection selection) {
+  if (!selection.isValid) return null;
+  RenderEditable? found;
+  void visit(Element node) {
+    if (found != null) return;
+    if (node case StatefulElement(state: final EditableTextState editor)) {
+      found = editor.renderEditable;
+    } else {
+      node.visitChildElements(visit);
+    }
+  }
+
+  field.visitChildElements(visit);
+  final editor = found;
+  if (editor == null || !editor.attached || !editor.hasSize) return null;
+  final caret = editor.getLocalRectForCaret(selection.extent).center;
+  if (!caret.isFinite ||
+      !(Offset.zero & editor.size).inflate(1).contains(caret)) {
+    return null;
+  }
+  return editor.localToGlobal(caret);
 }

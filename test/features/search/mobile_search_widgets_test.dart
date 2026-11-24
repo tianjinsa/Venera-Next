@@ -18,8 +18,9 @@ Future<void> _mount(WidgetTester tester, Widget child) async {
       theme: ThemeData.dark(),
       localizationsDelegates: const [MobileUiLocalizations.delegate],
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context)
-            .copyWith(textScaler: TextScaler.linear(1.6)),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(1.6)),
         child: MobileUiTheme(glass: 'off', child: child!),
       ),
       home: Scaffold(
@@ -67,18 +68,18 @@ void main() {
     );
     final row = find.byType(MobileSearchRow);
     final title = find.text('A saved source and tag lookup');
-    final start = tester.getRect(row);
+    expect(row, findsOneWidget);
+    final tap = tester.getCenter(title);
     await tester.tap(title);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
     await tester.pump();
-    expect(
-      tester
-          .widget<SearchMorphSurface>(find.byType(SearchMorphSurface))
-          .frame
-          .platter,
-      rectMoreOrLessEquals(start, epsilon: 1.0),
-    );
+    final frame = tester
+        .widget<SearchMorphSurface>(find.byType(SearchMorphSurface))
+        .frame;
+    expect(frame.center.dx, closeTo(tap.dx, .01));
+    expect(frame.center.dy, closeTo(tap.dy, .01));
+    expect(frame.radius, lessThan(4));
     await tester.pumpAndSettle();
     expect(find.text('Destination').hitTestable(), findsOneWidget);
     expect(find.text('Copy fixture'), findsNothing);

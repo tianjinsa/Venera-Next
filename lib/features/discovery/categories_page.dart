@@ -281,7 +281,7 @@ class _CategoryPage extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
       child: searchAnchor
-          ? MobileSearchAnchor(radius: 8, builder: tag)
+          ? MobileSearchAnchor(builder: tag)
           : Builder(builder: tag),
     );
   }
