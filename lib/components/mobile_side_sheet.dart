@@ -11,9 +11,41 @@ import 'package:prism_ui/surface.dart'
 import 'package:prism_ui/theme_data.dart' as prism show Theme;
 import 'package:venera_next/foundation/translations.dart';
 
-/// A floating modal at the physical left. The same horizontal grip changes
-/// both dimensions without changing the route or sharing the list's scroll
-/// controller. Leftward travel past the narrow detent dismisses the route.
+/// Fixed layout metrics for controls that must remain inside the portion
+/// exposed at the narrow detent. These never vary with drag progress.
+class MobileSideSheetLayout extends InheritedWidget {
+  const MobileSideSheetLayout({
+    required this.controlsWidth,
+    required this.bottomReserve,
+    required super.child,
+    super.key,
+  });
+
+  static MobileSideSheetLayout? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<MobileSideSheetLayout>();
+
+  final double controlsWidth;
+
+  // Reserve this much scroll extent so the last row can be pulled above the
+  // area hidden by the top-aligned card's lower clip at the narrow detent.
+  final double bottomReserve;
+
+  /// Use physical right since that is the first part of this card to enter,
+  /// without altering the inherited directionality of its labels or actions.
+  Widget keepVisible(Widget child) => Align(
+    alignment: Alignment.centerRight,
+    child: SizedBox(width: controlsWidth, child: child),
+  );
+
+  @override
+  bool updateShouldNotify(MobileSideSheetLayout oldWidget) =>
+      controlsWidth != oldWidget.controlsWidth ||
+      bottomReserve != oldWidget.bottomReserve;
+}
+
+/// A fixed-size floating card entering from the physical left. The clipped
+/// viewport reveals its right edge and more of its height as the grip moves.
+/// Leftward travel past the narrow detent dismisses the route.
 class MobileSideSheetRoute<T> extends PopupRoute<T> {
   MobileSideSheetRoute({required BuildContext context, required this.builder})
     : _reducedMotion = MediaQuery.disableAnimationsOf(context),
@@ -40,6 +72,7 @@ class MobileSideSheetRoute<T> extends PopupRoute<T> {
   final CapturedThemes _themes;
 
   static const _initialWidth = .4;
+  static const _rail = 22.0;
   static const _initialHeight = .86;
   static const _offscreenGap = 28.0;
   static const _fling = 700.0;
@@ -146,6 +179,53 @@ class MobileSideSheetRoute<T> extends PopupRoute<T> {
     );
   }
 
+  Widget _grip(
+    Color color,
+    double progress,
+    double minWidth,
+    double maxWidth,
+  ) => Align(
+    alignment: Alignment.centerRight,
+    child: Semantics(
+      label: 'Folder panel width'.tl,
+      value: '${(100 * lerpDouble(_initialWidth, 1, progress)!).round()}%',
+      increasedValue: '100%',
+      decreasedValue: '40%',
+      onIncrease: progress < 1 ? () => _settleExtent(1) : null,
+      onDecrease: progress > 0 ? () => _settleExtent(0) : null,
+      child: Listener(
+        // Flutter ends an accepted drag even on PointerCancel. Restore the
+        // starting detent before its end callback sees the event.
+        onPointerCancel: (_) => _finishDrag(cancelled: true),
+        child: GestureDetector(
+          key: const ValueKey('mobile-side-sheet-handle'),
+          excludeFromSemantics: true,
+          behavior: HitTestBehavior.opaque,
+          onTap: _toggleExtent,
+          onHorizontalDragStart: (_) => _startDrag(),
+          onHorizontalDragUpdate: (details) =>
+              _drag(details.delta.dx, minWidth, maxWidth),
+          onHorizontalDragEnd: (details) =>
+              _finishDrag(speed: details.primaryVelocity ?? 0),
+          onHorizontalDragCancel: () => _finishDrag(cancelled: true),
+          child: SizedBox(
+            width: _rail,
+            height: 112,
+            child: Center(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const SizedBox(width: 4, height: 34),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget buildPage(
     BuildContext context,
@@ -154,160 +234,103 @@ class MobileSideSheetRoute<T> extends PopupRoute<T> {
   ) => _themes.wrap(
     Directionality(
       textDirection: _textDirection,
-      child: ClipRect(
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: SafeArea(
-            minimum: const EdgeInsets.all(8),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final colors = prism.Theme.of(context).colorScheme;
-                final minWidth = constraints.maxWidth * _initialWidth;
-                final minHeight = constraints.maxHeight * _initialHeight;
-                final radius = prism.floatingSheetRadius(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SafeArea(
+          minimum: const EdgeInsets.all(8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final colors = prism.Theme.of(context).colorScheme;
+              final width = constraints.maxWidth;
+              final height = constraints.maxHeight;
+              final minWidth = width * _initialWidth;
+              final minHeight = height * _initialHeight;
+              final shape = RoundedSuperellipseBorder(
+                borderRadius: prism.floatingSheetRadius(
                   MediaQuery.displayCornerRadiiOf(context),
                   1,
-                );
-                return AnimatedBuilder(
-                  animation: _extent,
-                  child: Builder(builder: builder),
-                  builder: (context, content) {
-                    final progress = _extent.value;
-                    final width = lerpDouble(
-                      minWidth,
-                      constraints.maxWidth,
-                      progress,
-                    )!;
-                    final height = lerpDouble(
-                      minHeight,
-                      constraints.maxHeight,
-                      progress,
-                    )!;
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      // Keep the original transition regardless of extent.
-                      child: SlideTransition(
-                        position: animation
-                            .drive(CurveTween(curve: Curves.easeOutQuad))
-                            .drive(
-                              Tween(
-                                begin: Offset(
-                                  -1 - _offscreenGap / math.max(width, 1),
-                                  0,
-                                ),
-                                end: Offset.zero,
-                              ),
-                            ),
-                        child: SizedBox(
-                          width: width,
-                          height: height,
+                ),
+              );
+              final clipper = ShapeBorderClipper(shape: shape);
+              return AnimatedBuilder(
+                animation: Listenable.merge([animation, _extent]),
+                child: MobileSideSheetLayout(
+                  controlsWidth: math.max(0, minWidth - _rail),
+                  bottomReserve: height - minHeight,
+                  child: Material(
+                    key: const ValueKey('mobile-side-sheet-surface'),
+                    color: prism.SurfaceLevel.page.colorOf(colors),
+                    elevation: 12,
+                    shape: shape,
+                    clipBehavior: Clip.antiAlias,
+                    child: prism.ElevatedSurfaceTheme(
+                      child: prism.SurfaceScope(
+                        level: prism.SurfaceLevel.page,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: _rail),
+                          child: Builder(builder: builder),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                builder: (context, card) {
+                  final progress = _extent.value;
+                  final exposure = lerpDouble(minWidth, width, progress)!;
+                  final shownHeight = lerpDouble(minHeight, height, progress)!;
+                  // The scrim's original quadratic entrance/exit stays on
+                  // the route. Only the viewport changes its dimensions.
+                  final untravelled = 1 - animation.value;
+                  final shownWidth = math.max(
+                    0.0,
+                    exposure -
+                        untravelled * untravelled * (exposure + _offscreenGap),
+                  );
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Positioned(
+                        left: 0,
+                        top: (height - shownHeight) / 2,
+                        width: shownWidth,
+                        height: shownHeight,
+                        // The explicit path clips paint, pointer hits and the
+                        // semantics of the hidden portions of the card.
+                        child: ClipPath(
+                          key: const ValueKey('mobile-side-sheet-viewport'),
+                          clipper: clipper,
                           child: Semantics(
                             scopesRoute: true,
                             explicitChildNodes: true,
-                            child: Material(
-                              key: const ValueKey('mobile-side-sheet-surface'),
-                              color: prism.SurfaceLevel.page.colorOf(colors),
-                              elevation: 12,
-                              shape: RoundedSuperellipseBorder(
-                                borderRadius: radius,
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: prism.ElevatedSurfaceTheme(
-                                child: prism.SurfaceScope(
-                                  level: prism.SurfaceLevel.page,
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      // Physical right for both directions.
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 22,
-                                        ),
-                                        child: content,
-                                      ),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: Semantics(
-                                          label: 'Folder panel width'.tl,
-                                          value:
-                                              '${(100 * width / math.max(1, constraints.maxWidth)).round()}%',
-                                          increasedValue: '100%',
-                                          decreasedValue: '40%',
-                                          onIncrease: progress < 1
-                                              ? () => _settleExtent(1)
-                                              : null,
-                                          onDecrease: progress > 0
-                                              ? () => _settleExtent(0)
-                                              : null,
-                                          child: Listener(
-                                            // Flutter ends an accepted drag even
-                                            // on PointerCancel; restore the start
-                                            // detent before that callback runs.
-                                            onPointerCancel: (_) =>
-                                                _finishDrag(cancelled: true),
-                                            child: GestureDetector(
-                                              key: const ValueKey(
-                                                'mobile-side-sheet-handle',
-                                              ),
-                                              excludeFromSemantics: true,
-                                              behavior: HitTestBehavior.opaque,
-                                              onTap: _toggleExtent,
-                                              onHorizontalDragStart: (_) =>
-                                                  _startDrag(),
-                                              onHorizontalDragUpdate:
-                                                  (details) => _drag(
-                                                    details.delta.dx,
-                                                    minWidth,
-                                                    constraints.maxWidth,
-                                                  ),
-                                              onHorizontalDragEnd: (details) =>
-                                                  _finishDrag(
-                                                    speed:
-                                                        details
-                                                            .primaryVelocity ??
-                                                        0,
-                                                  ),
-                                              onHorizontalDragCancel: () =>
-                                                  _finishDrag(cancelled: true),
-                                              child: SizedBox(
-                                                width: 22,
-                                                height: 112,
-                                                child: Center(
-                                                  child: DecoratedBox(
-                                                    decoration: BoxDecoration(
-                                                      color: colors
-                                                          .onSurfaceVariant,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            4,
-                                                          ),
-                                                    ),
-                                                    child: const SizedBox(
-                                                      width: 4,
-                                                      height: 34,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                OverflowBox(
+                                  alignment: Alignment.topRight,
+                                  minWidth: width,
+                                  maxWidth: width,
+                                  minHeight: height,
+                                  maxHeight: height,
+                                  child: card,
                                 ),
-                              ),
+                                _grip(
+                                  colors.onSurfaceVariant,
+                                  progress,
+                                  minWidth,
+                                  width,
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
-                    );
-                  },
-                );
-              },
-            ),
+                    ],
+                  );
+                },
+              );
+            },
           ),
         ),
       ),

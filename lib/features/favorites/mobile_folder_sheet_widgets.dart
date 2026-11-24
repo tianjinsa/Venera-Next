@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:prism_ui/button.dart' as prism show TonalButtonTheme;
 import 'package:prism_ui/icons/icons.dart' as prism;
@@ -5,6 +7,7 @@ import 'package:prism_ui/liquid_glass.dart' as prism show LiquidGlassScope;
 import 'package:prism_ui/list_row.dart' as prism show ListRow;
 import 'package:venera_next/components/gesture.dart';
 import 'package:venera_next/components/mobile_content_surface.dart';
+import 'package:venera_next/components/mobile_side_sheet.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/foundation/translations.dart';
 
@@ -14,42 +17,46 @@ class MobileFolderSheetHeader extends StatelessWidget {
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, box) {
-      final compact = box.maxWidth < 155;
-      return Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(compact ? 6 : 14, 6, 2, 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: Semantics(
-                namesRoute: true,
-                header: true,
-                child: Text(
-                  'Folders'.tl,
-                  style: compact
-                      ? Theme.of(context).textTheme.titleSmall
-                      : Theme.of(context).textTheme.titleLarge,
-                  maxLines: compact ? 2 : 1,
-                  overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) {
+    final content = LayoutBuilder(
+      builder: (context, box) {
+        final compact = box.maxWidth < 155;
+        return Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(compact ? 6 : 14, 6, 2, 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  namesRoute: true,
+                  header: true,
+                  child: Text(
+                    'Folders'.tl,
+                    style: compact
+                        ? Theme.of(context).textTheme.titleSmall
+                        : Theme.of(context).textTheme.titleLarge,
+                    maxLines: compact ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 6),
-            prism.TonalButtonTheme(
-              glass: prism.LiquidGlassScope.of(context),
-              child: MobileToolbarButton(
-                key: const ValueKey('mobile-folder-sheet-close'),
-                label: MaterialLocalizations.of(context).closeButtonTooltip,
-                icon: const prism.GlyphIcon(prism.Glyphs.close, size: 20),
-                onPressed: onClose,
+              const SizedBox(width: 6),
+              prism.TonalButtonTheme(
+                glass: prism.LiquidGlassScope.of(context),
+                child: MobileToolbarButton(
+                  key: const ValueKey('mobile-folder-sheet-close'),
+                  label: MaterialLocalizations.of(context).closeButtonTooltip,
+                  icon: const prism.GlyphIcon(prism.Glyphs.close, size: 20),
+                  onPressed: onClose,
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
+            ],
+          ),
+        );
+      },
+    );
+    return MobileSideSheetLayout.maybeOf(context)?.keepVisible(content) ??
+        content;
+  }
 }
 
 class MobileFolderSheetSection extends StatelessWidget {
@@ -67,7 +74,7 @@ class MobileFolderSheetSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return LayoutBuilder(
+    final content = LayoutBuilder(
       builder: (context, box) {
         final compact = box.maxWidth < 155;
         final inset = compact ? 4.0 : 10.0;
@@ -103,6 +110,8 @@ class MobileFolderSheetSection extends StatelessWidget {
         );
       },
     );
+    return MobileSideSheetLayout.maybeOf(context)?.keepVisible(content) ??
+        content;
   }
 }
 
@@ -139,185 +148,161 @@ class MobileFolderSheetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, box) {
-        final narrow = box.maxWidth < 155;
-        final start = narrow ? (nested ? 12.0 : 4.0) : (nested ? 24.0 : 10.0);
-        final end = narrow ? 4.0 : 10.0;
-        return MobileContentSurface(
-          style: MobileContentStyle.row,
-          selected: selected,
-          margin: EdgeInsetsDirectional.fromSTEB(start, 3, end, 3),
-          child: _buildCell(
-            context,
-            box.maxWidth - start - end,
-            narrow: narrow,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCell(
-    BuildContext context,
-    double width, {
-    required bool narrow,
-  }) {
     final scheme = Theme.of(context).colorScheme;
-    final large = MediaQuery.textScalerOf(context).scale(16) > 23;
-    final stacked = large || width < (expanded == null ? 226 : 266);
-    final count = this.count;
-    final accent = onPressed == null
+    final active = onPressed != null;
+    final accent = !active
         ? scheme.onSurface.withValues(alpha: .38)
         : selected
         ? scheme.primary
         : scheme.onSurfaceVariant;
-    final check = selected
-        ? ExcludeSemantics(
-            child: prism.GlyphIcon(
-              prism.Glyphs.check,
-              key: const ValueKey('mobile-folder-sheet-selected'),
-              size: 16,
-              color: accent,
-            ),
-          )
-        : null;
-    final countText = count == null
-        ? null
-        : Tooltip(
-            message: countHint ?? 'Comics directly in this folder'.tl,
-            child: narrow
-                ? FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text(
-                      '$count',
-                      key: const ValueKey('mobile-folder-sheet-count'),
-                      semanticsLabel: '@a comics'.tlParams({'a': count}),
-                    ),
-                  )
-                : Text(
-                    '@a comics'.tlParams({'a': count}),
-                    maxLines: stacked ? 2 : 1,
-                    overflow: TextOverflow.ellipsis,
+    final count = this.count;
+    final sideSheet = MobileSideSheetLayout.maybeOf(context);
+    return LayoutBuilder(
+      builder: (context, box) {
+        // In the card's own coordinates this lane never changes width. The
+        // narrow detent clips the start of the card, leaving this lane intact.
+        final lane = sideSheet?.controlsWidth ?? box.maxWidth * .56;
+        final titleWidth = lane.clamp(0.0, box.maxWidth);
+        final toggle = expanded == null
+            ? null
+            : Semantics(
+                label: label,
+                expanded: expanded,
+                child: MobileToolbarButton(
+                  key: const ValueKey('mobile-folder-sheet-expand'),
+                  label: (expanded! ? 'Collapse folder' : 'Expand folder').tl,
+                  icon: prism.GlyphIcon(
+                    expanded!
+                        ? prism.Glyphs.chevronDown
+                        : prism.Glyphs.chevronForward,
+                    size: 16,
                   ),
-          );
-    final action = expanded == null
-        ? null
-        : Semantics(
-            label: label,
-            expanded: expanded,
-            child: MobileToolbarButton(
-              key: const ValueKey('mobile-folder-sheet-expand'),
-              label: (expanded! ? 'Collapse folder' : 'Expand folder').tl,
-              icon: prism.GlyphIcon(
-                expanded!
-                    ? prism.Glyphs.chevronDown
-                    : prism.Glyphs.chevronForward,
-                size: 16,
-              ),
-              onPressed: onToggle,
-            ),
-          );
-    return Flex(
-      direction: narrow ? Axis.vertical : Axis.horizontal,
-      crossAxisAlignment: narrow
-          ? CrossAxisAlignment.stretch
-          : CrossAxisAlignment.center,
-      children: [
-        Flexible(
-          flex: narrow ? 0 : 1,
-          fit: FlexFit.tight,
-          child: Semantics(
-            selected: selected,
-            enabled: onPressed != null,
-            button: true,
-            child: ClickInkWell(
-              key: const ValueKey('mobile-folder-sheet-select'),
-              onTap: onPressed,
-              customBorder: MobileContentSurface.inkShapeOf(
-                context,
-                MobileContentStyle.row,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: prism.ListRow(
-                      minHeight: 50,
-                      minVerticalPadding: 6,
-                      padding: EdgeInsets.symmetric(horizontal: narrow ? 6 : 9),
-                      horizontalTitleGap: 6,
-                      leading: width < 175
-                          ? null
-                          : ExcludeSemantics(
-                              child: Icon(icon, size: 20, color: accent),
-                            ),
-                      title: Text(
-                        label,
-                        // Preserve full accessible names when the row wraps.
-                        semanticsLabel: label,
-                        maxLines: narrow ? 4 : 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: onPressed == null
-                            ? TextStyle(color: accent)
-                            : null,
-                      ),
-                      subtitle:
-                          subtitle == null &&
-                              (!stacked || count == null) &&
-                              !(narrow && check != null)
-                          ? null
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (subtitle case final text?)
-                                  Text(
-                                    text,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                  onPressed: onToggle,
+                ),
+              );
+        return MobileContentSurface(
+          style: MobileContentStyle.row,
+          selected: selected,
+          margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                selected: selected,
+                enabled: active,
+                button: true,
+                child: ClickInkWell(
+                  key: const ValueKey('mobile-folder-sheet-select'),
+                  onTap: onPressed,
+                  customBorder: MobileContentSurface.inkShapeOf(
+                    context,
+                    MobileContentStyle.row,
+                  ),
+                  child: Row(
+                    // Force only the physical order of these slots. Text,
+                    // icons and focus controls still inherit the locale.
+                    textDirection: TextDirection.ltr,
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          child: Row(
+                            textDirection: TextDirection.ltr,
+                            children: [
+                              ExcludeSemantics(
+                                child: Icon(icon, size: 18, color: accent),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  subtitle ?? '',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                              if (count != null)
+                                Flexible(
+                                  fit: FlexFit.loose,
+                                  child: Tooltip(
+                                    message:
+                                        countHint ??
+                                        'Comics directly in this folder'.tl,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        '$count',
+                                        key: const ValueKey(
+                                          'mobile-folder-sheet-count',
+                                        ),
+                                        semanticsLabel: '@a comics'.tlParams({
+                                          'a': count,
+                                        }),
+                                      ),
+                                    ),
                                   ),
-                                if (narrow &&
-                                    (countText != null || check != null))
-                                  Row(
-                                    children: [
-                                      if (countText != null)
-                                        Flexible(child: countText),
-                                      if (check != null) ...[
-                                        if (countText != null)
-                                          const SizedBox(width: 4),
-                                        check,
-                                      ],
-                                    ],
-                                  )
-                                else if (stacked)
-                                  ?countText,
-                              ],
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: (titleWidth - 3).clamp(
+                          0.0,
+                          math.max(0.0, box.maxWidth - 6),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: nested ? 9 : 2,
+                            right: 2,
+                          ),
+                          child: prism.ListRow(
+                            minHeight: 50,
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            minVerticalPadding: 6,
+                            title: Text(
+                              label,
+                              semanticsLabel: label,
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: !active
+                                  ? TextStyle(color: accent)
+                                  : selected
+                                  ? TextStyle(
+                                      color: accent,
+                                      fontWeight: FontWeight.w600,
+                                    )
+                                  : null,
                             ),
-                      trailing: stacked ? null : countText,
-                    ),
+                            subtitle: selected
+                                ? ExcludeSemantics(
+                                    child: prism.GlyphIcon(
+                                      prism.Glyphs.check,
+                                      key: const ValueKey(
+                                        'mobile-folder-sheet-selected',
+                                      ),
+                                      size: 16,
+                                      color: accent,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  if (!narrow && check != null)
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(end: 8),
-                      child: check,
-                    ),
-                ],
+                ),
               ),
-            ),
+              if (toggle != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Align(alignment: Alignment.centerRight, child: toggle),
+                ),
+            ],
           ),
-        ),
-        if (action != null)
-          Padding(
-            padding: const EdgeInsetsDirectional.only(end: 4),
-            child: narrow
-                ? Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: action,
-                  )
-                : action,
-          ),
-      ],
+        );
+      },
     );
   }
 }

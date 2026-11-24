@@ -6,7 +6,9 @@ import 'package:venera_next/components/mobile_ui.dart';
 
 void main() {
   const size = Size(390, 750);
-  final panel = find.byKey(const ValueKey('mobile-side-sheet-surface'));
+  final panel = find.byKey(const ValueKey('mobile-side-sheet-viewport'));
+  final card = find.byKey(const ValueKey('mobile-side-sheet-surface'));
+  final hidden = find.byKey(const ValueKey('left-only-action'));
   final grabber = find.byKey(const ValueKey('mobile-side-sheet-handle'));
 
   for (final direction in TextDirection.values) {
@@ -24,6 +26,8 @@ void main() {
       addTearDown(sheetFocus.dispose);
       var backgroundTaps = 0;
       String? chosen;
+      final layouts = <Size>{};
+      var hiddenTaps = 0;
       await tester.pumpWidget(
         MaterialApp(
           navigatorKey: owner,
@@ -57,20 +61,53 @@ void main() {
                         chosen = await owner.currentState!.push<String>(
                           MobileSideSheetRoute<String>(
                             context: context,
-                            builder: (context) => Align(
-                              alignment: Alignment.topCenter,
-                              child: TextButton(
-                                autofocus: true,
-                                focusNode: sheetFocus,
-                                onPressed: () =>
-                                    Navigator.pop(context, 'child'),
-                                child: Text(
-                                  Directionality.of(context) == direction
-                                      ? 'Choose child'
-                                      : 'Wrong text direction',
-                                ),
-                              ),
-                            ),
+                            builder: (context) {
+                              final layout = MobileSideSheetLayout.maybeOf(
+                                context,
+                              )!;
+                              return LayoutBuilder(
+                                builder: (context, constraints) {
+                                  layouts.add(constraints.biggest);
+                                  return Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Align(
+                                        alignment: Alignment.topRight,
+                                        child: layout.keepVisible(
+                                          TextButton(
+                                            autofocus: true,
+                                            focusNode: sheetFocus,
+                                            onPressed: () =>
+                                                Navigator.pop(context, 'child'),
+                                            child: Text(
+                                              Directionality.of(context) ==
+                                                      direction
+                                                  ? 'Choose child'
+                                                  : 'Wrong text direction',
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        // Only 2dp to the left of the exposed
+                                        // safe-area edge on the narrow detent.
+                                        right: layout.controlsWidth + 2,
+                                        top: 100,
+                                        width: 20,
+                                        height: 44,
+                                        child: TextButton(
+                                          key: const ValueKey(
+                                            'left-only-action',
+                                          ),
+                                          onPressed: () => hiddenTaps++,
+                                          child: const SizedBox.shrink(),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
                           ),
                         );
                       },
@@ -92,7 +129,7 @@ void main() {
 
       await open();
       await tester.pump(const Duration(milliseconds: 50));
-      final incoming = tester.getRect(panel);
+      final incoming = tester.getRect(card);
       expect(incoming.left, lessThan(0));
       await tester.pumpAndSettle();
       final landed = tester.getRect(panel);
@@ -103,8 +140,13 @@ void main() {
       expect(landed.height, closeTo(safeHeight * .86, .01));
       expect(landed.top, greaterThan(24));
       expect(landed.bottom, lessThan(size.height - 90 - 25));
+      final compactCard = tester.getRect(card);
+      expect(compactCard.size, const Size(safeWidth, safeHeight));
+      expect(compactCard.left, lessThan(0));
+      expect(compactCard.right, closeTo(landed.right, .01));
+      expect(hidden.hitTestable(), findsNothing);
       expect(
-        tester.widget<Material>(panel).shape,
+        tester.widget<Material>(card).shape,
         isA<RoundedSuperellipseBorder>(),
       );
       expect(tester.getCenter(grabber).dx, greaterThan(landed.center.dx));
@@ -123,6 +165,10 @@ void main() {
       expect(held.height, lessThan(safeHeight));
       expect(held.top, lessThan(landed.top));
       expect(held.bottom, greaterThan(landed.bottom));
+      final heldCard = tester.getRect(card);
+      expect(heldCard.size, compactCard.size);
+      expect(heldCard.left, greaterThan(compactCard.left));
+      expect(heldCard.right, closeTo(held.right, .01));
       await grow.moveBy(const Offset(160, 0));
       await tester.pump();
       await grow.up();
@@ -132,7 +178,12 @@ void main() {
       expect(wide.right, size.width - 11);
       expect(wide.top, 24);
       expect(wide.bottom, size.height - 90 - 25);
+      expect(tester.getRect(card), wide);
+      expect(layouts, {const Size(safeWidth - 22, safeHeight)});
       expect(sheetFocus.hasPrimaryFocus, isTrue);
+      expect(hidden.hitTestable(), findsOneWidget);
+      await tester.tap(hidden);
+      expect(hiddenTaps, 1);
 
       final shrink = await tester.startGesture(tester.getCenter(grabber));
       await shrink.moveBy(const Offset(-30, 0));
@@ -166,7 +217,8 @@ void main() {
       await finger.moveBy(const Offset(-36, 0));
       await finger.moveBy(const Offset(-38, 0));
       await tester.pump();
-      expect(tester.getRect(panel).left, lessThan(0));
+      expect(tester.getRect(panel).width, lessThan(landed.width));
+      expect(tester.getRect(card).left, lessThan(compactCard.left));
       await finger.cancel();
       await tester.pumpAndSettle();
       expect(tester.getRect(panel), landed);
@@ -207,7 +259,9 @@ void main() {
               onPressed: () => Navigator.of(context).push(
                 MobileSideSheetRoute<void>(
                   context: context,
-                  builder: (_) => const Center(child: CloseButton()),
+                  builder: (context) => MobileSideSheetLayout.maybeOf(
+                    context,
+                  )!.keepVisible(const CloseButton()),
                 ),
               ),
               child: const Text('Open'),
@@ -222,10 +276,14 @@ void main() {
     expect(tester.getTopLeft(panel).dx, 8);
     expect(tester.getTopLeft(panel).dy, greaterThan(8));
     expect(tester.getSize(panel).width, closeTo((size.width - 16) * .4, .01));
+    final narrowCard = tester.getSize(card);
+    expect(narrowCard.width, size.width - 16);
+    expect(find.byType(CloseButton).hitTestable(), findsOneWidget);
     await tester.tap(grabber);
     await tester.pump();
     expect(tester.getTopLeft(panel), const Offset(8, 8));
     expect(tester.getSize(panel).width, size.width - 16);
+    expect(tester.getSize(card), narrowCard);
     await tester.tap(find.byType(CloseButton));
     await tester.pump();
     await tester.pump();

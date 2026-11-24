@@ -281,7 +281,14 @@ void main() {
       final original = tester.state(local);
       await tester.tap(find.text('B'));
       await tester.pumpAndSettle();
-      expect(tester.getTopLeft(panel).dx, 8);
+      expect(
+        tester
+            .getTopLeft(
+              find.byKey(const ValueKey('mobile-side-sheet-viewport')),
+            )
+            .dx,
+        8,
+      );
       final browser = find.byType(FavoriteFolderBrowser);
       expect(browser, findsOneWidget);
       Finder control(Key key) =>
@@ -368,7 +375,7 @@ void main() {
   );
 
   testWidgets(
-    '320px actual favorite sheet resizes with height while preserving folder browser and IME',
+    '320px actual favorite sheet reveals a fixed card and keeps browser, rows and IME',
     (tester) async {
       tester.view
         ..devicePixelRatio = 1
@@ -409,13 +416,21 @@ void main() {
 
       final panel = find.byKey(const ValueKey('mobile-side-sheet-surface'));
       final grip = find.byKey(const ValueKey('mobile-side-sheet-handle'));
+      final viewport = find.byKey(const ValueKey('mobile-side-sheet-viewport'));
       final browser = find.byType(FavoriteFolderBrowser);
       Finder inside(Finder target) =>
           find.descendant(of: panel, matching: target);
-      final narrow = tester.getRect(panel);
+      final narrow = tester.getRect(viewport);
       expect(narrow.left, 12);
       expect(narrow.width, closeTo((320 - 12 - 10) * .4, .01));
       expect(narrow.height, lessThan(720 - 22 - 18));
+      expect(tester.getSize(panel), const Size(298, 680));
+      expect(tester.getRect(panel).left, lessThan(0));
+      expect(
+        inside(find.byKey(const ValueKey('mobile-folder-sheet-close')))
+            .hitTestable(),
+        findsOneWidget,
+      );
       final owner = tester.state(browser);
       final view = inside(find.byType(Scrollable)).first;
       final scroll = tester.state<ScrollableState>(view);
@@ -423,7 +438,7 @@ void main() {
       await tester.drag(view, const Offset(0, -100));
       await tester.pumpAndSettle();
       expect(position.pixels, greaterThan(0));
-      expect(tester.getRect(panel), narrow);
+      expect(tester.getRect(viewport), narrow);
       position.jumpTo(0);
       await tester.pumpAndSettle();
       final editor = inside(find.byType(EditableText));
@@ -431,23 +446,38 @@ void main() {
       tester.view.viewInsets = const FakeViewPadding(bottom: 210);
       await tester.pumpAndSettle();
       final oldEditor = tester.widget<EditableText>(editor);
-      final withIme = tester.getRect(panel);
+      final withIme = tester.getRect(viewport);
+      final unchangedCard = tester.getSize(panel);
+      final unchangedScroll = tester.getSize(view);
+      final unchangedEditor = tester.getSize(editor);
+      final label = inside(find.text(nested));
+      await tester.ensureVisible(label);
+      await tester.pumpAndSettle();
+      final unchangedLabel = tester.getSize(label);
       expect(withIme.height, lessThan(narrow.height));
       final fingers = await tester.startGesture(tester.getCenter(grip));
       await fingers.moveBy(const Offset(28, 0));
       await fingers.moveBy(const Offset(85, 0));
       await tester.pump(const Duration(milliseconds: 70));
-      final middle = tester.getRect(panel);
+      final middle = tester.getRect(viewport);
       expect(middle.width, greaterThan(withIme.width));
       expect(middle.height, greaterThan(withIme.height));
+      expect(tester.getSize(panel), unchangedCard);
+      expect(tester.getSize(view), unchangedScroll);
+      expect(tester.getSize(editor), unchangedEditor);
+      expect(tester.getSize(label), unchangedLabel);
       await fingers.moveBy(const Offset(125, 0));
       await fingers.up();
       await tester.pumpAndSettle();
-      final wide = tester.getRect(panel);
+      final wide = tester.getRect(viewport);
       expect(wide.left, narrow.left);
       expect(wide.right, 310);
       expect(wide.top, 22);
       expect(wide.bottom, 720 - 210 - 18);
+      expect(tester.getSize(panel), unchangedCard);
+      expect(tester.getSize(view), unchangedScroll);
+      expect(tester.getSize(editor), unchangedEditor);
+      expect(tester.getSize(label), unchangedLabel);
       expect(tester.state(browser), same(owner));
       expect(tester.state<ScrollableState>(view).position, same(position));
       final newEditor = tester.widget<EditableText>(editor);
@@ -610,6 +640,11 @@ void main() {
             .position;
         final buttonRect = tester.getRect(button('Search'));
         final barRect = tester.getRect(bar);
+        final editor = local(find.byType(EditableText));
+        tester.testTextInput.log.clear();
+        int shows() => tester.testTextInput.log
+            .where((m) => m.method == 'TextInput.show')
+            .length;
         void stillMounted() {
           expect(tester.state(bar), same(barOwner));
           expect(tester.state(grid), same(gridOwner));
@@ -630,15 +665,24 @@ void main() {
         await tester.pump(const Duration(milliseconds: 35));
         final early = tester.getRect(pane).width;
         expect(early, greaterThan(first.width + 2));
+        expect(tester.widget<EditableText>(editor).focusNode.hasFocus, isFalse);
+        expect(shows(), 0);
         await tester.pump(const Duration(milliseconds: 55));
         final later = tester.getRect(pane).width;
         expect(later, greaterThan(early + 6));
+        expect(shows(), 0);
         await tester.pumpAndSettle();
         final full = tester.getRect(pane);
         expect(full.width, greaterThan(later));
-        final editor = local(find.byType(EditableText));
         final input = tester.widget<EditableText>(editor);
         expect(input.focusNode.hasPrimaryFocus, isTrue);
+        expect(shows(), greaterThan(0));
+        expect(
+          tester.testTextInput.log.where(
+            (m) => m.method == 'TextInput.setClient',
+          ),
+          hasLength(1),
+        );
         final query = nested ? 'Existing sub' : 'Existing 499';
         await tester.enterText(editor, query);
         tester.view.viewInsets = const FakeViewPadding(bottom: 290);

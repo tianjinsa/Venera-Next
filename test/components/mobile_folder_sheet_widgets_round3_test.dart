@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prism_ui/list_row.dart' as prism show ListRow;
 import 'package:venera_next/components/mobile_content_surface.dart';
+import 'package:venera_next/components/mobile_side_sheet.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/favorites/mobile_folder_sheet_widgets.dart';
 
@@ -30,9 +31,10 @@ void main() {
               ),
             ),
             home: Scaffold(
-              body: SizedBox(
+              body: MobileSideSheetLayout(
                 // 40% of a 304dp safe viewport, minus the 22dp physical rail.
-                width: 99.6,
+                controlsWidth: 99.6,
+                bottomReserve: 0,
                 child: ListView(
                   children: [
                     MobileFolderSheetRow(
@@ -59,8 +61,16 @@ void main() {
         final select = find.byKey(const ValueKey('mobile-folder-sheet-select'));
         expect(tester.getRect(title).width, greaterThan(65));
         expect(
+          tester.getRect(title).left,
+          greaterThan(tester.getRect(count).right),
+        );
+        expect(
+          tester.getRect(title).top,
+          lessThan(tester.getRect(count).center.dy),
+        );
+        expect(
           tester.getRect(title).bottom,
-          lessThan(tester.getRect(count).top),
+          greaterThan(tester.getRect(count).center.dy),
         );
         expect(
           tester.getRect(select).bottom,
@@ -193,18 +203,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(selected, isNull);
         expect(find.byKey(child), findsOneWidget);
-        final parentCell = tester.getRect(select);
-        final childCell = tester.getRect(
+        final parentLabel = tester.getRect(find.text(parentName));
+        final childLabel = tester.getRect(find.text('Disabled nested folder'));
+        expect(childLabel.left, greaterThanOrEqualTo(parentLabel.left));
+        expect(childLabel.right, lessThanOrEqualTo(parentLabel.right));
+        expect(
           inside(
-            find.byKey(child),
-            const ValueKey('mobile-folder-sheet-select'),
+            find.byKey(trailing),
+            const ValueKey('mobile-folder-sheet-count'),
           ),
+          findsNothing,
         );
-        if (direction == TextDirection.ltr) {
-          expect(childCell.left, greaterThan(parentCell.left));
-        } else {
-          expect(childCell.right, lessThan(parentCell.right));
-        }
         await tester.tap(find.text('Disabled nested folder'));
         await tester.pumpAndSettle();
         expect(selected, isNull);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/mobile_dock_inset.dart';
+import 'package:venera_next/components/mobile_side_sheet.dart';
 import 'package:flutter/services.dart';
 import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/search_field.dart' as prism;
@@ -249,6 +250,15 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
               'favorite-folder-${rows[i].id}': i,
           }
         : null;
+    final sideSheet = mobileRows
+        ? MobileSideSheetLayout.maybeOf(context)
+        : null;
+    final search = Padding(
+      padding: mobileRows
+          ? const EdgeInsets.symmetric(horizontal: 5, vertical: 8)
+          : const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: _buildSearch(context),
+    );
     return CustomScrollView(
       primary: widget.primary,
       shrinkWrap: widget.shrinkWrap,
@@ -259,12 +269,7 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
             slivers: [
               SliverList.list(children: widget.headers),
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: widget.mobileSheetRows
-                      ? const EdgeInsets.symmetric(horizontal: 5, vertical: 8)
-                      : const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                  child: _buildSearch(context),
-                ),
+                child: sideSheet?.keepVisible(search) ?? search,
               ),
               if (rows.isEmpty)
                 SliverToBoxAdapter(
@@ -419,6 +424,10 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
               ),
               SliverList.list(children: widget.footers),
               ...widget.trailingSlivers,
+              if (sideSheet != null)
+                SliverToBoxAdapter(
+                  child: SizedBox(height: sideSheet.bottomReserve),
+                ),
               if (MobileDockInset.of(context) > 0)
                 SliverToBoxAdapter(
                   child: SizedBox(height: MobileDockInset.of(context)),
