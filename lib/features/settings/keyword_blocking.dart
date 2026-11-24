@@ -3,6 +3,13 @@ import 'mobile_setting_row.dart';
 import 'package:venera_next/foundation/keyword_settings_store.dart';
 import 'package:venera_next/foundation/keyword_filter.dart';
 import 'package:flutter/material.dart';
+import 'package:prism_ui/color.dart' as prism show ColorSchemeExtension;
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/context.dart' as prism;
+import 'package:prism_ui/form_sheet.dart' as prism;
+import 'package:prism_ui/icons/icons.dart' as prism;
+import 'package:prism_ui/text_field.dart' as prism;
+import 'package:prism_ui/typography.dart' as prism;
 import 'package:venera_next/components/keyword_match_preview.dart';
 import 'package:venera_next/components/keyword_rule_labels.dart';
 import 'package:venera_next/components/message.dart';
@@ -29,18 +36,52 @@ Future<void> showKeywordRuleEditor(
   KeywordRule? rule,
 }) {
   final work = context.getInheritedWidgetOfExactType<SettingsSaveScope>()?.work;
+  final mobile = MobileUi.enabledOf(context);
+  Widget editor(BuildContext _) {
+    final body = KeywordRuleEditor(
+      target: target,
+      initialRule: rule,
+      mobile: mobile,
+    );
+    return work == null ? body : SettingsSaveScope(work: work, child: body);
+  }
+
+  if (mobile) {
+    // Keep the root owner used by the diagnostic sheet and the old dialog:
+    // closing the editor returns to the same reason list, not its source page.
+    return Navigator.of(context, rootNavigator: true).push<void>(
+      _KeywordFormSheetRoute(
+        reducedMotion: MediaQuery.disableAnimationsOf(context),
+        barrierColor: prism.BuildContextExtension(context)
+            .colorScheme
+            .alertScrim,
+        barrierLabel: 'Close'.tl,
+        builder: editor,
+      ),
+    );
+  }
   return showDialog<void>(
     context: context,
     animationStyle: MediaQuery.disableAnimationsOf(context)
         ? AnimationStyle.noAnimation
         : null,
-    builder: (_) {
-      final editor = KeywordRuleEditor(target: target, initialRule: rule);
-      return work == null
-          ? editor
-          : SettingsSaveScope(work: work, child: editor);
-    },
+    builder: editor,
   );
+}
+
+class _KeywordFormSheetRoute extends prism.FormSheetRoute<void> {
+  _KeywordFormSheetRoute({
+    required this.reducedMotion,
+    required super.barrierColor,
+    required super.barrierLabel,
+    required super.builder,
+  });
+
+  final bool reducedMotion;
+
+  @override
+  Duration get transitionDuration =>
+      reducedMotion ? Duration.zero : super.transitionDuration;
 }
 
 class KeywordBlockingSettings extends StatefulWidget {
@@ -199,9 +240,15 @@ class _KeywordBlockingSettingsState
 }
 
 class KeywordRuleEditor extends StatefulWidget {
-  const KeywordRuleEditor({super.key, required this.target, this.initialRule});
+  const KeywordRuleEditor({
+    super.key,
+    required this.target,
+    this.initialRule,
+    this.mobile = false,
+  });
   final BlockedKeywordList target;
   final KeywordRule? initialRule;
+  final bool mobile;
 
   @override
   State<KeywordRuleEditor> createState() => _KeywordRuleEditorState();
@@ -323,24 +370,35 @@ class _KeywordRuleEditorState extends SettingsSaveState<KeywordRuleEditor> {
             description: '',
             tags: _mode == KeywordMatchMode.exactTag ? [sample] : const [],
           );
-    return Column(
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          key: const ValueKey('keyword-rule-sample'),
-          controller: _sample,
-          minLines: 1,
-          maxLines: 3,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            labelText: _comments
-                ? 'Sample comment'.tl
-                : _mode == KeywordMatchMode.exactTag
-                ? 'Sample tag'.tl
-                : 'Sample title'.tl,
+        if (widget.mobile)
+          _mobileField(
+            context,
+            label: _sampleLabel,
+            horizontalInset: 0,
+            child: prism.TextField(
+              key: const ValueKey('keyword-rule-sample'),
+              controller: _sample,
+              enabled: _editable,
+              minLines: 1,
+              maxLines: 3,
+              onChanged: (_) => setState(() {}),
+            ),
+          )
+        else
+          TextField(
+            key: const ValueKey('keyword-rule-sample'),
+            controller: _sample,
+            minLines: 1,
+            maxLines: 3,
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              labelText: _sampleLabel,
+            ),
+            onChanged: (_) => setState(() {}),
           ),
-          onChanged: (_) => setState(() {}),
-        ),
         const SizedBox(height: 8),
         if (sample.isNotEmpty && candidate.keyword.trim().isNotEmpty) ...[
           Text(
@@ -352,6 +410,12 @@ class _KeywordRuleEditorState extends SettingsSaveState<KeywordRuleEditor> {
           Text('Enter sample text to check this rule.'.tl),
       ],
     );
+    return widget.mobile
+        ? Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: content,
+          )
+        : content;
   }
 
   void _chooseMode(KeywordMatchMode mode) => setState(() {
@@ -359,122 +423,282 @@ class _KeywordRuleEditorState extends SettingsSaveState<KeywordRuleEditor> {
     _mode = mode;
   });
 
-  @override
-  Widget build(BuildContext context) => protectSettings(
-    ContentDialog(
-      title: widget.initialRule == null ? 'Add keyword'.tl : 'Edit keyword'.tl,
-      content: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Form(
-          key: _form,
+  String get _title =>
+      widget.initialRule == null ? 'Add keyword'.tl : 'Edit keyword'.tl;
+
+  String get _saveLabel => widget.initialRule == null ? 'Add'.tl : 'Save'.tl;
+
+  String get _sampleLabel => _comments
+      ? 'Sample comment'.tl
+      : _mode == KeywordMatchMode.exactTag
+      ? 'Sample tag'.tl
+      : 'Sample title'.tl;
+
+  String get _modeHelp => _comments && _mode == KeywordMatchMode.contains
+      ? 'Matches text anywhere in a comment.'.tl
+      : _mode.help;
+
+  String? get _abbreviationHint =>
+      !_shortAbbreviation || _mode == KeywordMatchMode.exactTag
+      ? null
+      : _mode == KeywordMatchMode.wholeWord
+      ? 'Whole word is recommended for short English abbreviations.'.tl
+      : 'Short abbreviations may match longer words. Try Whole word.'.tl;
+
+  Iterable<KeywordMatchMode> get _modes => KeywordMatchMode.values.where(
+    (mode) => !_comments || mode != KeywordMatchMode.exactTag,
+  );
+
+  String? _validateWord(String? _) {
+    final word = _candidate.keyword;
+    if (word.trim().isEmpty) return 'Keyword cannot be blank'.tl;
+    if (word != widget.initialRule?.keyword &&
+        _keywordSettings.contains(widget.target, word)) {
+      return 'Keyword already exists'.tl;
+    }
+    return null;
+  }
+
+  void _togglePreview() => setState(() => _showPreview = !_showPreview);
+
+  Widget _ignoreCase({EdgeInsetsGeometry? contentPadding}) => SettingSwitchRow(
+    contentPadding: contentPadding,
+    title: Text('Ignore case'.tl),
+    value: !_caseSensitive,
+    onChanged: _editable
+        ? (value) => setState(() => _caseSensitive = !value)
+        : null,
+  );
+
+  Widget _mobileField(
+    BuildContext context, {
+    required String label,
+    required Widget child,
+    double horizontalInset = 16,
+  }) => Padding(
+    padding: EdgeInsets.symmetric(horizontal: horizontalInset),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 6,
+      children: [
+        ExcludeSemantics(
+          child: Text(label, style: prism.AppTextStyle.headline.of(context)),
+        ),
+        Semantics(label: label, child: child),
+      ],
+    ),
+  );
+
+  Widget _mobileEditor(BuildContext context) {
+    final colors = prism.BuildContextExtension(context).colorScheme;
+    return Material(
+      type: MaterialType.transparency,
+      child: Form(
+        key: _form,
+        // The Prism route already accounts for keyboard insets. One scroll
+        // region keeps the fields and actions reachable even in a short view.
+        child: SingleChildScrollView(
+          primary: false,
+          padding: const EdgeInsets.only(top: 4, bottom: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                key: const ValueKey('keyword-rule-word'),
-                controller: _controller,
-                enabled: _editable,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  labelText: 'Keyword'.tl,
-                  errorText: _error,
-                  errorMaxLines: 4,
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 16, end: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        header: true,
+                        namesRoute: true,
+                        child: Text(
+                          _title,
+                          style: prism.AppTextStyle.headline.of(context),
+                        ),
+                      ),
+                    ),
+                    MobileToolbarButton(
+                      key: const ValueKey('keyword-editor-close'),
+                      label: 'Close'.tl,
+                      icon: const prism.GlyphIcon(prism.Glyphs.close),
+                      onPressed: acceptsSettingsChanges && !savingSettings
+                          ? leaveSettings
+                          : null,
+                    ),
+                  ],
                 ),
-                validator: (_) {
-                  final word = _candidate.keyword;
-                  if (word.trim().isEmpty) return 'Keyword cannot be blank'.tl;
-                  if (word != widget.initialRule?.keyword &&
-                      _keywordSettings.contains(widget.target, word)) {
-                    return 'Keyword already exists'.tl;
-                  }
-                  return null;
-                },
-                onChanged: _wordChanged,
+              ),
+              const SizedBox(height: 8),
+              _mobileField(
+                context,
+                label: 'Keyword'.tl,
+                child: prism.TextFormField(
+                  key: const ValueKey('keyword-rule-word'),
+                  controller: _controller,
+                  enabled: _editable,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  decoration: prism.InputDecoration(
+                    errorText: _error,
+                    errorMaxLines: 4,
+                  ),
+                  validator: _validateWord,
+                  onChanged: _wordChanged,
+                ),
               ),
               const SizedBox(height: 16),
-              if (MobileUi.enabledOf(context))
-                MobileChoiceFormField<KeywordMatchMode>(
-                  label: 'Matching method'.tl,
-                  initialValue: _mode,
-                  options: [
-                    for (final mode in KeywordMatchMode.values)
-                      if (!_comments || mode != KeywordMatchMode.exactTag)
+              ...settingGroup(context, [
+                SettingChoiceRow(
+                  title: Text('Matching method'.tl),
+                  enabled: _editable,
+                  choice: MobileChoice<KeywordMatchMode>(
+                    label: 'Matching method'.tl,
+                    value: _mode,
+                    setting: true,
+                    options: [
+                      for (final mode in _modes)
                         MobileChoiceOption(mode, mode.label),
-                  ],
-                  onChanged: _editable ? _chooseMode : null,
-                )
-              else
-                DropdownButtonFormField<KeywordMatchMode>(
-                  key: ValueKey(_mode),
-                  initialValue: _mode,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    labelText: 'Matching method'.tl,
+                    ],
+                    onChanged: _editable ? _chooseMode : null,
                   ),
-                  items: [
-                    for (final mode in KeywordMatchMode.values)
-                      if (!_comments || mode != KeywordMatchMode.exactTag)
-                        DropdownMenuItem(value: mode, child: Text(mode.label)),
-                  ],
-                  onChanged: _editable ? (mode) => _chooseMode(mode!) : null,
                 ),
-              const SizedBox(height: 8),
-              Text(
-                _comments && _mode == KeywordMatchMode.contains
-                    ? 'Matches text anywhere in a comment.'.tl
-                    : _mode.help,
-              ),
-              if (_shortAbbreviation && _mode != KeywordMatchMode.exactTag) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _mode == KeywordMatchMode.wholeWord
-                      ? 'Whole word is recommended for short English abbreviations.'
-                            .tl
-                      : 'Short abbreviations may match longer words. Try Whole word.'
-                            .tl,
+                _ignoreCase(),
+              ]),
+              SettingFootnote(_modeHelp),
+              if (_abbreviationHint case final hint?) SettingFootnote(hint),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
                 ),
-              ],
-              SettingSwitchRow(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Ignore case'.tl),
-                value: !_caseSensitive,
-                onChanged: _editable
-                    ? (value) => setState(() => _caseSensitive = !value)
-                    : null,
-              ),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  onPressed: () => setState(() => _showPreview = !_showPreview),
-                  icon: Icon(
-                    _showPreview ? Icons.expand_less : Icons.expand_more,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: prism.TextButton.icon(
+                    onPressed: _togglePreview,
+                    icon: RotatedBox(
+                      quarterTurns: _showPreview ? 2 : 0,
+                      child: const prism.GlyphIcon(prism.Glyphs.chevronDown),
+                    ),
+                    label: Text(
+                      _showPreview ? 'Hide test'.tl : 'Test match'.tl,
+                    ),
                   ),
-                  label: Text(_showPreview ? 'Hide test'.tl : 'Test match'.tl),
                 ),
               ),
               if (_showPreview) _preview(),
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 0),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (savingSettings || hasSettingsSaveError)
+                      settingsSaveStatus,
+                    if (widget.initialRule != null)
+                      prism.TextButton(
+                        key: ValueKey(('keyword-rule-delete', _editable)),
+                        style: prism.ButtonStyle.from(
+                          foregroundColor: colors.error,
+                        ),
+                        onPressed: _editable ? _delete : null,
+                        child: Text('Delete'.tl),
+                      ),
+                    prism.FilledButton(
+                      key: ValueKey(('keyword-rule-save', _editable)),
+                      onPressed: _editable ? _save : null,
+                      child: Text(_saveLabel),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ),
-      actions: [
-        settingsSaveStatus,
-        if (widget.initialRule != null)
-          TextButton(
-            onPressed: _editable ? _delete : null,
-            child: Text(
-              'Delete'.tl,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => protectSettings(
+    widget.mobile ? _mobileEditor(context) : _desktopEditor(context),
+  );
+
+  Widget _desktopEditor(BuildContext context) => ContentDialog(
+    title: _title,
+    content: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              key: const ValueKey('keyword-rule-word'),
+              controller: _controller,
+              enabled: _editable,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                labelText: 'Keyword'.tl,
+                errorText: _error,
+                errorMaxLines: 4,
+              ),
+              validator: _validateWord,
+              onChanged: _wordChanged,
             ),
-          ),
-        FilledButton(
-          onPressed: _editable ? _save : null,
-          child: Text(widget.initialRule == null ? 'Add'.tl : 'Save'.tl),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<KeywordMatchMode>(
+              key: ValueKey(_mode),
+              initialValue: _mode,
+              isExpanded: true,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                labelText: 'Matching method'.tl,
+              ),
+              items: [
+                for (final mode in _modes)
+                  DropdownMenuItem(value: mode, child: Text(mode.label)),
+              ],
+              onChanged: _editable ? (mode) => _chooseMode(mode!) : null,
+            ),
+            const SizedBox(height: 8),
+            Text(_modeHelp),
+            if (_abbreviationHint case final hint?) ...[
+              const SizedBox(height: 8),
+              Text(hint),
+            ],
+            _ignoreCase(contentPadding: EdgeInsets.zero),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: _togglePreview,
+                icon: Icon(
+                  _showPreview ? Icons.expand_less : Icons.expand_more,
+                ),
+                label: Text(_showPreview ? 'Hide test'.tl : 'Test match'.tl),
+              ),
+            ),
+            if (_showPreview) _preview(),
+          ],
         ),
-      ],
+      ),
     ),
+    actions: [
+      settingsSaveStatus,
+      if (widget.initialRule != null)
+        TextButton(
+          onPressed: _editable ? _delete : null,
+          child: Text(
+            'Delete'.tl,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ),
+      FilledButton(
+        onPressed: _editable ? _save : null,
+        child: Text(_saveLabel),
+      ),
+    ],
   );
 
   @override

@@ -168,6 +168,23 @@ class MobileChoiceButton extends StatelessWidget {
   final double minWidth;
   final VoidCallback? onPressed;
 
+  Widget _valueText(
+    BuildContext context, {
+    required AlignmentDirectional alignment,
+  }) {
+    // The pinned Prism animates via AnimatedSize even at duration zero.
+    // In Flutter 3.47 a changed label can then re-dirty itself during layout.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Align(
+        alignment: alignment,
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+      );
+    }
+    return prism.PopupValueText(value, alignment: alignment);
+  }
+
   @override
   Widget build(BuildContext context) {
     MobileChoiceTapLink.bind(context, onPressed);
@@ -184,8 +201,8 @@ class MobileChoiceButton extends StatelessWidget {
           spacing: 8,
           children: [
             Flexible(
-              child: prism.PopupValueText(
-                value,
+              child: _valueText(
+                context,
                 alignment: AlignmentDirectional.centerStart,
               ),
             ),
@@ -210,8 +227,8 @@ class MobileChoiceButton extends StatelessWidget {
           Flexible(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 160),
-              child: prism.PopupValueText(
-                value,
+              child: _valueText(
+                context,
                 alignment: AlignmentDirectional.centerEnd,
               ),
             ),

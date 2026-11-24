@@ -7,6 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/common_button.dart' as prism;
+import 'package:prism_ui/form_sheet.dart' as prism;
+import 'package:prism_ui/popup.dart' as prism;
+import 'package:prism_ui/switch.dart' as prism;
+import 'package:prism_ui/text_field.dart' as prism;
+import 'package:venera_next/components/mobile_setting_row.dart';
 import 'package:venera_next/components/mobile_content_surface.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/comic_widgets/keyword_hidden_notice.dart';
@@ -307,6 +313,138 @@ void main() {
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
       expect(sheet, findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'phone reason opens the native keyword form and preserves validation, cancel and save',
+    (tester) async {
+      final root = _prepare();
+      appdata.settings['blockedWords'] = ['alpha', 'beta'];
+      appdata.settings['blockedWordRules'] = {'alpha': 'contains:insensitive'};
+      tester.view
+        ..physicalSize = const Size(390, 844)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      configureComicWidgets(
+        keywordRuleEditor: (context, rule) => showKeywordRuleEditor(
+          context,
+          target: BlockedKeywordList.comics,
+          rule: rule,
+        ),
+        tileImageProviderResolver: (_) =>
+            const AssetImage('assets/app_icon.png'),
+      );
+      addTearDown(configureComicWidgets);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [MobileUiLocalizations.delegate],
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              disableAnimations: true,
+              textScaler: TextScaler.linear(1.45),
+            ),
+            child: MobileUiTheme(glass: 'off', child: child!),
+          ),
+          home: Scaffold(
+            body: KeywordHiddenNotice(
+              count: 1,
+              comics: () => [_comic('alpha story')],
+            ),
+          ),
+        ),
+      );
+
+      await _tap(tester, find.text('View reasons'));
+      final reason = find.text('Keyword filter reasons');
+      expect(reason, findsOneWidget);
+      Future<void> openEditor() => _tap(tester, find.text('Keyword: alpha'));
+      await openEditor();
+      final editor = find.byType(KeywordRuleEditor);
+      final route = ModalRoute.of(tester.element(editor));
+      expect(route, isA<prism.FormSheetRoute<void>>());
+      expect(route!.isCurrent, isTrue);
+      expect(find.byType(ContentDialog), findsNothing);
+      expect(find.text('Edit keyword'), findsOneWidget);
+      expect(find.text('Keyword'), findsOneWidget);
+      expect(find.byType(SettingChoiceRow), findsOneWidget);
+      expect(find.byType(prism.Switch), findsOneWidget);
+      final word = find.byKey(_wordKey);
+      final save = find.widgetWithText(prism.FilledButton, 'Save');
+      expect(
+        tester.widget<prism.TextFormField>(word).controller!.text,
+        'alpha',
+      );
+      expect(find.widgetWithText(prism.TextButton, 'Delete'), findsOneWidget);
+
+      await tester.enterText(word, ' ');
+      await tester.pumpAndSettle();
+      expect(find.text('Keyword cannot be blank'), findsOneWidget);
+      await tester.enterText(word, 'beta');
+      await tester.pumpAndSettle();
+      await _tap(tester, save);
+      expect(find.text('Keyword already exists'), findsOneWidget);
+      expect(appdata.settings['blockedWords'], ['alpha', 'beta']);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      await _tap(tester, find.byKey(const ValueKey('keyword-editor-close')));
+      expect(editor, findsNothing);
+      expect(reason, findsOneWidget);
+      expect(appdata.settings['blockedWords'], ['alpha', 'beta']);
+
+      await openEditor();
+      expect(
+        tester.widget<prism.TextFormField>(word).controller!.text,
+        'alpha',
+      );
+      await _tap(tester, find.text('Matching method'));
+      final menu = find.byType(prism.PopupMenu);
+      expect(menu, findsOneWidget);
+      expect(
+        tester
+            .widget<prism.PopupMenu>(menu)
+            .items
+            .where((item) => item.checked == true),
+        hasLength(1),
+      );
+      await _tap(tester, find.text('Whole word').hitTestable());
+      await _tap(tester, find.text('Test match'));
+      final sample = find.byKey(_sampleKey);
+      expect(tester.widget(sample), isA<prism.TextField>());
+      expect(find.text('Sample title'), findsOneWidget);
+      await tester.ensureVisible(sample);
+      await tester.enterText(sample, 'Alpha story');
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+      final field = find.descendant(
+        of: sample,
+        matching: find.byType(EditableText),
+      );
+      await tester.ensureVisible(field);
+      await tester.pumpAndSettle();
+      expect(tester.widget<EditableText>(field).focusNode.hasFocus, isTrue);
+      expect(tester.getBottomLeft(field).dy, lessThanOrEqualTo(844 - 300));
+      expect(find.text('Will be hidden'), findsOneWidget);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(word);
+      await tester.enterText(word, 'gamma');
+      await tester.pumpAndSettle();
+      await _tap(tester, find.text('Ignore case'));
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pump();
+      await _flush(tester, appdata.saveData(false));
+      expect(editor, findsNothing);
+      expect(reason, findsOneWidget);
+      expect(_saved(root)['blockedWords'], ['gamma', 'beta']);
+      expect(_saved(root)['blockedWordRules'], {
+        'gamma': 'wholeWord:sensitive',
+      });
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -683,9 +821,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Will be hidden'.tl), findsOneWidget);
       if (name == 'phone-light') await _capture(tester, 'phone-highlight');
-      final colors = Theme.of(
-        tester.element(find.byType(KeywordMatchPreview)),
-      ).colorScheme;
+      final colors = Theme.of(tester.element(find.byType(KeywordMatchPreview)))
+          .colorScheme;
       final a = colors.primaryContainer.computeLuminance();
       final b = colors.onPrimaryContainer.computeLuminance();
       expect(
