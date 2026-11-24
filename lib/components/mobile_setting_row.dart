@@ -124,7 +124,7 @@ class SettingRow extends StatelessWidget {
         horizontal: prism.ListInsets.of(context).margin,
         vertical: position == null ? 4 : 0,
       ),
-      child: surface,
+      child: MobilePopupSourceSurface(colorAt: (_) => fill, child: surface),
     );
   }
 }

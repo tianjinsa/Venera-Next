@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart'
+    as material
+    show ElevationOverlay, Material, MaterialType, Theme;
 import 'package:flutter/widgets.dart';
 import 'package:prism_ui/card.dart' as prism;
 import 'package:prism_ui/common_button.dart' as prism;
@@ -132,6 +135,7 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
     }
     return MobilePopupAnchor(
       targetBuilder: target,
+      fallbackSourceColor: widget.setting ? _plainSettingSurface : null,
       placement: Directionality.of(context) == TextDirection.rtl
           ? prism.PopupPlacement.overAnchorStart
           : prism.PopupPlacement.overAnchorEnd,
@@ -150,6 +154,43 @@ class _MobileChoiceState<T extends Object> extends State<MobileChoice<T>> {
           ),
       ],
     );
+  }
+
+  /// Ungrouped settings forms put their transparent value on the page's
+  /// Material, not the dark SettingRow surface. Take that actual page color
+  /// (including elevation tint) only when there is no explicit source scope.
+  static Color? _plainSettingSurface(BuildContext context) {
+    Color? result;
+    context.visitAncestorElements((element) {
+      final surface = element.widget;
+      if (surface is! material.Material ||
+          surface.type == material.MaterialType.transparency) {
+        return true;
+      }
+      final theme = material.Theme.of(element);
+      final color =
+          surface.color ??
+          switch (surface.type) {
+            material.MaterialType.canvas => theme.canvasColor,
+            material.MaterialType.card => theme.cardColor,
+            _ => null,
+          };
+      if (color == null || color.a == 0) return true;
+      final painted = theme.useMaterial3
+          ? material.ElevationOverlay.applySurfaceTint(
+              color,
+              surface.surfaceTintColor,
+              surface.elevation,
+            )
+          : material.ElevationOverlay.applyOverlay(
+              element,
+              color,
+              surface.elevation,
+            );
+      result = result == null ? painted : Color.alphaBlend(result!, painted);
+      return result!.a < 1;
+    });
+    return result?.a == 1 ? result : null;
   }
 }
 

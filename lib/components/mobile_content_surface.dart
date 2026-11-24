@@ -39,6 +39,41 @@ abstract final class MobileContentPalette {
       Color.lerp(base, Colors.black, .016)!,
     ];
   }
+
+  static Color _underAnchor(
+    BuildContext surface,
+    BuildContext anchor,
+    EdgeInsetsGeometry insets,
+    LinearGradient gradient,
+    Color fallback,
+  ) {
+    final box = surface.findRenderObject();
+    final target = anchor.findRenderObject();
+    if (box is! RenderBox ||
+        target is! RenderBox ||
+        !box.attached ||
+        !target.attached ||
+        !box.hasSize ||
+        !target.hasSize) {
+      return fallback;
+    }
+    final direction = Directionality.of(surface);
+    final rect = insets.resolve(direction).deflateRect(Offset.zero & box.size);
+    if (rect.isEmpty) return fallback;
+    final from = gradient.begin.resolve(direction).withinRect(rect);
+    final to = gradient.end.resolve(direction).withinRect(rect);
+    final axis = to - from;
+    final local =
+        target.localToGlobal(target.size.center(Offset.zero), ancestor: box) -
+        from;
+    // Same projection along the diagonal as the card's LinearGradient.
+    final t = (axis.dx * local.dx + axis.dy * local.dy) / axis.distanceSquared;
+    return Color.lerp(
+      gradient.colors.first,
+      gradient.colors.last,
+      t.clamp(0, 1),
+    )!;
+  }
 }
 
 /// The matte content layer underneath floating liquid-glass controls.
@@ -108,18 +143,19 @@ class MobileContentSurface extends StatelessWidget {
     final dark = scheme.brightness == Brightness.dark;
     final shape = prism.AppShape.all(style.radius);
     final base = MobileContentPalette.fill(context, selected: selected);
+    final gradient = glass
+        ? LinearGradient(
+            begin: AlignmentDirectional.topStart,
+            end: AlignmentDirectional.bottomEnd,
+            colors: MobileContentPalette.glaze(context, base),
+          )
+        : null;
     return Padding(
       padding: insets,
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: glass ? null : base,
-          gradient: glass
-              ? LinearGradient(
-                  begin: AlignmentDirectional.topStart,
-                  end: AlignmentDirectional.bottomEnd,
-                  colors: MobileContentPalette.glaze(context, base),
-                )
-              : null,
+          gradient: gradient,
           shape: shape,
           shadows: style == MobileContentStyle.summary
               ? [
@@ -149,10 +185,21 @@ class MobileContentSurface extends StatelessWidget {
               ),
             ),
           ),
-          child: Material(
-            type: MaterialType.transparency,
-            textStyle: DefaultTextStyle.of(context).style,
-            child: child,
+          child: MobilePopupSourceSurface(
+            colorAt: (anchor) => gradient == null
+                ? base
+                : MobileContentPalette._underAnchor(
+                    context,
+                    anchor,
+                    insets,
+                    gradient,
+                    base,
+                  ),
+            child: Material(
+              type: MaterialType.transparency,
+              textStyle: DefaultTextStyle.of(context).style,
+              child: child,
+            ),
           ),
         ),
       ),

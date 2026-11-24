@@ -11,6 +11,7 @@ import 'package:prism_ui/popup.dart' as prism;
 import 'package:prism_ui/scaffold.dart'
     as prism
     show AppBar, appBarLeadingWidth, isCompactBar;
+import 'package:prism_ui/surface.dart' as prism show Surface;
 import 'package:prism_ui/theme_data.dart' as prism;
 import 'package:prism_ui/view_scope.dart' as prism;
 import 'package:venera_next/foundation/app.dart';
@@ -316,6 +317,25 @@ class MobileMenuButton extends StatelessWidget {
   );
 }
 
+/// The settled paint behind transparent menu triggers on a custom surface.
+/// Sample it at the anchor when the popup opens, not on each animation tick.
+class MobilePopupSourceSurface extends InheritedWidget {
+  const MobilePopupSourceSurface({
+    super.key,
+    required this.colorAt,
+    required super.child,
+  });
+
+  final Color Function(BuildContext anchor) colorAt;
+
+  static MobilePopupSourceSurface? _maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<MobilePopupSourceSurface>();
+
+  @override
+  bool updateShouldNotify(MobilePopupSourceSurface oldWidget) =>
+      colorAt != oldWidget.colorAt;
+}
+
 /// Keeps Prism's source snapshot, spring, nested levels and drag recognizers.
 /// In the pinned Prism release, ordinary leaves wait for route.completed.
 /// Its public keepsOpen callback instead fires on the committed row (including
@@ -328,6 +348,7 @@ class MobilePopupAnchor extends StatelessWidget {
     required this.items,
     this.placement = prism.PopupPlacement.overAnchorEnd,
     this.maxVisibleItems,
+    this.fallbackSourceColor,
   });
 
   final Widget Function(VoidCallback open) targetBuilder;
@@ -336,16 +357,57 @@ class MobilePopupAnchor extends StatelessWidget {
   final prism.PopupPlacement placement;
   final int? maxVisibleItems;
 
+  /// For a transparent choice sitting on a plain page, with no custom surface
+  /// scope. Ordinary toolbar buttons keep their own Prism color resolution.
+  final Color? Function(BuildContext anchor)? fallbackSourceColor;
+
   @override
-  Widget build(BuildContext owner) => prism.PopupAnchor(
-    placement: placement,
-    targetBuilder: targetBuilder,
-    popupBuilder: (_) => _CommittedPopup(
-      owner: owner,
-      items: items,
-      maxVisibleItems: maxVisibleItems,
-    ),
-  );
+  Widget build(BuildContext owner) {
+    final surface = MobilePopupSourceSurface._maybeOf(owner);
+    return prism.PopupAnchor(
+      placement: placement,
+      targetBuilder: (open) {
+        final target = targetBuilder(open);
+        if (surface == null && fallbackSourceColor == null) return target;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              width: 0,
+              height: 0,
+              child: _PrismPopupSourceColor(
+                () =>
+                    surface?.colorAt(owner) ?? fallbackSourceColor?.call(owner),
+              ),
+            ),
+            target,
+          ],
+        );
+      },
+      popupBuilder: (_) => _CommittedPopup(
+        owner: owner,
+        items: items,
+        maxVisibleItems: maxVisibleItems,
+      ),
+    );
+  }
+}
+
+/// The pinned Prism anchor resolves its route's `sourceColor` from the first
+/// `Surface` inside its target, without an explicit override on `PopupAnchor`.
+/// Publish the backing color there without painting a second fill over the
+/// real trigger. Prism uses that color for both springs and its glass alpha;
+/// the floating menu still obtains its open material from the navigator.
+class _PrismPopupSourceColor extends prism.Surface {
+  const _PrismPopupSourceColor(this.resolve) : super(child: const SizedBox());
+
+  final Color? Function() resolve;
+
+  @override
+  Color? get color => resolve();
+
+  @override
+  Widget build(BuildContext context) => child;
 }
 
 class _CommittedPopup extends StatefulWidget {
