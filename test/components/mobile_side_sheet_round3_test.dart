@@ -97,15 +97,56 @@ void main() {
       await tester.pumpAndSettle();
       final landed = tester.getRect(panel);
       expect(landed.left, 13);
-      expect(landed.top, 24);
-      expect(landed.bottom, size.height - 90 - 25);
-      expect(landed.right, lessThan(size.width - 45));
+      const safeHeight = 750.0 - 90 - 24 - 25;
+      const safeWidth = 390.0 - 13 - 11;
+      expect(landed.width, closeTo(safeWidth * .4, .01));
+      expect(landed.height, closeTo(safeHeight * .86, .01));
+      expect(landed.top, greaterThan(24));
+      expect(landed.bottom, lessThan(size.height - 90 - 25));
       expect(
         tester.widget<Material>(panel).shape,
         isA<RoundedSuperellipseBorder>(),
       );
       expect(tester.getCenter(grabber).dx, greaterThan(landed.center.dx));
       expect(sheetFocus.hasPrimaryFocus, isTrue);
+
+      final grow = await tester.startGesture(tester.getCenter(grabber));
+      await grow.moveBy(const Offset(30, 0)); // Recognizer's touch slop.
+      await tester.pump(const Duration(milliseconds: 30));
+      await grow.moveBy(const Offset(72, 0));
+      await tester.pump(const Duration(milliseconds: 70));
+      final held = tester.getRect(panel);
+      expect(held.left, landed.left);
+      expect(held.width, greaterThan(landed.width + 40));
+      expect(held.width, lessThan(safeWidth));
+      expect(held.height, greaterThan(landed.height));
+      expect(held.height, lessThan(safeHeight));
+      expect(held.top, lessThan(landed.top));
+      expect(held.bottom, greaterThan(landed.bottom));
+      await grow.moveBy(const Offset(160, 0));
+      await tester.pump();
+      await grow.up();
+      await tester.pumpAndSettle();
+      final wide = tester.getRect(panel);
+      expect(wide.left, landed.left);
+      expect(wide.right, size.width - 11);
+      expect(wide.top, 24);
+      expect(wide.bottom, size.height - 90 - 25);
+      expect(sheetFocus.hasPrimaryFocus, isTrue);
+
+      final shrink = await tester.startGesture(tester.getCenter(grabber));
+      await shrink.moveBy(const Offset(-30, 0));
+      await shrink.moveBy(const Offset(-125, 0));
+      await tester.pump();
+      expect(tester.getRect(panel).width, lessThan(wide.width));
+      expect(tester.getRect(panel).left, landed.left);
+      await shrink.cancel();
+      await tester.pumpAndSettle();
+      expect(tester.getRect(panel), wide);
+
+      await tester.tap(grabber);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(panel), landed);
 
       await tester.tapAt(Offset(size.width - 12, 125));
       await tester.pumpAndSettle();
@@ -178,8 +219,13 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pump();
     await tester.pump();
+    expect(tester.getTopLeft(panel).dx, 8);
+    expect(tester.getTopLeft(panel).dy, greaterThan(8));
+    expect(tester.getSize(panel).width, closeTo((size.width - 16) * .4, .01));
+    await tester.tap(grabber);
+    await tester.pump();
     expect(tester.getTopLeft(panel), const Offset(8, 8));
-    expect(grabber, findsNothing);
+    expect(tester.getSize(panel).width, size.width - 16);
     await tester.tap(find.byType(CloseButton));
     await tester.pump();
     await tester.pump();

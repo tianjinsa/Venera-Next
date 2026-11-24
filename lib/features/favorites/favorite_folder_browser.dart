@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:venera_next/components/mobile_dock_inset.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/icons/icons.dart' as prism;
 import 'package:prism_ui/search_field.dart' as prism;
+import 'package:prism_ui/shape.dart' as prism;
+import 'package:prism_ui/text_field.dart' as prism;
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/select.dart';
 import 'package:venera_next/components/tv_navigation.dart';
@@ -94,31 +97,83 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
     super.dispose();
   }
 
-  Widget _buildSearch(BuildContext context) {
-    if (MobileUi.enabledOf(context) &&
-        (widget.enabled || widget.mobileSheetRows)) {
-      final label = 'Search local folders'.tl;
-      final search = prism.SearchField(
-        key: const ValueKey('favorite-folder-search'),
-        controller: _search,
-        hintText: label,
-        fill: widget.mobileSheetRows
-            ? Theme.of(context).colorScheme.surfaceContainerHighest
-            : null,
-        onChanged: (value) =>
-            setState(() => _query = value.trim().toLowerCase()),
-      );
-      if (widget.enabled) return search;
-      return Semantics(
-        label: label,
-        textField: true,
-        enabled: false,
-        child: ExcludeSemantics(
-          child: ExcludeFocus(
-            child: AbsorbPointer(child: Opacity(opacity: .45, child: search)),
+  void _updateQuery(String value) =>
+      setState(() => _query = value.trim().toLowerCase());
+
+  Widget _buildMobileSheetSearch(BuildContext context) {
+    final label = 'Search local folders'.tl;
+    final border = prism.AppShape.input.copyWith(
+      borderRadius: prism.AppRadius.full,
+      borderSide: BorderSide.none,
+    );
+    return LayoutBuilder(
+      builder: (context, box) {
+        final compact = box.maxWidth < 175;
+        return ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _search,
+          builder: (context, value, _) => Semantics(
+            label: label,
+            child: prism.TextField(
+              key: const ValueKey('favorite-folder-search'),
+              controller: _search,
+              enabled: widget.enabled,
+              textInputAction: TextInputAction.search,
+              textAlignVertical: TextAlignVertical.center,
+              inputFormatters: [LengthLimitingTextInputFormatter(256)],
+              onChanged: _updateQuery,
+              decoration: prism.InputDecoration(
+                hintText: compact ? 'Search'.tl : label,
+                filled: true,
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                border: border,
+                enabledBorder: border,
+                contentPadding: EdgeInsetsDirectional.only(
+                  start: compact ? 9 : 0,
+                  end: value.text.isEmpty ? 8 : 0,
+                ),
+                prefixIcon: compact
+                    ? null
+                    : const prism.GlyphIcon(prism.Glyphs.search, size: 20),
+                prefixIconConstraints: const BoxConstraints.tightFor(width: 36),
+                suffixIcon: value.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear'.tl,
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints.tightFor(
+                          width: compact ? 32 : 44,
+                          height: 44,
+                        ),
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: widget.enabled
+                            ? () {
+                                _search.clear();
+                                _updateQuery('');
+                              }
+                            : null,
+                      ),
+                suffixIconConstraints: const BoxConstraints(),
+              ),
+            ),
           ),
-        ),
-      );
+        );
+      },
+    );
+  }
+
+  Widget _buildSearch(BuildContext context) {
+    if (MobileUi.enabledOf(context)) {
+      if (widget.mobileSheetRows) return _buildMobileSheetSearch(context);
+      if (widget.enabled) {
+        return prism.SearchField(
+          key: const ValueKey('favorite-folder-search'),
+          controller: _search,
+          hintText: 'Search local folders'.tl,
+          onChanged: _updateQuery,
+        );
+      }
     }
     final field = TextField(
       key: const ValueKey('favorite-folder-search'),
@@ -205,7 +260,9 @@ class _FavoriteFolderBrowserState extends State<FavoriteFolderBrowser> {
               SliverList.list(children: widget.headers),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  padding: widget.mobileSheetRows
+                      ? const EdgeInsets.symmetric(horizontal: 5, vertical: 8)
+                      : const EdgeInsets.fromLTRB(12, 8, 12, 8),
                   child: _buildSearch(context),
                 ),
               ),

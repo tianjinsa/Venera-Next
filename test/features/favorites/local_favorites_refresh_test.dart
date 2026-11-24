@@ -367,6 +367,107 @@ void main() {
     },
   );
 
+  testWidgets(
+    '320px actual favorite sheet resizes with height while preserving folder browser and IME',
+    (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(320, 720)
+        ..padding = const FakeViewPadding(
+          left: 12,
+          top: 22,
+          right: 10,
+          bottom: 18,
+        );
+      addTearDown(tester.view.reset);
+      final fixture = await _prepare(tester, 1);
+      fixture.textScale = 1.6;
+      const nested = 'Long nested collection from the search result';
+      await tester.runAsync(() async {
+        await fixture.manager.createChildFolder(
+          nested,
+          fixture.manager.folderTree.named('B')!.id,
+        );
+        await fixture.manager.addComic(
+          nested,
+          _comic('nested-book', 'Nested book'),
+        );
+        for (var i = 0; i < 12; i++) {
+          await fixture.manager.createFolder('Scrolling fixture folder $i');
+        }
+      });
+      appdata.implicitData['favoriteFolder'] = {
+        'name': 'B',
+        'isNetwork': false,
+      };
+      await tester.pumpWidget(
+        fixture.host(phone: true, page: const FavoritesPage()),
+      );
+      await _settle(tester);
+      await tester.tap(find.byKey(const ValueKey('favorite-path-current')));
+      await tester.pumpAndSettle();
+
+      final panel = find.byKey(const ValueKey('mobile-side-sheet-surface'));
+      final grip = find.byKey(const ValueKey('mobile-side-sheet-handle'));
+      final browser = find.byType(FavoriteFolderBrowser);
+      Finder inside(Finder target) =>
+          find.descendant(of: panel, matching: target);
+      final narrow = tester.getRect(panel);
+      expect(narrow.left, 12);
+      expect(narrow.width, closeTo((320 - 12 - 10) * .4, .01));
+      expect(narrow.height, lessThan(720 - 22 - 18));
+      final owner = tester.state(browser);
+      final view = inside(find.byType(Scrollable)).first;
+      final scroll = tester.state<ScrollableState>(view);
+      final position = scroll.position;
+      await tester.drag(view, const Offset(0, -100));
+      await tester.pumpAndSettle();
+      expect(position.pixels, greaterThan(0));
+      expect(tester.getRect(panel), narrow);
+      position.jumpTo(0);
+      await tester.pumpAndSettle();
+      final editor = inside(find.byType(EditableText));
+      await tester.enterText(editor, 'from the search');
+      tester.view.viewInsets = const FakeViewPadding(bottom: 210);
+      await tester.pumpAndSettle();
+      final oldEditor = tester.widget<EditableText>(editor);
+      final withIme = tester.getRect(panel);
+      expect(withIme.height, lessThan(narrow.height));
+      final fingers = await tester.startGesture(tester.getCenter(grip));
+      await fingers.moveBy(const Offset(28, 0));
+      await fingers.moveBy(const Offset(85, 0));
+      await tester.pump(const Duration(milliseconds: 70));
+      final middle = tester.getRect(panel);
+      expect(middle.width, greaterThan(withIme.width));
+      expect(middle.height, greaterThan(withIme.height));
+      await fingers.moveBy(const Offset(125, 0));
+      await fingers.up();
+      await tester.pumpAndSettle();
+      final wide = tester.getRect(panel);
+      expect(wide.left, narrow.left);
+      expect(wide.right, 310);
+      expect(wide.top, 22);
+      expect(wide.bottom, 720 - 210 - 18);
+      expect(tester.state(browser), same(owner));
+      expect(tester.state<ScrollableState>(view).position, same(position));
+      final newEditor = tester.widget<EditableText>(editor);
+      expect(newEditor.controller, same(oldEditor.controller));
+      expect(newEditor.focusNode, same(oldEditor.focusNode));
+      expect(newEditor.focusNode.hasPrimaryFocus, isTrue);
+      expect(newEditor.controller.text, 'from the search');
+      final choice = inside(find.text(nested));
+      await tester.ensureVisible(choice);
+      await tester.pumpAndSettle();
+      await tester.tap(choice);
+      await tester.pumpAndSettle();
+      expect(panel, findsNothing);
+      tester.view.resetViewInsets();
+      await _settle(tester);
+      expect(_tile('nested-book'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final multiFolder in [false, true]) {
     testWidgets(
       'network favorite roots open the selector by name: multi=$multiFolder',

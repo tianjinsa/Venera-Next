@@ -8,6 +8,84 @@ import 'package:venera_next/features/favorites/mobile_folder_sheet_widgets.dart'
 void main() {
   for (final direction in TextDirection.values) {
     testWidgets(
+      '40%-width folder cells prioritize name and separate toggle: $direction',
+      (tester) async {
+        tester.view
+          ..devicePixelRatio = 1
+          ..physicalSize = const Size(320, 680);
+        addTearDown(tester.view.reset);
+        const name = 'A long bilingual folder name 正常 / 收藏';
+        var toggles = 0;
+        var selections = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: const [MobileUiLocalizations.delegate],
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2.6)),
+              child: MobileUiTheme(
+                glass: 'off',
+                child: Directionality(textDirection: direction, child: child!),
+              ),
+            ),
+            home: Scaffold(
+              body: SizedBox(
+                // 40% of a 304dp safe viewport, minus the 22dp physical rail.
+                width: 99.6,
+                child: ListView(
+                  children: [
+                    MobileFolderSheetRow(
+                      label: name,
+                      icon: Icons.folder_outlined,
+                      count: 123456,
+                      nested: true,
+                      selected: true,
+                      expanded: false,
+                      subtitle: 'Nested in another long label',
+                      onToggle: () => toggles++,
+                      onPressed: () => selections++,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final title = find.text(name);
+        final count = find.byKey(const ValueKey('mobile-folder-sheet-count'));
+        final toggle = find.byKey(const ValueKey('mobile-folder-sheet-expand'));
+        final select = find.byKey(const ValueKey('mobile-folder-sheet-select'));
+        expect(tester.getRect(title).width, greaterThan(65));
+        expect(
+          tester.getRect(title).bottom,
+          lessThan(tester.getRect(count).top),
+        );
+        expect(
+          tester.getRect(select).bottom,
+          lessThanOrEqualTo(tester.getRect(toggle).top),
+        );
+        expect(tester.widget<Text>(count).data, '123456');
+        expect(
+          tester.getSemantics(select).getSemanticsData().label,
+          contains(name),
+        );
+        expect(
+          tester.getSemantics(select).getSemanticsData().label,
+          contains('123456 comics'),
+        );
+        await tester.tap(toggle);
+        await tester.pumpAndSettle();
+        expect((toggles, selections), (1, 0));
+        await tester.tap(title);
+        await tester.pumpAndSettle();
+        expect((toggles, selections), (1, 1));
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
       'sheet cells use Prism layout, separate selection and expansion: $direction',
       (tester) async {
         tester.view
