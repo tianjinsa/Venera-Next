@@ -14,11 +14,13 @@ class ReaderSidebarBinding {
     required this.canOpen,
     required this.acquireInteraction,
     required this.onError,
+    this.coverMobileBackground,
   });
 
   final bool Function() canOpen;
   final VoidCallback Function() acquireInteraction;
   final void Function(Object, StackTrace) onError;
+  final VoidCallback Function()? coverMobileBackground;
   _SidebarOperation? _active;
   final _retiring = <_SidebarOperation>{};
   bool _disposed = false;
@@ -85,7 +87,7 @@ class ReaderSidebarBinding {
             ),
       );
       operation.release = acquireInteraction();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      void present() {
         if (!identical(_active, operation)) return;
         try {
           if (_disposed ||
@@ -126,10 +128,26 @@ class ReaderSidebarBinding {
             }
           };
           operation.isCurrent = () => route.isCurrent;
+          if (useMobileSheet && coverMobileBackground != null) {
+            final uncover = coverMobileBackground!();
+            final release = operation.release;
+            operation.release = () {
+              try {
+                uncover();
+              } finally {
+                release?.call();
+              }
+            };
+          }
           navigator
               .push(route)
               .then(
-                (_) => _finish(operation),
+                (_) async {
+                  // Keep the artwork still and the covered chrome inexpensive
+                  // through the outgoing animation, not just its pop result.
+                  if (useMobileSheet) await route.completed;
+                  _finish(operation);
+                },
                 onError: (Object error, StackTrace stack) {
                   _finish(operation);
                   onError(error, stack);
@@ -139,8 +157,17 @@ class ReaderSidebarBinding {
           _finish(operation);
           onError(error, stack);
         }
-      });
-      WidgetsBinding.instance.ensureVisualUpdate();
+      }
+
+      if (useMobileSheet) {
+        // The selection task is already registered. A microtask leaves any
+        // synchronous build/navigation lock without imposing an empty frame;
+        // Prism itself defers the spring until the sheet has mounted.
+        scheduleMicrotask(present);
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) => present());
+        WidgetsBinding.instance.ensureVisualUpdate();
+      }
     } catch (error, stack) {
       _finish(operation);
       onError(error, stack);

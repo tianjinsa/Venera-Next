@@ -10,6 +10,7 @@ import 'tv_input.dart';
 
 import 'package:venera_next/features/reader/status_info.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderProxyBox;
 import 'package:prism_ui/button.dart' as prism;
 import 'package:prism_ui/liquid_glass.dart' as prism;
 import 'package:venera_next/features/reader/progress_bar.dart';
@@ -118,6 +119,7 @@ class ReaderScaffold extends StatefulWidget {
 class ReaderScaffoldState extends State<ReaderScaffold> {
   var _brightnessPreview = ReaderBrightnessPreview();
   var _colorPreview = ReaderColorPreview();
+  final _pictureSheetCover = ValueNotifier<Object?>(null);
 
   ReaderSettings get _brightnessSettings =>
       widget.readBrightnessSettings?.call() ?? widget.data.preferences;
@@ -185,6 +187,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   void dispose() {
     _brightnessPreview.dispose();
     _colorPreview.dispose();
+    _pictureSheetCover.dispose();
     widget.favoriteChanges.removeListener(_imageFavoritesChanged);
     unawaited(_favorites.dispose());
     _sidebarBinding.dispose();
@@ -328,16 +331,22 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
       child: Stack(
         children: [
           Positioned.fill(
-            child: AbsorbPointer(
-              absorbing: widget.data.animating,
-              child: ExcludeFocus(
-                excluding: _isOpen && TvNavigation.enabledOf(context),
-                child: ReaderColorEffects(
-                  comicId: widget.data.comicId,
-                  sourceKey: widget.data.sourceKey,
-                  preview: _colorPreview,
-                  enhanceLines: !isOnChapterCommentsPage,
-                  child: widget.child,
+            // Moving modal barriers and overlay chrome can reuse the still
+            // artwork. Warm this layer when the controls are shown so opening
+            // their sheet needn't repaint it; normal reading has no extra layer.
+            child: _ReaderArtworkBoundary(
+              isolate: usePrism && _isOpen,
+              child: AbsorbPointer(
+                absorbing: widget.data.animating,
+                child: ExcludeFocus(
+                  excluding: _isOpen && TvNavigation.enabledOf(context),
+                  child: ReaderColorEffects(
+                    comicId: widget.data.comicId,
+                    sourceKey: widget.data.sourceKey,
+                    preview: _colorPreview,
+                    enhanceLines: !isOnChapterCommentsPage,
+                    child: widget.child,
+                  ),
                 ),
               ),
             ),
@@ -345,9 +354,12 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
           if (!isOnChapterCommentsPage)
             Positioned.fill(child: _buildBrightnessOverlay(context)),
           if (!isOnChapterCommentsPage) _buildInformation(),
-          ReaderChapterNavigationButton(
-            action: widget.chapterNavigation,
-            usePrism: usePrism,
+          _coveredChrome(
+            usePrism,
+            ReaderChapterNavigationButton(
+              action: widget.chapterNavigation,
+              usePrism: usePrism,
+            ),
           ),
           AnimatedPositioned(
             duration: menuDuration,
@@ -360,7 +372,10 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
               height: topBarHeight + context.padding.top,
               child: _menuRegion(
                 visible: _isOpen,
-                child: _buildTop(topBarHeight, usePrism),
+                child: _coveredChrome(
+                  usePrism,
+                  _buildTop(topBarHeight, usePrism),
+                ),
               ),
             ),
           ),
@@ -372,7 +387,10 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
                       MediaQuery.of(context).padding.bottom),
             left: 0,
             right: 0,
-            child: _menuRegion(visible: _isOpen, child: _bindBottom(usePrism)),
+            child: _menuRegion(
+              visible: _isOpen,
+              child: _coveredChrome(usePrism, _bindBottom(usePrism)),
+            ),
           ),
           if (!usePrism)
             AnimatedPositioned(
@@ -455,6 +473,22 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
           ),
         ),
       );
+
+  Widget _coveredChrome(bool usePrism, Widget child) {
+    if (!usePrism) return child;
+    return ValueListenableBuilder(
+      valueListenable: _pictureSheetCover,
+      child: child,
+      builder: (context, cover, child) => prism.LiquidGlassScope(
+        // The covered controls stay in their slots with Prism's tonal fill.
+        // Do not spend atlas work sampling behind a modal scrim; only this
+        // reader chrome is scoped, not the controls inside the active sheet.
+        enabled: cover == null && prism.LiquidGlassScope.of(context),
+        quality: prism.LiquidGlassScope.qualityOf(context),
+        child: child!,
+      ),
+    );
+  }
 
   Widget _buildBrightnessOverlay(BuildContext context) {
     Widget committed(BuildContext context, Widget? _) {
@@ -603,10 +637,14 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
 
   Widget _bindBottom(bool usePrism) {
     _favorites.bind(widget.createFavoriteQuery());
-    return _buildBottom(usePrism);
+    // ModalRoute lookups for the shortcut must not subscribe the whole reader
+    // shell to the covering route. This anchor is above Prism's press panes.
+    return usePrism
+        ? Builder(builder: (origin) => _buildBottom(usePrism, origin))
+        : _buildBottom(usePrism, context);
   }
 
-  Widget _buildBottom(bool usePrism) {
+  Widget _buildBottom(bool usePrism, BuildContext origin) {
     // Use maxPage for display (excluding chapter comments page)
     final progress = widget.progress;
     final toggleAutomaticReading = widget.onToggleAutomaticReading;
@@ -631,6 +669,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         _brightnessSettings.read(ReaderPreferences.readerBrightnessEnabled);
     final actionInputs = (
       usePrism,
+      origin,
       widget.imageWork,
       Theme.of(context).colorScheme,
       Localizations.localeOf(context),
@@ -658,7 +697,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         orientation: widget.orientation,
         onRotate: widget.onRotate,
         brightnessEnabled: brightnessEnabled,
-        onBrightness: _openOrTogglePictureAdjustment,
+        onBrightness: () => _openOrTogglePictureAdjustment(origin),
         automaticReading: ReaderAutomaticReadingAction(
           tooltip: switch (widget.data.automaticReading) {
             AutoReadingStatus.waiting =>
@@ -703,19 +742,20 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     );
   }
 
-  void _openOrTogglePictureAdjustment() {
-    if (!mounted || !_isOpen || _isMenuLocked) return;
+  void _openOrTogglePictureAdjustment(BuildContext origin) {
+    if (!mounted || !origin.mounted || !_isOpen || _isMenuLocked) return;
     if (!_usesMobileChrome) {
       setState(() => _brightnessPanelOpen = !_brightnessPanelOpen);
       return;
     }
     final preview = _brightnessPreview;
     _sidebarBinding.show(
-      context,
+      origin,
       _buildBrightnessPanel(true),
       useMobileSheet: true,
       isRequestCurrent: () =>
           mounted &&
+          _isOpen &&
           identical(_brightnessPreview, preview) &&
           _usesMobileChrome,
     );
@@ -878,6 +918,15 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
         }
       };
     },
+    coverMobileBackground: () {
+      final token = Object();
+      _pictureSheetCover.value = token;
+      return () {
+        if (mounted && identical(_pictureSheetCover.value, token)) {
+          _pictureSheetCover.value = null;
+        }
+      };
+    },
     onError: (error, stack) {
       Log.error('Reader', 'Failed to open sidebar: $error', stack);
       if (mounted) context.showMessage(message: error.toString());
@@ -919,5 +968,38 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   Future<Offset?> _showSelectImageOverlay() {
     if (_isOpen) openOrClose();
     return _selectionOverlay.show(context);
+  }
+}
+
+/// Keep one render/element identity when crossing the compact breakpoint or
+/// switching to e-ink; only compact Prism needs the extra compositing layer.
+class _ReaderArtworkBoundary extends SingleChildRenderObjectWidget {
+  const _ReaderArtworkBoundary({required this.isolate, required super.child});
+
+  final bool isolate;
+
+  @override
+  _RenderReaderArtworkBoundary createRenderObject(BuildContext context) =>
+      _RenderReaderArtworkBoundary(isolate);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderReaderArtworkBoundary renderObject,
+  ) => renderObject.isolate = isolate;
+}
+
+class _RenderReaderArtworkBoundary extends RenderProxyBox {
+  _RenderReaderArtworkBoundary(this._isolate);
+  bool _isolate;
+
+  @override
+  bool get isRepaintBoundary => _isolate;
+
+  set isolate(bool value) {
+    if (_isolate == value) return;
+    _isolate = value;
+    markNeedsCompositingBitsUpdate();
+    markNeedsPaint();
   }
 }
