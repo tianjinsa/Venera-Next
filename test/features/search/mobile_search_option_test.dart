@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/popup.dart' as prism;
 import 'package:venera_next/components/mobile_choice.dart';
 import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
@@ -47,14 +48,16 @@ void main() {
     );
     await tester.tap(trigger);
     await tester.pumpAndSettle();
-    final key = find.byKey(const ValueKey('source-id-7'));
-    await tester.scrollUntilVisible(
-      key,
-      100,
-      scrollable: find.byType(Scrollable).last,
+    final menu = find.byType(prism.PopupMenu);
+    final scrollable = find.descendant(
+      of: menu,
+      matching: find.byType(Scrollable),
     );
+    await tester.drag(scrollable, const Offset(0, -120));
     await tester.pumpAndSettle();
-    await tester.tap(key);
+    final aliases = find.descendant(of: menu, matching: find.text('Alias'));
+    expect(aliases, findsNWidgets(2));
+    await tester.tap(aliases.last);
     await tester.pumpAndSettle();
     expect(writes, ['source-id-7']);
   });

@@ -365,7 +365,7 @@ void main() {
       final start = morph.frame;
       expect(start.center.dx, closeTo(pressed.dx, .01));
       expect(start.center.dy, closeTo(pressed.dy, .01));
-      expect(start.radius, lessThan(4));
+      expect(start.radius, closeTo(start.anchor.shortestSide / 2, .1));
       await tester.pumpAndSettle();
       expect(observer.pageCount, 2);
       expect(find.text('Search destination'), findsOneWidget);

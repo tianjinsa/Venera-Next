@@ -86,7 +86,8 @@ void main() {
       expect(start.center.dx, closeTo(pressed.dx, .01));
       expect(start.center.dy, closeTo(pressed.dy, .01));
       expect(start.center, isNot(entry.rect.center));
-      expect(start.radius, lessThan(4));
+      expect(start.anchor, entry.rect);
+      expect(start.radius, closeTo(entry.rect.shortestSide / 2, .1));
       final surface = tester.widget<SearchMorphSurface>(_surface);
       expect(surface.sourceColor.a, 1);
       expect(surface.destinationColor.a, 1);
@@ -109,7 +110,7 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 80));
       // 341 ms: the old 315 ms geometry already faded, but this slower
-      // opening still keeps the destination hidden behind a growing circle.
+      // opening still keeps the destination hidden behind the growing surface.
       expect(_opacity(tester), 0);
       expect(_surface, findsOneWidget);
       expect(_backing, findsNothing);
@@ -148,6 +149,10 @@ void main() {
         inExclusiveRange(0.0, start.coveringRadius),
       );
       expect(_frame(tester).center, start.center);
+      await tester.pump(const Duration(milliseconds: 160));
+      final last = _frame(tester);
+      expect(last.anchor, start.anchor);
+      expect(last.radius, closeTo(start.radius, 5));
       await tester.pumpAndSettle();
       expect(find.text(entry.name).hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -194,10 +199,48 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
       expect(_frame(tester).center, position.value + localTap);
+      expect(_frame(tester).anchor, position.value & buttonSize);
       await tester.pumpAndSettle();
       expect(find.text('Tap here').hitTestable(), findsOneWidget);
     },
   );
+
+  testWidgets('reverse fades if the trigger leaves the tree', (tester) async {
+    _phone(tester);
+    final visible = ValueNotifier(true);
+    addTearDown(visible.dispose);
+    late NavigatorState navigator;
+    await tester.pumpWidget(
+      _app(
+        ValueListenableBuilder(
+          valueListenable: visible,
+          builder: (_, shown, _) => shown
+              ? MobileSearchAnchor(
+                  builder: (origin) => TextButton(
+                    onPressed: () {
+                      navigator = Navigator.of(origin);
+                      pushSearchFrom<void>(origin, () => const Scaffold());
+                    },
+                    child: const Text('Search entry'),
+                  ),
+                )
+              : const Text('No entry'),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Search entry'));
+    await tester.pumpAndSettle();
+    visible.value = false;
+    await tester.pump();
+    navigator.pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 170));
+    expect(_surface, findsNothing);
+    expect(_backing, findsNothing);
+    expect(_opacity(tester), closeTo(.5, .01));
+    await tester.pumpAndSettle();
+    expect(find.text('No entry'), findsOneWidget);
+  });
 
   testWidgets('reduce motion skips the pane and still owns a normal route', (
     tester,
@@ -274,7 +317,8 @@ void main() {
       final start = _frame(tester);
       expect(start.center.dx, closeTo(expected.dx, .01));
       expect(start.center.dy, closeTo(expected.dy, .01));
-      expect(start.radius, lessThan(4));
+      expect(start.anchor, trigger);
+      expect(start.radius, closeTo(trigger.shortestSide / 2, .1));
       expect(submitted, ['artist:Example']);
       await tester.pumpAndSettle();
       expect(find.text('matching book').hitTestable(), findsOneWidget);

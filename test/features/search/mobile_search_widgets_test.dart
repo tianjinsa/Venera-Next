@@ -79,7 +79,7 @@ void main() {
         .frame;
     expect(frame.center.dx, closeTo(tap.dx, .01));
     expect(frame.center.dy, closeTo(tap.dy, .01));
-    expect(frame.radius, lessThan(4));
+    expect(frame.radius, closeTo(frame.anchor.shortestSide / 2, .1));
     await tester.pumpAndSettle();
     expect(find.text('Destination').hitTestable(), findsOneWidget);
     expect(find.text('Copy fixture'), findsNothing);

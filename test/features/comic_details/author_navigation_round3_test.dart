@@ -131,7 +131,8 @@ void main() {
         final frame = tester.widget<SearchMorphSurface>(surface).frame;
         expect(frame.center.dx, closeTo(original.center.dx, .01));
         expect(frame.center.dy, closeTo(original.center.dy, .01));
-        expect(frame.radius, lessThan(4));
+        expect(frame.anchor, original);
+        expect(frame.radius, closeTo(original.shortestSide / 2, .1));
         await tester.pump(const Duration(milliseconds: 550));
         final destination = tester.widget<CategoryComicsPage>(
           find.byType(CategoryComicsPage),

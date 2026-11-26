@@ -660,12 +660,15 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
         color = context.colorScheme.surfaceContainerLow;
       }
 
-      final borderRadius = BorderRadius.circular(12);
+      const cornerRadius = 12.0;
+      const borderRadius = BorderRadius.all(Radius.circular(cornerRadius));
 
       const padding = EdgeInsets.symmetric(horizontal: 16, vertical: 6);
 
       if (onTap != null) {
         return MobileSearchAnchor(
+          cornerRadius: cornerRadius,
+          sourceColor: color,
           builder: (tagContext) {
             return Material(
               color: color,

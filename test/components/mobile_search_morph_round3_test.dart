@@ -11,11 +11,12 @@ void main() {
   const anchor = Rect.fromLTWH(150, 52, 48, 48);
 
   test(
-    'one concentric radius grows from the pointer through the farthest corner before the fade',
+    'the control grows into a circle covering the farthest corner before the fade',
     () {
       // A point near two edges distinguishes the true diagonal from one side
       // or half of a centered diagonal.
       const contact = Offset(16, 51);
+      const control = Rect.fromLTWH(8, 38, 130, 40);
       const corners = [
         Offset.zero,
         Offset(0, 750),
@@ -23,13 +24,20 @@ void main() {
         Offset(390, 750),
       ];
       final furthest = (corners.last - contact).distance;
-      var previous = SearchMorphFrame.at(contact, page, 0);
+      SearchMorphFrame frameAt(double t) => SearchMorphFrame.at(
+        anchor: control,
+        origin: contact,
+        viewport: page,
+        t: t,
+      );
+      var previous = frameAt(0);
       expect(previous.center, contact);
-      expect(previous.radius, 0);
+      expect(previous.anchor, control);
+      expect(previous.radius, control.shortestSide / 2);
       expect(previous.coveringRadius, furthest);
       for (var tick = 1; tick <= 70; ++tick) {
         final t = tick / 100;
-        final frame = SearchMorphFrame.at(contact, page, t);
+        final frame = frameAt(t);
         expect(frame.center, previous.center);
         expect(frame.radius, greaterThan(previous.radius));
         expect(frame.radius, lessThanOrEqualTo(furthest));
@@ -49,9 +57,10 @@ void main() {
   test('equal time steps accelerate out of the touch then gently settle', () {
     const touch = Offset(170, 42);
     double growth(double fraction) => SearchMorphFrame.at(
-      touch,
-      page,
-      fraction * SearchMorphFrame.growthEnd,
+      anchor: anchor,
+      origin: touch,
+      viewport: page,
+      t: fraction * SearchMorphFrame.growthEnd,
     ).growth;
     final initial = growth(.10) - growth(0);
     final middle = growth(.50) - growth(.40);
@@ -63,7 +72,50 @@ void main() {
   });
 
   testWidgets(
-    'painter is round, opaque in its interior, and clipped to the viewport',
+    'early spread follows the chip radius and leaves its label visible',
+    (tester) async {
+      const chip = Rect.fromLTWH(30, 60, 170, 44);
+      await tester.pumpWidget(
+        SizedBox.fromSize(
+          size: page.size,
+          child: SearchMorphSurface(
+            frame: SearchMorphFrame.at(
+              anchor: chip,
+              origin: const Offset(68, 70),
+              viewport: page,
+              t: .012,
+            ),
+            sourceColor: Colors.orange,
+            destinationColor: Colors.white,
+            cornerRadius: 12,
+          ),
+        ),
+      );
+      final canvas = TestRecordingCanvas();
+      tester
+          .widget<CustomPaint>(find.byType(CustomPaint))
+          .painter!
+          .paint(canvas, page.size);
+      final calls = [for (final entry in canvas.invocations) entry.invocation];
+      expect(calls.map((call) => call.memberName), [
+        #save,
+        #clipRect,
+        #clipPath,
+        #drawPath,
+        #restore,
+      ]);
+      final contour = calls[2].positionalArguments.first as Path;
+      expect(contour.contains(chip.topLeft.translate(6, 3)), isTrue);
+      expect(contour.contains(chip.topLeft.translate(1, 1)), isFalse);
+      expect(contour.contains(chip.topCenter.translate(0, -2)), isFalse);
+      final aperture = calls[3].positionalArguments.first as Path;
+      expect(aperture.contains(chip.center), isFalse);
+      expect(aperture.contains(chip.topLeft.translate(6, 3)), isFalse);
+    },
+  );
+
+  testWidgets(
+    'late spread is round around the touch point, opaque, and clipped to the viewport',
     (tester) async {
       tester.view
         ..devicePixelRatio = 1
@@ -72,7 +124,12 @@ void main() {
       const contact = Offset(16, 102);
       const pad = Offset(10, 10);
       final boundary = GlobalKey();
-      final frame = SearchMorphFrame.at(contact, page, .25);
+      final frame = SearchMorphFrame.at(
+        anchor: const Rect.fromLTWH(8, 85, 120, 44),
+        origin: contact,
+        viewport: page,
+        t: .51,
+      );
       await tester.pumpWidget(
         Align(
           alignment: Alignment.topLeft,
@@ -105,10 +162,10 @@ void main() {
           );
           final axis = frame.radius * .75;
           expect(alpha(contact + pad), 255);
-          expect(alpha(contact + pad + Offset(axis, 0)), 255);
+          expect(alpha(Offset(page.right - 3, contact.dy) + pad), 255);
           expect(alpha(contact + pad + Offset(0, axis)), 255);
           // Inside a rectangular envelope but outside the actual circle.
-          expect(alpha(contact + pad + Offset(axis, axis)), 0);
+          expect(alpha(Offset(page.right - 3, page.bottom - 3) + pad), 0);
           // The opaque circle crosses the viewport edge, not its clip.
           expect(alpha(Offset(pad.dx - 3, contact.dy + pad.dy)), 0);
         } finally {
