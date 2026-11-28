@@ -699,6 +699,13 @@ void main() {
         );
         final grid = local(find.byType(SliverGridComics));
         final scroll = local(find.byType(CustomScrollView));
+        // Linux starts in mouse-wheel mode. Establish touch physics before
+        // measuring whether opening search preserves the scroll position.
+        final touch = await tester.startGesture(
+          tester.getCenter(button('Search')),
+        );
+        await touch.cancel();
+        await tester.pump();
         final barOwner = tester.state(bar);
         final gridOwner = tester.state(grid);
         final position = tester
@@ -738,7 +745,8 @@ void main() {
         final later = tester.getRect(pane).width;
         expect(later, greaterThan(early + 6));
         expect(shows(), 0);
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 450));
+        await tester.pump();
         final full = tester.getRect(pane);
         expect(full.width, greaterThan(later));
         final input = tester.widget<EditableText>(editor);
@@ -752,8 +760,17 @@ void main() {
         );
         final query = nested ? 'Existing sub' : 'Existing 499';
         await tester.enterText(editor, query);
-        tester.view.viewInsets = const FakeViewPadding(bottom: 290);
         await tester.pump();
+        var gridWidget = tester.widget<SliverGridComics>(grid);
+        var gridUpdates = 0;
+        for (final inset in [70.0, 140.0, 215.0, 290.0]) {
+          tester.view.viewInsets = FakeViewPadding(bottom: inset);
+          await tester.pump(const Duration(milliseconds: 16));
+          final next = tester.widget<SliverGridComics>(grid);
+          if (!identical(next, gridWidget)) gridUpdates++;
+          gridWidget = next;
+        }
+        expect(gridUpdates, 0, reason: 'during keyboard insets');
         final resized = tester.widget<EditableText>(editor);
         expect(resized.controller, same(input.controller));
         expect(resized.focusNode, same(input.focusNode));
@@ -774,7 +791,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 45));
         expect(tester.getRect(pane).width, lessThan(folding - 3));
         stillMounted();
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
         expect(pane, findsNothing);
         expect(tester.getRect(button('Search')), buttonRect);
         expect(button('More'), findsOneWidget);
@@ -1270,6 +1288,55 @@ void main() {
     expect(_tile('from-b'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'local search matches the same terms across title, author and tags',
+    (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+      final fixture = await _prepare(tester, 0);
+      await tester.runAsync(() async {
+        await fixture.manager.addComics('B', [
+          _comic('mixed', '繁體 Title')..author = 'Writer',
+          _comic('simplified', '简体 Heading'),
+          _comic('tag', 'Different')..tags = ['female:Glasses:detail'],
+          _comic('author', 'Example')..author = 'Writer Alias',
+        ]);
+      });
+      await tester.pumpWidget(fixture.host(phone: true));
+      await _settle(tester);
+      await tester.tap(find.byTooltip('Search'));
+      await tester.pump();
+      await tester.pump();
+      final input = find.byType(EditableText);
+      Future<void> expectSearch(String inputText, List<String> ids) async {
+        await tester.enterText(input, inputText);
+        await tester.pump();
+        final tiles = tester.widgetList<ComicTile>(find.byType(ComicTile));
+        expect(
+          tiles.map((tile) => tile.comic.id),
+          unorderedEquals(ids),
+          reason: 'for query $inputText',
+        );
+      }
+
+      await expectSearch('不存在', []);
+      await expectSearch('繁体  writer', ['mixed']);
+      await expectSearch('繁体  writer ', ['mixed']);
+      await expectSearch('繁体 Title', ['mixed']);
+      await expectSearch('繁体 TITLE', []);
+      await expectSearch('簡體 heading', ['simplified']);
+      await expectSearch('glasses', ['tag']);
+      await expectSearch('glass', []);
+      await expectSearch('Glass', []);
+      await expectSearch('detail', []);
+      await expectSearch('writer', ['mixed', 'author']);
+      await expectSearch('  ', ['mixed', 'simplified', 'tag', 'author']);
+    },
+  );
+
   testWidgets(
     '1200 favorites skip keyword matching and per-comic history queries',
     (tester) async {
@@ -1296,27 +1363,53 @@ void main() {
   );
 
   testWidgets(
-    'favorite details use the list navigator and keep the cover hero',
+    'return from details keeps the large phone folder snapshot and cover hero',
     (tester) async {
-      final fixture = await _prepare(tester, 1);
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+      final fixture = await _prepare(tester, 1000);
       final previous = appNavigation.mainNavigatorKey;
       appNavigation.mainNavigatorKey = fixture.navigator;
       addTearDown(() => appNavigation.mainNavigatorKey = previous);
       appdata.settings['onClickFavorite'] = 'viewDetail';
-      await tester.pumpWidget(fixture.host());
+      await tester.pumpWidget(fixture.host(phone: true, reduceMotion: false));
       await _settle(tester);
-      final hero = tester.widget<ComicTile>(_tile('seed-0')).heroID;
-      await tester.tap(_tile('seed-0'));
+      final grid = find.byType(SliverGridComics);
+      final originalGrid = tester.state(grid);
+      final originalComics = tester.widget<SliverGridComics>(grid).comics;
+      expect(originalComics, hasLength(1000));
+      expect(find.byType(ComicTile).evaluate().length, lessThan(40));
+      final scroll = tester
+          .widget<CustomScrollView>(find.byType(CustomScrollView))
+          .controller!;
+      scroll.jumpTo(450);
+      await tester.pumpAndSettle();
+      final visible = find.byType(ComicTile).hitTestable().first;
+      final tile = tester.widget<ComicTile>(visible);
+      await tester.tap(visible);
       await tester.pump();
       expect(fixture.navigator.currentState!.canPop(), isTrue);
       expect(
         tester
             .widget<ComicPage>(find.byType(ComicPage, skipOffstage: false))
             .heroID,
-        hero,
+        tile.heroID,
       );
       fixture.navigator.currentState!.pop();
-      await tester.pumpAndSettle();
+      await _settle(tester);
+      expect(tester.state(grid), same(originalGrid));
+      expect(
+        tester.widget<SliverGridComics>(grid).comics,
+        same(originalComics),
+      );
+      expect(scroll.offset, 450);
+      expect(
+        tester.widget<ComicTile>(_tile(tile.comic.id)).heroID,
+        tile.heroID,
+      );
+      expect(fixture.history.reads, 0);
       expect(tester.takeException(), isNull);
     },
   );

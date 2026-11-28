@@ -204,7 +204,7 @@ class ComicTile extends StatelessWidget {
     required this.comic,
     this.enableLongPressed = true,
     this.badge,
-    this.menuOptions,
+    this.menuBuilder,
     this.onTap,
     this.onLongPressed,
     this.onBlocked,
@@ -219,7 +219,7 @@ class ComicTile extends StatelessWidget {
 
   final String? badge;
 
-  final List<MenuEntry>? menuOptions;
+  final List<MenuEntry> Function(Comic)? menuBuilder;
 
   final VoidCallback? onTap;
 
@@ -328,7 +328,7 @@ class ComicTile extends StatelessWidget {
             }
           },
         ),
-      ...?menuOptions,
+      ...?menuBuilder?.call(comic),
     ]);
   }
 

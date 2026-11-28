@@ -97,7 +97,7 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   Map<Comic, bool> selectedComics = {};
 
   String keyword = "";
-  bool searchHasUpper = false;
+  static final _uppercaseSearch = RegExp(r'[A-Z]');
 
   bool searchMode = false;
   final _searchController = TextEditingController();
@@ -143,18 +143,60 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   var searchResults = <FavoriteItem>[];
 
   void _refreshSearchResults() {
-    if (keyword.trim().isEmpty) {
+    final query = keyword;
+    if (query.trim().isEmpty) {
       searchResults = comics;
-    } else {
-      searchResults = [];
-      for (var comic in comics) {
-        if (matchKeyword(keyword, comic) ||
-            matchKeywordT(keyword, comic) ||
-            matchKeywordS(keyword, comic)) {
-          searchResults.add(comic);
+      return;
+    }
+    List<String> splitTerms(String text) => text
+        .split(' ')
+        .where((term) => term.isNotEmpty)
+        .toList(growable: false);
+    final terms = splitTerms(query);
+    // Convert only if a direct match fails, then reuse the resulting terms
+    // for every remaining comic in this folder snapshot.
+    late final traditional = OpenCC.hasChineseSimplified(query)
+        ? splitTerms(OpenCC.simplifiedToTraditional(query))
+        : null;
+    late final simplified = OpenCC.hasChineseTraditional(query)
+        ? splitTerms(OpenCC.traditionalToSimplified(query))
+        : null;
+    final caseSensitive = _uppercaseSearch.hasMatch(query);
+    final translateTags = appLocale.languageCode != 'en';
+    String fold(String text) => caseSensitive ? text : text.toLowerCase();
+
+    bool matchesTag(String term, String tag) {
+      final raw = fold(tag);
+      if (term == raw) return true;
+      final colon = raw.indexOf(':');
+      if (colon != -1) {
+        final end = raw.indexOf(':', colon + 1);
+        if (term == raw.substring(colon + 1, end == -1 ? null : end)) {
+          return true;
         }
       }
+      return translateTags && term == fold(tag.translateTagsToCN);
     }
+
+    bool matches(FavoriteItem comic) {
+      final title = fold(comic.title);
+      late final subtitle = fold(comic.subtitle ?? '');
+      late final author = fold(comic.author);
+      bool matchesAll(List<String>? words) =>
+          words != null &&
+          words.every(
+            (term) =>
+                title.contains(term) ||
+                subtitle.contains(term) ||
+                comic.tags.any((tag) => matchesTag(term, tag)) ||
+                term == author,
+          );
+      return matchesAll(terms) ||
+          matchesAll(traditional) ||
+          matchesAll(simplified);
+    }
+
+    searchResults = comics.where(matches).toList();
   }
 
   void _replaceComics(List<FavoriteItem> value) {
@@ -265,66 +307,6 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
       }
       return true;
     }).toList();
-  }
-
-  bool matchKeyword(String keyword, FavoriteItem comic) {
-    var list = keyword.split(" ");
-    for (var k in list) {
-      if (k.isEmpty) continue;
-      if (checkKeyWordMatch(k, comic.title, false)) {
-        continue;
-      } else if (comic.subtitle != null &&
-          checkKeyWordMatch(k, comic.subtitle!, false)) {
-        continue;
-      } else if (comic.tags.any((tag) {
-        if (checkKeyWordMatch(k, tag, true)) {
-          return true;
-        } else if (tag.contains(':') &&
-            checkKeyWordMatch(k, tag.split(':')[1], true)) {
-          return true;
-        } else if (appLocale.languageCode != 'en' &&
-            checkKeyWordMatch(k, tag.translateTagsToCN, true)) {
-          return true;
-        }
-        return false;
-      })) {
-        continue;
-      } else if (checkKeyWordMatch(k, comic.author, true)) {
-        continue;
-      }
-      return false;
-    }
-    return true;
-  }
-
-  bool checkKeyWordMatch(String keyword, String compare, bool needEqual) {
-    String temp = compare;
-    // 没有大写的话, 就转成小写比较, 避免搜索需要注意大小写
-    if (!searchHasUpper) {
-      temp = temp.toLowerCase();
-    }
-    if (needEqual) {
-      return keyword == temp;
-    }
-    return temp.contains(keyword);
-  }
-
-  // Convert keyword to traditional Chinese to match comics
-  bool matchKeywordT(String keyword, FavoriteItem comic) {
-    if (!OpenCC.hasChineseSimplified(keyword)) {
-      return false;
-    }
-    keyword = OpenCC.simplifiedToTraditional(keyword);
-    return matchKeyword(keyword, comic);
-  }
-
-  // Convert keyword to simplified Chinese to match comics
-  bool matchKeywordS(String keyword, FavoriteItem comic) {
-    if (!OpenCC.hasChineseTraditional(keyword)) {
-      return false;
-    }
-    keyword = OpenCC.traditionalToSimplified(keyword);
-    return matchKeyword(keyword, comic);
   }
 
   @override
@@ -438,7 +420,6 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
       setState(() {
         searchMode = false;
         keyword = '';
-        searchHasUpper = false;
         // Search only filtered the current snapshot. Querying again here
         // would briefly replace large folders with the loading sliver.
         searchResults = [];
@@ -486,11 +467,31 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
   var scrollController = ScrollController();
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => _build(context, constraints.maxWidth),
-  );
+  Widget build(BuildContext context) {
+    final mobile = MobileUi.enabledOf(context);
+    // The compact toolbar does not use the desktop inline-action width.
+    // Reuse its slivers when only the keyboard changes the viewport height.
+    final mobileBody = mobile
+        ? _build(context, mobile: true, inlineSelectionActions: true)
+        : null;
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          mobileBody ??
+          _build(
+            context,
+            mobile: false,
+            inlineSelectionActions:
+                constraints.maxWidth >=
+                440 + MediaQuery.textScalerOf(context).scale(20) * 4,
+          ),
+    );
+  }
 
-  Widget _build(BuildContext context, double availableWidth) {
+  Widget _build(
+    BuildContext context, {
+    required bool mobile,
+    required bool inlineSelectionActions,
+  }) {
     final target = widget;
     final selection = selectedComics.keys.cast<FavoriteItem>().toList();
     final selectedItems = selection.map((comic) => comic.detached()).toList();
@@ -534,12 +535,9 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
     }
 
     final displayedComics = searchMode ? searchResults : filterComics(comics);
-    final mobile = MobileUi.enabledOf(context);
     final compactActions = context.width < changePoint && !isAllFolder;
     final canSelect =
         _canReadObservedFolder && !isLoading && displayedComics.isNotEmpty;
-    final inlineSelectionActions =
-        availableWidth >= 440 + MediaQuery.textScalerOf(context).scale(20) * 4;
     void enterSelection() {
       if (!_canReadObservedFolder ||
           _queryOwner?.canPresent != true ||
@@ -871,7 +869,6 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
       _searchController.clear();
       setState(() {
         keyword = "";
-        searchHasUpper = false;
         searchMode = true;
         _refreshSearchResults();
       });
@@ -881,7 +878,6 @@ class _LocalFavoritesPageState extends State<LocalFavoritesPage> {
       if (!searchMode || keyword == value) return;
       setState(() {
         keyword = value;
-        searchHasUpper = value.contains(RegExp(r'[A-Z]'));
         _refreshSearchResults();
       });
     }

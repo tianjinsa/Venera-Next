@@ -299,7 +299,7 @@ class _SliverGridComics extends StatelessWidget {
             key: ValueKey((comics[index].sourceKey, comics[index].id)),
             comic: comics[index],
             badge: badge,
-            menuOptions: menuBuilder?.call(comics[index]),
+            menuBuilder: menuBuilder,
             onTap: onTap != null
                 ? () => onTap!(comics[index], heroIDs[index])
                 : null,
