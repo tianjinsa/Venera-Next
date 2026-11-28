@@ -120,6 +120,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   var _brightnessPreview = ReaderBrightnessPreview();
   var _colorPreview = ReaderColorPreview();
   final _pictureSheetCover = ValueNotifier<Object?>(null);
+  final _bottomChanges = ValueNotifier(0);
 
   ReaderSettings get _brightnessSettings =>
       widget.readBrightnessSettings?.call() ?? widget.data.preferences;
@@ -188,6 +189,7 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     _brightnessPreview.dispose();
     _colorPreview.dispose();
     _pictureSheetCover.dispose();
+    _bottomChanges.dispose();
     widget.favoriteChanges.removeListener(_imageFavoritesChanged);
     unawaited(_favorites.dispose());
     _sidebarBinding.dispose();
@@ -590,12 +592,13 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
   _createFavorites() => ReaderImageFavoriteController(
     work: widget.imageWork,
     onChanged: () {
-      // Keep status reads for quick collection. A completed read only needs to
-      // repaint visible controls; invalidation still rebuilds to bind a query.
-      if (mounted &&
-          (isOpen ||
-              _favorites.status == ReaderImageFavoriteStatus.unavailable)) {
+      if (!mounted) return;
+      // Rebind invalidated reads on the next shell build, including while
+      // closed. Results and collection activity only affect the bottom bar.
+      if (_favorites.status == ReaderImageFavoriteStatus.unavailable) {
         update();
+      } else if (isOpen) {
+        _bottomChanges.value++;
       }
     },
     cancelSelection: _selectionOverlay.cancel,
@@ -639,9 +642,11 @@ class ReaderScaffoldState extends State<ReaderScaffold> {
     _favorites.bind(widget.createFavoriteQuery());
     // ModalRoute lookups for the shortcut must not subscribe the whole reader
     // shell to the covering route. This anchor is above Prism's press panes.
-    return usePrism
-        ? Builder(builder: (origin) => _buildBottom(usePrism, origin))
-        : _buildBottom(usePrism, context);
+    return ListenableBuilder(
+      listenable: _bottomChanges,
+      builder: (origin, _) =>
+          _buildBottom(usePrism, usePrism ? origin : context),
+    );
   }
 
   Widget _buildBottom(bool usePrism, BuildContext origin) {

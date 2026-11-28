@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:photo_view/photo_view.dart';
 import 'package:venera_next/components/message.dart';
+import 'package:venera_next/components/mobile_ui.dart';
 import 'package:venera_next/components/settings_save_state.dart';
 import 'package:venera_next/components/window_frame.dart';
 import 'package:venera_next/components/window_selection_task.dart';
@@ -30,6 +31,7 @@ import 'package:venera_next/features/comic_source/comic_source_api.dart'
         LoadComicPagesFunc,
         VoteCommentFunc;
 import 'package:venera_next/features/reader/chapter_comments.dart';
+import 'package:venera_next/features/reader/chrome_action.dart';
 import 'package:venera_next/foundation/res.dart';
 import 'package:venera_next/foundation/selection_operation.dart';
 import 'package:venera_next/foundation/image_work.dart';
@@ -110,6 +112,143 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('window_manager'), null);
   });
+
+  testWidgets(
+    'phone gallery reports progress without rebuilding unrelated chrome',
+    (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(568, 320);
+      addTearDown(tester.view.reset);
+      final fixture = await _ReaderFixture.create(tester, imageCount: 12);
+      final builds = <String, int>{};
+      void count(String name) =>
+          builds.update(name, (n) => n + 1, ifAbsent: () => 1);
+      Future<void> frames(int count) async {
+        for (var frame = 0; frame < count; frame++) {
+          await tester.pump(const Duration(microseconds: 8333));
+          if (frame % 6 == 5) {
+            await tester.runAsync(
+              () => Future<void>.delayed(const Duration(milliseconds: 5)),
+            );
+          }
+        }
+      }
+
+      late _VolumeLease volume;
+      try {
+        appdata.settings['readerMode'] = ReaderMode.galleryLeftToRight.key;
+        appdata.settings['readerScreenPicNumberForLandscape'] = 1;
+        appdata.settings['enableClockAndBatteryInfoInReader'] = false;
+        appdata.settings['showPageNumberInReader'] = true;
+        await fixture.mount(
+          tester,
+          pushed: false,
+          withWindow: false,
+          mobile: true,
+          volumeConnect: (send) => volume = _VolumeLease(send),
+        );
+        appdata.settings['enablePageAnimation'] = true;
+        await frames(48);
+        final reader = fixture.readerKey.currentState!;
+        final gallery = reader.imageViewController! as GalleryModeState;
+        final shell = reader.scaffoldKey.currentState!;
+        final slider = find.descendant(
+          of: find.byType(ReaderBottomBar),
+          matching: find.byType(Slider),
+        );
+        void expectProgress() {
+          expect(tester.widget<Slider>(slider).value, reader.page.toDouble());
+          expect(
+            tester.widget<ReaderPageInfo>(find.byType(ReaderPageInfo)).page,
+            reader.page,
+          );
+        }
+
+        final viewport = tester.widget<ReaderGalleryView>(
+          find.byType(ReaderGalleryView),
+        );
+        bool isEdge(Widget widget) =>
+            widget is ReaderChromeAction &&
+            (widget.label == 'Previous chapter' ||
+                widget.label == 'Next chapter' ||
+                widget.label.startsWith('Page '));
+        final edgeFinder = find.byWidgetPredicate(isEdge);
+        var edges = <RenderObject>{};
+        void expectWork(int pageUpdates) {
+          expect(builds['shell'], pageUpdates);
+          expect(builds['brightness'], pageUpdates);
+          expect(builds['edges'] ?? 0, 0);
+          expect(builds['edgePaints'] ?? 0, 0);
+          expect(tester.renderObjectList(edgeFinder), unorderedEquals(edges));
+        }
+
+        debugProfilePaintsEnabled = true;
+        debugOnProfilePaint = (object) {
+          if (edges.contains(object)) count('edgePaints');
+        };
+        debugOnRebuildDirtyWidget = (element, _) {
+          final widget = element.widget;
+          if (widget is ReaderScaffold) count('shell');
+          if (widget is ReaderBrightnessOverlay) count('brightness');
+          if (isEdge(widget)) count('edges');
+        };
+        late List<int> closedVolumePages;
+        for (final open in [false, true]) {
+          reader.toPage(1, animated: false);
+          if (shell.isOpen != open) shell.openOrClose();
+          await frames(48);
+          edges = tester.renderObjectList(edgeFinder).toSet();
+          expect(edges, hasLength(2));
+          builds.clear();
+          final bounds = tester.getRect(find.byType(ReaderGalleryView));
+          await tester.dragFrom(
+            Offset(bounds.right - 45, bounds.center.dy),
+            Offset(-bounds.width * .70, 0),
+          );
+          await frames(60);
+          expect(reader.page, 2);
+          expect(shell.isOpen, open);
+          expectProgress();
+          expectWork(1);
+          builds.clear();
+          final volumePages = <int>[];
+          for (var repeat = 0; repeat < 6; repeat++) {
+            volume.send(2);
+            await frames(6);
+            expectProgress();
+            volumePages.add(reader.page);
+          }
+          await frames(60);
+          expect(reader.page, 5);
+          expect(gallery.controller.page, closeTo(reader.page, .001));
+          expectProgress();
+          volumePages.add(reader.page);
+          if (open) {
+            expect(volumePages, closedVolumePages);
+          } else {
+            closedVolumePages = volumePages;
+          }
+          expect(
+            tester.widget<ReaderGalleryView>(find.byType(ReaderGalleryView)),
+            same(viewport),
+          );
+          expect(shell.isOpen, open);
+          expectWork(6);
+        }
+        await tester.tap(edgeFinder.first);
+        await frames(60);
+        expect(reader.page, 1);
+        expect(shell.isOpen, isTrue);
+        expectProgress();
+      } finally {
+        debugProfilePaintsEnabled = false;
+        debugOnProfilePaint = null;
+        debugOnRebuildDirtyWidget = null;
+        await fixture.dispose(tester);
+      }
+    },
+  );
 
   for (final mode in [
     ReaderMode.galleryLeftToRight,
@@ -5511,6 +5650,7 @@ class _ReaderFixture {
     ReaderWindowCoordinator? windowCoordinator,
     double textScale = 1,
     bool reducedMotion = false,
+    bool mobile = false,
     Brightness brightness = Brightness.light,
     void Function(WindowFrameController)? beforeReaderMount,
     ComicChapters? chapters = _chapters,
@@ -5544,6 +5684,7 @@ class _ReaderFixture {
     await tester.pumpWidget(
       _libraryView(
         MaterialApp(
+          localizationsDelegates: [if (mobile) MobileUiLocalizations.delegate],
           theme: ThemeData(
             brightness: brightness,
             fontFamily: Platform.environment['WINDOW_OWNER_QA_FONT'] == null
@@ -5580,6 +5721,7 @@ class _ReaderFixture {
               ),
               child: content,
             );
+            if (mobile) content = MobileUiTheme(glass: 'ultra', child: content);
             if (registries != null) {
               return ValueListenableBuilder<SelectionTaskRegistry>(
                 valueListenable: registries,

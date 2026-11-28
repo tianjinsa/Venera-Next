@@ -11,7 +11,7 @@ import 'chrome_action.dart';
 import 'information_text.dart';
 
 /// Presentation for progress and actions. The content owner supplies commands.
-class ReaderBottomBar extends StatelessWidget {
+class ReaderBottomBar extends StatefulWidget {
   const ReaderBottomBar({
     super.key,
     required this.label,
@@ -43,57 +43,105 @@ class ReaderBottomBar extends StatelessWidget {
   final String? previousTooltip, nextTooltip;
 
   @override
-  Widget build(BuildContext context) {
-    Widget pageEdge(String title, IconData icon, VoidCallback callback) {
-      final button = ReaderChromeAction(
-        usePrism: usePrism,
-        label: title,
-        icon: Icon(icon),
-        onPressed: callback,
-        tonal: true,
+  State<ReaderBottomBar> createState() => _ReaderBottomBarState();
+}
+
+class _ReaderBottomBarState extends State<ReaderBottomBar> {
+  Object? _edgeInputs;
+  (Widget, Widget)? _prismEdges;
+
+  (Widget, Widget) _pageEdges(BuildContext context) {
+    final previous =
+        widget.previousTooltip ??
+        MaterialLocalizations.of(context).previousPageTooltip;
+    final next =
+        widget.nextTooltip ?? MaterialLocalizations.of(context).nextPageTooltip;
+    ReaderChromeAction action(
+      String title,
+      IconData icon,
+      VoidCallback press,
+    ) => ReaderChromeAction(
+      usePrism: widget.usePrism,
+      label: title,
+      icon: Icon(icon),
+      onPressed: press,
+      tonal: true,
+    );
+    if (!widget.usePrism) {
+      _edgeInputs = null;
+      _prismEdges = null;
+      return (
+        action(previous, Icons.first_page, widget.onPrevious),
+        action(next, Icons.last_page, widget.onNext),
       );
-      return usePrism
-          ? prism.TonalButtonTheme(
-              glass: prism.LiquidGlassScope.of(context),
-              child: prism.TonalButtonGroup(children: [button]),
-            )
-          : button;
     }
 
+    final identity = widget.progressIdentity;
+    final glass = prism.LiquidGlassScope.of(context);
+    final inputs = (
+      identity ?? (widget.onPrevious, widget.onNext),
+      previous,
+      next,
+      glass,
+    );
+    if (_edgeInputs == inputs) return _prismEdges!;
+    _edgeInputs = inputs;
+
+    VoidCallback press({required bool forward}) {
+      final original = forward ? widget.onNext : widget.onPrevious;
+      if (identity == null) return original;
+      return () {
+        if (!mounted ||
+            !widget.usePrism ||
+            widget.progressIdentity != identity) {
+          return;
+        }
+        (forward ? widget.onNext : widget.onPrevious)();
+      };
+    }
+
+    // The slider and the image can paint every frame without rerecording
+    // the two stationary buttons. Prism still samples through their layers.
+    Widget pane(Widget button) => RepaintBoundary(
+      child: prism.TonalButtonTheme(
+        glass: glass,
+        child: prism.TonalButtonGroup(children: [button]),
+      ),
+    );
+    return _prismEdges = (
+      pane(action(previous, Icons.first_page, press(forward: false))),
+      pane(action(next, Icons.last_page, press(forward: true))),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bar = widget;
+    final (previous, next) = _pageEdges(context);
     final child = SizedBox(
-      height: height,
+      height: ReaderBottomBar.height,
       child: Column(
         children: [
           const SizedBox(height: 8),
           Row(
             children: [
               const SizedBox(width: 8),
-              pageEdge(
-                previousTooltip ??
-                    MaterialLocalizations.of(context).previousPageTooltip,
-                Icons.first_page,
-                onPrevious,
-              ),
+              previous,
               Expanded(
                 child: ReaderProgressSlider(
-                  key: ValueKey((progressIdentity, isOpen)),
-                  page: page,
-                  maxPage: maxPage,
-                  reversed: reversed,
-                  enabled: isOpen,
-                  onChanged: onPageChanged,
+                  key: ValueKey((bar.progressIdentity, bar.isOpen)),
+                  page: bar.page,
+                  maxPage: bar.maxPage,
+                  reversed: bar.reversed,
+                  enabled: bar.isOpen,
+                  onChanged: bar.onPageChanged,
                 ),
               ),
-              pageEdge(
-                nextTooltip ??
-                    MaterialLocalizations.of(context).nextPageTooltip,
-                Icons.last_page,
-                onNext,
-              ),
+              next,
               const SizedBox(width: 8),
             ],
           ),
-          if (usePrism)
+          if (bar.usePrism)
             Flexible(
               child: Center(
                 child: prism.TonalButtonTheme(
@@ -101,7 +149,7 @@ class ReaderBottomBar extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     spacing: 8,
-                    children: actions,
+                    children: bar.actions,
                   ),
                 ),
               ),
@@ -111,7 +159,7 @@ class ReaderBottomBar extends StatelessWidget {
               builder: (context, constrains) {
                 final labelSize = TextPainter(
                   text: TextSpan(
-                    text: label,
+                    text: bar.label,
                     style: DefaultTextStyle.of(context).style,
                   ),
                   textDirection: Directionality.of(context),
@@ -123,7 +171,7 @@ class ReaderBottomBar extends StatelessWidget {
                 final small =
                     labelSize.height > 20 ||
                     constrains.maxWidth <
-                        actions.length * 56 + labelSize.width + 32;
+                        bar.actions.length * 56 + labelSize.width + 32;
                 labelSize.dispose();
                 return Row(
                   children: [
@@ -132,18 +180,19 @@ class ReaderBottomBar extends StatelessWidget {
                         height: 24,
                         padding: const EdgeInsets.fromLTRB(6, 2, 6, 0),
                         decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .tertiaryContainer,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.tertiaryContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Center(child: Text(label)),
+                        child: Center(child: Text(bar.label)),
                       ).paddingLeft(16),
                       const Spacer(),
-                      for (var button in actions) button.paddingHorizontal(4),
+                      for (final button in bar.actions)
+                        button.paddingHorizontal(4),
                       const SizedBox(width: 4),
                     ] else
-                      for (var button in actions)
+                      for (final button in bar.actions)
                         Expanded(child: Center(child: button)),
                   ],
                 );
@@ -161,12 +210,12 @@ class ReaderBottomBar extends StatelessWidget {
       padding.bottom,
     );
     // Padding/Row do not paint or hit-test the gaps between the controls.
-    if (usePrism) return Padding(padding: inset, child: child);
+    if (bar.usePrism) return Padding(padding: inset, child: child);
     return BlurEffect(
       child: Container(
         decoration: BoxDecoration(
           color: context.colorScheme.surface.toOpacity(0.92),
-          border: isOpen
+          border: bar.isOpen
               ? Border(
                   top: BorderSide(
                     color: Colors.grey.toOpacity(0.5),
