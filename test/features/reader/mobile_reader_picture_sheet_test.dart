@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prism_ui/common_button.dart' as prism;
@@ -60,8 +62,8 @@ void main() {
           navigatorObservers: [routes],
           localizationsDelegates: const [MobileUiLocalizations.delegate],
           builder: (_, child) => MobileUiTheme(glass: 'ultra', child: child!),
-          home: Scaffold(
-            body: ValueListenableBuilder(
+          home: Material(
+            child: ValueListenableBuilder(
               valueListenable: targets,
               builder: (_, target, _) => ReaderScaffold(
                 key: shell,
@@ -137,8 +139,18 @@ void main() {
       final adjust = find.byWidgetPredicate(
         (w) => w is prism.IconButton && w.tooltip == 'Adjust picture',
       );
+      void expectChromeGlass(bool enabled) {
+        expect(prism.LiquidGlassScope.of(tester.element(adjust)), enabled);
+        if (ImageFilter.isShaderFilterSupported) {
+          expect(
+            prism.LiquidGlassHost.debugLastCapture?.panes,
+            enabled ? isNotEmpty : isEmpty,
+          );
+        }
+      }
+
       expect(panel, findsNothing);
-      expect(prism.LiquidGlassHost.debugLastCapture?.panes, isNotEmpty);
+      expectChromeGlass(true);
 
       // Compare both openings at the same individual frame boundaries. This
       // is a work/timing regression, not a claim about Android GPU frame time.
@@ -155,7 +167,7 @@ void main() {
         final firstMotion = tester.getRect(surface).top;
         expect(firstMotion, lessThan(mount));
         for (var frame = 0; frame < 4; frame++) {
-          expect(prism.LiquidGlassHost.debugLastCapture?.panes, isEmpty);
+          expectChromeGlass(false);
           expect((artworkBuilds, artworkPaints), initialWork);
           await tester.pump(const Duration(milliseconds: 16));
         }
@@ -169,10 +181,10 @@ void main() {
           routes.navigator!.pop();
           await tester.pump(const Duration(milliseconds: 16));
           expect(events, ['pause']);
-          expect(prism.LiquidGlassHost.debugLastCapture?.panes, isEmpty);
+          expectChromeGlass(false);
           await tester.pumpAndSettle();
           expect(events, ['pause', 'release']);
-          expect(prism.LiquidGlassHost.debugLastCapture?.panes, isNotEmpty);
+          expectChromeGlass(true);
         }
       }
       final route = ModalRoute.of(tester.element(panel));
