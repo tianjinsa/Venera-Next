@@ -17,6 +17,7 @@ void main() {
         ..padding = const FakeViewPadding(bottom: 24);
       addTearDown(tester.view.reset);
       var settings = 0, outsideTaps = 0;
+      var tabBuilds = 0;
       final listController = ScrollController();
       addTearDown(listController.dispose);
       const viewport = ValueKey('viewport');
@@ -44,23 +45,26 @@ void main() {
                   onTap: () => settings++,
                 ),
               ],
-              pageBuilder: (_) => GestureDetector(
-                key: viewport,
-                behavior: HitTestBehavior.opaque,
-                onTap: () => outsideTaps++,
-                child: SmoothCustomScrollView(
-                  controller: listController,
-                  slivers: [
-                    SliverFixedExtentList(
-                      itemExtent: 60,
-                      delegate: SliverChildBuilderDelegate(
-                        (_, i) => Text('row $i'),
-                        childCount: 40,
+              pageBuilder: (_) {
+                tabBuilds++;
+                return GestureDetector(
+                  key: viewport,
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => outsideTaps++,
+                  child: SmoothCustomScrollView(
+                    controller: listController,
+                    slivers: [
+                      SliverFixedExtentList(
+                        itemExtent: 60,
+                        delegate: SliverChildBuilderDelegate(
+                          (_, i) => Text('row $i'),
+                          childCount: 40,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -94,6 +98,21 @@ void main() {
       );
       await tester.pump();
       expect(settings, 1);
+
+      final beforeKeyboard = tabBuilds;
+      for (final inset in [80.0, 160.0, 240.0, 0.0]) {
+        tester.view.viewInsets = FakeViewPadding(bottom: inset);
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(
+          find.byType(prism.NavigationDock),
+          inset == 0 ? findsOneWidget : findsNothing,
+        );
+        expect(
+          MobileDockInset.of(tester.element(find.byKey(viewport))),
+          inset == 0 ? greaterThan(24) : 0,
+        );
+      }
+      expect(tabBuilds - beforeKeyboard, 0, reason: 'during keyboard insets');
     },
   );
 }

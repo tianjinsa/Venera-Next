@@ -130,33 +130,29 @@ class _SearchShortcutsSliverState extends State<SearchShortcutsSliver> {
         .where((shortcut) => !shortcut.isAuthor)
         .toList(growable: false);
     final mobile = MobileUi.enabledOf(context);
-    final children = <Widget>[
-      const SizedBox(height: 16),
-      if (mobile)
-        MobileSearchSectionHeader(
-          'Search shortcuts'.tl,
-          leading: const Icon(Icons.bookmarks_outlined, size: 20),
-        )
-      else
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.bookmarks_outlined),
-          title: Text('Search shortcuts'.tl),
-        ),
-      if (authors.isNotEmpty) ...[
-        _buildSectionTitle('Favorite authors'.tl, mobile),
-        for (final shortcut in authors) _buildItem(context, shortcut),
-      ],
-      if (tags.isNotEmpty) ...[
-        _buildSectionTitle('Saved tag searches'.tl, mobile),
-        for (final shortcut in tags) _buildItem(context, shortcut),
-      ],
+    final rows = <Object>[
+      if (authors.isNotEmpty) ...['Favorite authors'.tl, ...authors],
+      if (tags.isNotEmpty) ...['Saved tag searches'.tl, ...tags],
     ];
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => children[index],
-        childCount: children.length,
-      ),
+    return SliverList.builder(
+      itemCount: rows.length + 2,
+      itemBuilder: (_, index) {
+        if (index == 0) return const SizedBox(height: 16);
+        if (index == 1) {
+          const icon = Icon(Icons.bookmarks_outlined, size: 20);
+          return mobile
+              ? MobileSearchSectionHeader('Search shortcuts'.tl, leading: icon)
+              : ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.bookmarks_outlined),
+                  title: Text('Search shortcuts'.tl),
+                );
+        }
+        final row = rows[index - 2];
+        return row is SearchShortcut
+            ? _buildItem(context, row, mobile)
+            : _buildSectionTitle(row as String, mobile);
+      },
     ).sliverPaddingHorizontal(16);
   }
 
@@ -168,12 +164,16 @@ class _SearchShortcutsSliverState extends State<SearchShortcutsSliver> {
     );
   }
 
-  Widget _buildItem(BuildContext context, SearchShortcut shortcut) {
+  Widget _buildItem(
+    BuildContext context,
+    SearchShortcut shortcut,
+    bool mobile,
+  ) {
     final source = ComicSource.find(shortcut.sourceKey);
     final sourceName = source?.name ?? shortcut.sourceKey;
     final subtitle = '$sourceName · ${shortcut.namespace}';
 
-    if (MobileUi.enabledOf(context)) {
+    if (mobile) {
       return Padding(
         key: ValueKey(shortcut.identity),
         padding: const EdgeInsets.only(bottom: 6),

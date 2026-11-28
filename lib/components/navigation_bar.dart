@@ -199,7 +199,7 @@ class NaviPaneState extends State<NaviPane>
   }
 
   double targetFormContext(BuildContext context) {
-    var width = MediaQuery.of(context).size.width;
+    final width = MediaQuery.sizeOf(context).width;
     if (TvNavigation.enabledOf(context)) return width >= 960 ? 3 : 2;
     double target = 0;
     if (width > changePoint) {
@@ -231,13 +231,16 @@ class NaviPaneState extends State<NaviPane>
   @override
   Widget build(BuildContext context) {
     onRebuild(context);
-    final mq = MediaQuery.of(context);
-    final sideInsets = (App.isMobile && mq.orientation == Orientation.landscape)
-        ? EdgeInsets.only(
-            left: math.max(mq.viewPadding.left, mq.systemGestureInsets.left),
-            right: math.max(mq.viewPadding.right, mq.systemGestureInsets.right),
-          )
-        : EdgeInsets.zero;
+    var sideInsets = EdgeInsets.zero;
+    if (App.isMobile &&
+        MediaQuery.orientationOf(context) == Orientation.landscape) {
+      final padding = MediaQuery.viewPaddingOf(context);
+      final gestures = MediaQuery.systemGestureInsetsOf(context);
+      sideInsets = EdgeInsets.only(
+        left: math.max(padding.left, gestures.left),
+        right: math.max(padding.right, gestures.right),
+      );
+    }
     return _NaviPopScope(
       action: () {
         if (appNavigation.mainNavigatorKey!.currentState!.canPop()) {
@@ -899,33 +902,59 @@ class _NaviMainViewState extends State<_NaviMainView> {
 
   @override
   Widget build(BuildContext context) {
-    var shouldShowAppBar = state.controller.value < 2;
+    final shouldShowAppBar = state.controller.value < 2;
     final mobile = MobileUi.enabledOf(context);
     final useMobileDock =
         mobile &&
         state.widget.paneItems.every((item) => item.mobileGlyph != null);
     final keepBottomBar =
         state.widget.paneItems[state.currentPage].keepBottomBarWithKeyboard;
-    final media = MediaQuery.of(context);
-    final showBottom =
-        shouldShowAppBar && (keepBottomBar || media.viewInsets.bottom == 0);
-    final content = MediaQuery.removePadding(
-      context: context,
-      removeTop: shouldShowAppBar,
-      child: AnimatedSwitcher(
-        duration: fastAnimationDuration,
-        child: state.buildMainViewContent(),
+    final content = AnimatedSwitcher(
+      duration: fastAnimationDuration,
+      child: state.buildMainViewContent(),
+    );
+    final toolbar = !shouldShowAppBar
+        ? null
+        : mobile
+        ? state.buildTop()
+        : state.buildTop().paddingTop(context.padding.top);
+    // The dock and descendants still get live insets. Building the current
+    // tab, its transition and the toolbar does not depend on the IME.
+    return Builder(
+      builder: (context) => _buildViewport(
+        context,
+        content,
+        toolbar,
+        useMobileDock: useMobileDock,
+        keepBottomBar: keepBottomBar,
       ),
     );
-    // Only the capsule intercepts touches. The viewport and its background
-    // reach the physical bottom, including the strip below the capsule.
-    Widget body = content;
+  }
+
+  Widget _buildViewport(
+    BuildContext context,
+    Widget content,
+    Widget? toolbar, {
+    required bool useMobileDock,
+    required bool keepBottomBar,
+  }) {
+    final media = MediaQuery.of(context);
+    final showBottom =
+        toolbar != null && (keepBottomBar || media.viewInsets.bottom == 0);
+    final page = MediaQuery.removePadding(
+      context: context,
+      removeTop: toolbar != null,
+      child: content,
+    );
+    Widget body = page;
     if (useMobileDock) {
       final dockMedia = keepBottomBar
           ? media.copyWith(
               padding: media.padding.copyWith(bottom: media.viewPadding.bottom),
             )
           : media;
+      // Only the capsule intercepts touches. The viewport and its
+      // background reach the physical bottom, including below the capsule.
       body = MediaQuery(
         data: dockMedia,
         child: Builder(
@@ -936,7 +965,7 @@ class _NaviMainViewState extends State<_NaviMainView> {
                 clearance: showBottom
                     ? prism.NavigationDock.insetOf(dockContext) + 8
                     : 0,
-                child: content,
+                child: page,
               ),
               if (showBottom)
                 Positioned(
@@ -955,10 +984,7 @@ class _NaviMainViewState extends State<_NaviMainView> {
     }
     return Column(
       children: [
-        if (shouldShowAppBar)
-          mobile
-              ? state.buildTop()
-              : state.buildTop().paddingTop(context.padding.top),
+        ?toolbar,
         Expanded(child: body),
         if (showBottom && !useMobileDock)
           Padding(
